@@ -175,7 +175,7 @@ namespace BREX
     public:
         const RegexOpt* opt;
 
-        NegateOpt(RegexOpt* opt) : RegexOpt(), opt(opt) {;}
+        NegateOpt(const RegexOpt* opt) : RegexOpt(), opt(opt) {;}
         virtual ~NegateOpt() { delete this->opt; }
 
         virtual bool needsParens() const override final { return true; }

@@ -185,6 +185,15 @@ namespace BREX
             return std::nullopt;
         }
 
+        //either 0x or a leading 0
+        if(*(s + 1) == '0') {
+            return std::nullopt;
+        }
+
+        if(!std::all_of(s + 1, e, [](uint8_t c) { return std::isxdigit(c); })) {
+            return std::nullopt;
+        }
+
         RegexChar cval;
         auto sct = sscanf((char*)(s + 1), "%%%x;", &cval);
         if(sct != 1 || sct > 0x10FFFF) {
@@ -318,7 +327,7 @@ namespace BREX
                     return std::nullopt;
                 }
 
-                if(std::isdigit(bytes[i + 1])) {
+                if(std::isxdigit(bytes[i + 1])) {
                     //it should be a hex number
                     auto esc = decodeHexEscapeAsUnicode(bytes + i, sc + 1);
                     if(!esc.has_value()) {
@@ -382,7 +391,7 @@ namespace BREX
                     return std::nullopt;
                 }
 
-                if(std::isdigit(bytes[i + 1])) {
+                if(std::isxdigit(bytes[i + 1])) {
                     auto esc = decodeHexEscapeAsASCII(bytes + i, sc);
                     if(!esc.has_value()) {
                         return std::nullopt;
@@ -445,7 +454,7 @@ namespace BREX
                     return std::nullopt;
                 }
 
-                if(std::isdigit(bytes[i + 1])) {
+                if(std::isxdigit(bytes[i + 1])) {
                     //it should be a hex number
                     auto esc = decodeHexEscapeAsRegex(bytes + i, sc + 1);
                     if(!esc.has_value()) {
@@ -491,7 +500,7 @@ namespace BREX
                     return std::nullopt;
                 }
 
-                if(std::isdigit(bytes[i + 1])) {
+                if(std::isxdigit(bytes[i + 1])) {
                     auto esc = decodeHexEscapeAsRegex(bytes + i, sc);
                     if(!esc.has_value()) {
                         return std::nullopt;
@@ -516,6 +525,26 @@ namespace BREX
         }
 
         return std::make_optional<std::vector<RegexChar>>(acc.cbegin(), acc.cend());
+    }
+
+    std::optional<RegexChar> unescapeSingleRegexChar(const const uint8_t* s, const const uint8_t* e)
+    {
+        if(std::isxdigit(*s)) {
+            return decodeHexEscapeAsRegex(s, e);
+        }
+        else {
+            return resolveEscapeUnicodeFromName(s, e);
+        }
+    }
+
+    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const const uint8_t* s, const const uint8_t* e)
+    {
+        if(std::isxdigit(*s)) {
+            return decodeHexEscapeAsRegex(s, e);
+        }
+        else {
+            return resolveEscapeASCIIFromName(s, e);
+        }
     }
 
     std::vector<uint8_t> escapeSingleRegexChar(RegexChar c)
@@ -595,22 +624,22 @@ namespace BREX
                     return errors;
                 }
 
-                if(std::isdigit(*(curr + 1))) {
+                if(std::isxdigit(*(curr + 1))) {
                     //it should be a hex number
-                    auto esc = decodeHexEscapeAsUnicode(curr, sc + 1);
-                    if(!esc.has_value()) {
-                        errors.push_back(std::u8string(u8"Invalid hex escape sequence"));
-                    }
-                }
-                else {
-                    if(*(curr + 1) == '0' && *(curr + 1) == 'x') {
+                    if(*(curr + 1) == '0' && *(curr + 2) == 'x') {
                         errors.push_back(std::u8string(u8"Invalid hex escape sequence -- do not need '0x' prefix"));
                     }
                     else {
-                        auto esc = isascii ? resolveEscapeASCIIFromName(curr, sc + 1).has_value() : resolveEscapeUnicodeFromName(curr, sc + 1).has_value();
-                        if(!esc) {
-                            errors.push_back(std::u8string(u8"Invalid escape sequence -- unknown escape name '" + std::u8string(curr + 1, sc - 1) + u8"'"));
+                        auto esc = decodeHexEscapeAsUnicode(curr, sc + 1);
+                        if(!esc.has_value()) {
+                            errors.push_back(std::u8string(u8"Invalid hex escape sequence"));
                         }
+                    }
+                }
+                else {
+                    auto esc = isascii ? resolveEscapeASCIIFromName(curr, sc + 1).has_value() : resolveEscapeUnicodeFromName(curr, sc + 1).has_value();
+                    if(!esc) {
+                        errors.push_back(std::u8string(u8"Invalid escape sequence -- unknown escape name '" + std::u8string(curr + 1, sc - 1) + u8"'"));
                     }
                 }
 
@@ -624,30 +653,12 @@ namespace BREX
     //Scan the string and ensure that there are no multibyte chars that have messed up encodings
     std::optional<std::u8string> parserValidateUTF8ByteEncoding(const uint8_t* s, const uint8_t* e)
     {
-        std::vector<std::u8string> errors;
-
         if((*s & 0x40) == 0) {
             return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a truncated character at the beginning"));
         }
 
         while(s != e) {
             if((*s & 0x80) == 0) {
-                if(*s == '%') {
-                    auto sc = std::find(s, e, ';');
-                    if(sc != e && std::isdigit(*(sc + 1))) {
-                        //it should be a hex number
-                        xxxx;
-                        if(!std::all_of(s + 1, sc, [](uint8_t c) { return std::isxdigit(c); })) {
-                            xxx { std::u8string(u8"Invalid hex escape sequence") };
-                        }
-
-                        auto esc = decodeHexEscapeAsRegex(s, sc + 1);
-                        if(esc.has_value() && esc.value() > 0x10FFFF) {
-                            errors.push_back(std::u8string(u8"Invalid hex escape sequence"));
-                        }
-                    }
-                }
-
                 s++;
             }
             else {
@@ -655,18 +666,25 @@ namespace BREX
                 if(s + bytecount > e) {
                     return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a truncated character at the end"));
                 }
-
-                if(bytecount == 2) {
-                    xxx;
-                }
-                else if(bytecount == 3) {
-
-                }
-                else if(bytecount == 4) {
-
-                }
                 else {
-                     { std::u8string(u8"Invalid UTF8 encoding -- utf8 is at most 4 bytes per character") };
+                    if(bytecount == 2) {
+                        if((*s & 0xC0) != 0xC0 || (*(s + 1) & 0xC0) != 0x80) {
+                            return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 2 byte character"));
+                        }
+                    }
+                    else if(bytecount == 3) {
+                        if((*s & 0xE0) != 0xE0 || (*(s + 1) & 0xC0) != 0x80 || (*(s + 2) & 0xC0) != 0x80) {
+                            return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 3 byte character"));
+                        }
+                    }
+                    else if(bytecount == 4) {
+                        if((*s & 0xF0) != 0xF0 || (*(s + 1) & 0xC0) != 0x80 || (*(s + 2) & 0xC0) != 0x80 || (*(s + 3) & 0xC0) != 0x80) {
+                            return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 4 byte character"));
+                        }
+                    }
+                    else {
+                        return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- utf8 is at most 4 bytes per character"));
+                    }
                 }
 
                 s += bytecount;
@@ -676,6 +694,100 @@ namespace BREX
 
     std::optional<std::u8string> parserValidateAllASCIIEncoding(const uint8_t* s, const uint8_t* e)
     {
-        xxxx;
+        while(s != e) {
+            if((*s & 0x80) != 0) {
+                return std::make_optional(std::u8string(u8"Invalid ASCII encoding -- string contains a non-ASCII character"));
+            }
+            else {
+                s++;
+            }
+        }
+    }
+
+    std::optional<std::u8string> parserValidateUTF8ByteEncoding_SingleChar(const uint8_t* s, const uint8_t* epos)
+    {
+        if((*s & 0x80) == 0) {
+            if(*s == '%') {
+                auto sc = std::find(s, epos, ';');
+                if(sc == epos) {
+                    return std::make_optional(std::u8string(u8"Escape sequence is missing terminal ';'"));
+                }
+
+                if(std::isxdigit(*(sc + 1))) {
+                    if(*(s + 1) == '0' && *(s + 2) == 'x') {
+                        return make_optional(std::u8string(u8"Invalid hex escape sequence -- do not need '0x' prefix"));
+                    }
+                    else {
+                        //it should be a hex number
+                        if(!std::all_of(s + 1, sc, [](uint8_t c) { return std::isxdigit(c); })) {
+                            return std::make_optional(std::u8string(u8"Hex escape sequence contains non-hex characters -- ") + std::u8string(s + 1, sc));
+                        }
+
+                        auto esc = decodeHexEscapeAsRegex(s, sc + 1);
+                        if(esc.has_value() && esc.value() > 0x10FFFF) {
+                            return std::make_optional(std::u8string(u8"Hex escape sequence is not a valid Unicode character -- ") + std::u8string(s + 1, sc));
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            auto bytecount = UTF8_ENCODING_BYTE_COUNT(*s);
+            if(s + bytecount > epos) {
+                return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a truncated character at the end"));
+            }
+            else {
+                if(bytecount == 2) {
+                    if((*s & 0xC0) != 0xC0 || (*(s + 1) & 0xC0) != 0x80) {
+                        return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 2 byte character"));
+                    }
+                }
+                else if(bytecount == 3) {
+                    if((*s & 0xE0) != 0xE0 || (*(s + 1) & 0xC0) != 0x80 || (*(s + 2) & 0xC0) != 0x80) {
+                        return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 3 byte character"));
+                    }
+                }
+                else if(bytecount == 4) {
+                    if((*s & 0xF0) != 0xF0 || (*(s + 1) & 0xC0) != 0x80 || (*(s + 2) & 0xC0) != 0x80 || (*(s + 3) & 0xC0) != 0x80) {
+                        return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a mis-encoded 4 byte character"));
+                    }
+                }
+                else {
+                    return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- utf8 is at most 4 bytes per character"));
+                }
+            }
+        }
+    }
+
+    std::optional<std::u8string> parserValidateAllASCIIEncoding_SingleChar(const uint8_t* s, const uint8_t* epos)
+    {
+        if((*s & 0x80) != 0) {
+            return std::make_optional(std::u8string(u8"Invalid ASCII encoding -- string contains a non-ASCII character"));
+        }
+        else {
+            if(*s == '%') {
+                auto sc = std::find(s, epos, ';');
+                if(sc == epos) {
+                    return std::make_optional(std::u8string(u8"Escape sequence is missing terminal ';'"));
+                }
+
+                if(std::isxdigit(*(s + 1))) {
+                    //it should be a hex number
+                    if(*(s + 1) == '0' && *(s + 2) == 'x') {
+                        return make_optional(std::u8string(u8"Invalid hex escape sequence -- do not need '0x' prefix"));
+                    }
+                    else {
+                        if(!std::all_of(s + 1, sc, [](uint8_t c) { return std::isxdigit(c); })) {
+                            return std::make_optional(std::u8string(u8"Hex escape sequence contains non-hex characters -- ") + std::u8string(s + 1, sc));
+                        }
+
+                        auto esc = decodeHexEscapeAsRegex(s, sc + 1);
+                        if(!esc.has_value() || esc.value() > 127) {
+                            return std::make_optional(std::u8string(u8"Hex escape sequence is not a valid ASCII character -- ") + std::u8string(s + 1, sc));
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -120,7 +120,106 @@ namespace BREX
             this->advanceTrivia();
         }
 
-        const LiteralOpt* parseUnicodeLiteral() 
+        void advanceInCharRanges() 
+        {
+            if(!this->isEOS())
+            {
+                if(this->isToken('\n')) {
+                    this->cline++;
+                }
+
+                this->cpos++;
+            }
+        }
+
+        void advanceInCharRanges(size_t dist)
+        {
+            while(dist > 0 && !this->isEOS()) {
+                if(this->isToken('\n')) {
+                    this->cline++;
+                }
+
+                this->cpos++;
+                dist--;
+            }
+        }
+
+        void scanToSyncToken(uint8_t tk, bool andeat)
+        {
+            while(!this->isEOS() && !this->isToken(tk)) {
+                this->advance();
+            }
+
+            //eat the sync token
+            if(!this->isEOS() && andeat) {
+                this->advance();
+            }
+        }
+
+        const RegexChar parseRegexChar(bool unicodeok)
+        {
+            auto c = this->token();
+            if(c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+                auto esccname = parserGenerateDiagnosticUnicodeEscapeName(c);
+                auto esccode = parserGenerateDiagnosticEscapeCode(c);
+                this->errors.push_back(RegexParserError(this->cline, u8"Newlines, slash chars, and non-printable chars are not allowed in regexes -- escape them with " + esccname + u8" or " + esccode));
+                this->advanceInCharRanges();
+                return 0;
+            }
+
+            if(unicodeok) {
+                auto encerr = parserValidateUTF8ByteEncoding_SingleChar(this->cpos, this->epos);
+                if(encerr.has_value()) {
+                    this->errors.push_back(RegexParserError(this->cline, encerr.value()));
+                    this->scanToSyncToken(']', false);
+                    return 0;
+                }
+            }
+            else {
+                auto encerr = parserValidateAllASCIIEncoding_SingleChar(this->cpos, this->epos);
+                if(encerr.has_value()) {
+                    this->errors.push_back(RegexParserError(this->cline, encerr.value()));
+                    this->scanToSyncToken(']', false);
+                    return 0;
+                }
+            }
+
+            RegexChar code = 0;
+            if(this->isToken('%')) {
+                auto tpos = std::find((const uint8_t*)this->cpos + 1, this->epos, ';');
+                auto bytecount = std::distance((const uint8_t*)this->cpos, tpos);
+
+                std::optional<RegexChar> ccode = std::nullopt;
+                if(unicodeok) {
+                    ccode = unescapeSingleRegexChar(this->cpos, tpos);
+                }
+                else {
+                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos);
+                }
+
+                if(ccode.has_value()) {
+                    code = ccode.value();
+                }
+                else {
+                    auto errors = parserValidateEscapeSequences(false, this->cpos, this->cpos + bytecount);
+                    for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
+                        this->errors.push_back(RegexParserError(this->cline, *ii));
+                    }
+                }
+
+                this->advanceInCharRanges(bytecount + 1);
+            }
+            else {
+                auto bytecount = charCodeByteCount(this->cpos);
+
+                code = toRegexCharCodeFromBytes(this->cpos, bytecount);
+                this->advanceInCharRanges(bytecount);
+            }
+
+            return code;
+        }
+
+        const LiteralOpt* parseUnicodeLiteral()
         {
             //read to closing " -- check for raw newlines in the expression
             size_t length = 0;
@@ -137,17 +236,14 @@ namespace BREX
                 curr++;
             }
 
-            auto bytechecks = parserValidateUTF8ByteEncoding(this->cpos + 1, this->cpos + 1 + length);
-            if(!bytechecks.empty()) {
-                for(auto ii = bytechecks.cbegin(); ii != bytechecks.cend(); ii++) {
-                    this->errors.push_back(RegexParserError(this->cline, *ii));
-                }
-
+            if(curr == this->epos) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Unterminated regex literal"));
                 return new LiteralOpt({ }, true);
             }
 
-            if(curr == this->epos) {
-                this->errors.push_back(RegexParserError(this->cline, u8"Unterminated regex literal"));
+            auto bytechecks = parserValidateUTF8ByteEncoding(this->cpos + 1, this->cpos + 1 + length);
+            if(bytechecks.has_value()) {
+                this->errors.push_back(RegexParserError(this->cline, bytechecks.value()));
                 return new LiteralOpt({ }, true);
             }
             else {
@@ -170,7 +266,81 @@ namespace BREX
 
         const LiteralOpt* parseASCIILiteral()
         {
-            return new LiteralOpt(codes, true);
+            //read to closing ' -- check for raw newlines in the expression
+            size_t length = 0;
+            auto curr = this->cpos + 1;
+            while(curr != this->epos && *curr != '\'') {
+                if(*curr <= 127 && !std::isprint(*curr) && !std::isblank(*curr)) {
+                    auto esccname = parserGenerateDiagnosticASCIIEscapeName(*curr);
+                    auto esccode = parserGenerateDiagnosticEscapeCode(*curr);
+                    this->errors.push_back(RegexParserError(this->cline, u8"Newlines and non-printable chars are not allowed regex literals -- escape them with " + esccname + u8" or " + esccode));
+                    return nullptr;
+                }
+
+                length++;
+                curr++;
+            }
+
+            if(curr == this->epos) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Unterminated regex literal"));
+                return new LiteralOpt({ }, false);
+            }
+
+            auto bytechecks = parserValidateAllASCIIEncoding(this->cpos + 1, this->cpos + 1 + length);
+            if(bytechecks.has_value()) {
+                this->errors.push_back(RegexParserError(this->cline, bytechecks.value()));
+                return new LiteralOpt({ }, false);
+            }
+            else {
+                this->cpos = curr + 1;
+
+                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
+                if(!codes.has_value()) {
+                    auto errors = parserValidateEscapeSequences(true, this->cpos + 1, this->cpos + 1 + length);
+                    for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
+                        this->errors.push_back(RegexParserError(this->cline, *ii));
+                    }
+
+                    return new LiteralOpt({ }, false);
+                }
+                else {
+                    return new LiteralOpt(codes.value(), false);
+                }
+            }
+        }
+
+        const CharRangeOpt* parseCharRange(bool unicodeok)
+        {
+            this->advance();
+
+            auto compliment = this->isToken('^');
+            if(compliment) {
+                this->advance();
+            }
+
+            std::vector<SingleCharRange> range;
+            while(!this->isToken(']')) {
+                auto lb = this->parseRegexChar(unicodeok);
+
+                if (!this->isToken(U'-')) {
+                    range.push_back({ lb, lb });
+                }
+                else {
+                    this->advance();
+
+                    auto ub = this->parseRegexChar(unicodeok);
+                    range.push_back({ lb, ub });
+                }
+            }
+
+            if(this->isToken(U']')) {
+                this->advance();
+            }
+            else {
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
+            }
+
+            return new CharRangeOpt(compliment, range);
         }
 
         const RegexOpt* parseBaseComponent() 
@@ -180,74 +350,89 @@ namespace BREX
                 this->advance();
 
                 res = this->parseComponent();
-                if(!this->isToken(')')) {
-                    return nullptr;
-                }
-
-                this->advance();
-            }
-            else if(this->isToken('"')) {
-                return this->parseUnicodeLiteral();
-            }
-            else if(this->isToken('\'')) {
-                return this->parseASCIILiteral();
-            }
-            else if(this->isToken(U'[')) {
-                this->advance();
-
-                auto compliment = this->isToken(U'^');
-                if(compliment) {
+                if(this->isToken(')')) {
                     this->advance();
                 }
-
-                std::vector<SingleCharRange> range;
-                while(!this->isToken(U']')) {
-                    auto lb = this->readUnescapedChar();
-
-                    if (!this->isToken(U'-')) {
-                        range.push_back({ lb, lb });
-                    }
-                    else {
-                        this->advance();
-
-                        auto ub = this->token();
-                        range.push_back({ lb, ub });
-                    }
+                else {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Missing ) in regex"));
                 }
-
-                if(!this->isToken(U']')) {
-                    return nullptr;
+                
+            }
+            else if(this->isToken('"')) {
+                if(this->isUnicode) {
+                    res = this->parseUnicodeLiteral();
                 }
-                this->advance();
-
-                return new BSQCharRangeRe(compliment, range);
+                else {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Unicode literals are not allowed in ASCII regexes"));
+                    this->scanToSyncToken('"', true);
+                    res = new LiteralOpt({}, false);
+                }
+            }
+            else if(this->isToken('\'')) {
+                if(!this->isUnicode) {
+                    res = this->parseASCIILiteral();
+                }
+                else {
+                    this->errors.push_back(RegexParserError(this->cline, u8"ASCII literals are not allowed in Unicode regexes"));
+                    this->scanToSyncToken('\'', true);
+                    res = new LiteralOpt({}, true);  
+                }
+            }
+            else if(this->isToken('[')) {
+                res = this->parseCharRange(this->isUnicode);
+            }
+            else if(this->isToken('.')) {
+                return new CharClassDotOpt();
+            }
+            else if(this->isToken('{')) {
+                xxxx;
             }
             else {
-                res = new BSQLiteralRe({ this->readUnescapedChar() });
+                auto slice = xxxx;
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found " + std::u8string((char)this->token())));
+                res = new LiteralOpt({}, false);
             }
 
             return res;
         }
 
-        const BSQRegexOpt* parseCharClassOrEscapeComponent()
+        const RegexOpt* parseNegateOpt()
         {
-            if(this->isToken(U'.')) {
+            auto isnegate = this->isToken('!');
+            if(isnegate) {
                 this->advance();
-                return new BSQCharClassDotRe();
+            }
+
+            const RegexOpt* opt = this->parseBaseComponent();
+            if(!isnegate) {
+                return opt;
             }
             else {
-                return this->parseBaseComponent();
+                if(opt->isNegateOpt()) {
+                    return opt;
+                }
+                else if(opt->isRangeOpt()) {
+                    if(static_cast<const CharRangeOpt*>(opt)->compliment) {
+                        return new CharRangeOpt(false, static_cast<const CharRangeOpt*>(opt)->ranges);
+                    }
+                    else {
+                        return new CharRangeOpt(true, static_cast<const CharRangeOpt*>(opt)->ranges);
+                    }
+                }
+                else {
+                    return new NegateOpt(opt);
+                }
             }
         }
 
-        const BSQRegexOpt* parseRepeatComponent()
+        const RegexOpt* parseRepeatComponent()
         {
-            auto rcc = this->parseCharClassOrEscapeComponent();
+            auto rcc = this->parseNegateOpt();
             if(rcc == nullptr) {
                 return nullptr;
             }
 
-            while(this->isToken(U'*') || this->isToken(U'+') || this->isToken(U'?') || this->isToken(U'{')) {
+            while(this->isToken('*') || this->isToken('+') || this->isToken('?') || this->isToken('{')) {
                 if(this->isToken(U'*')) {
                     rcc = new BSQStarRepeatRe(rcc);
                     this->advance();

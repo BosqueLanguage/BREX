@@ -120,6 +120,10 @@ namespace BREX
     std::optional<std::vector<RegexChar>> unescapeRegexLiteral(const const uint8_t* bytes, size_t length);
     std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const const uint8_t* bytes, size_t length);
 
+    //Take a bytebuffer regex char range element (of utf8 bytes or ascii bytes) with escapes and convert to a RegexChar
+    std::optional<RegexChar> unescapeSingleRegexChar(const const uint8_t* s, const const uint8_t* e);
+    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const const uint8_t* s, const const uint8_t* e);
+
     std::vector<uint8_t> escapeSingleRegexChar(RegexChar c);
     std::vector<uint8_t> escapeRegexLiteralCharBuffer(const std::vector<RegexChar>& sv);
 
@@ -134,5 +138,8 @@ namespace BREX
     //Scan the string and ensure that there are no multibyte chars that have messed up encodings -- or that the string is only ascii chars
     std::optional<std::u8string> parserValidateUTF8ByteEncoding(const uint8_t* s, const uint8_t* e);
     std::optional<std::u8string> parserValidateAllASCIIEncoding(const uint8_t* s, const uint8_t* e);
+
+    std::optional<std::u8string> parserValidateUTF8ByteEncoding_SingleChar(const uint8_t* s, const uint8_t* epos);
+    std::optional<std::u8string> parserValidateAllASCIIEncoding_SingleChar(const uint8_t* s, const uint8_t* epos);
 }
 
