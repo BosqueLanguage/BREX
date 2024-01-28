@@ -3,10 +3,13 @@
 #include "common.h"
 #include "brex.h"
 
+#include <regex>
+
 namespace BREX
 {
     std::vector<uint8_t> s_whitespacechars = { ' ', '\t', '\n', '\r', '\v', '\f' };
     std::vector<uint8_t> s_doubleslash = { '%', '%' };
+    std::vector<uint8_t> s_namedpfx = {'$', '{'};
 
     class RegexParserError
     {
@@ -53,12 +56,12 @@ namespace BREX
             return !this->isEOS() && *this->cpos == tk;
         }
 
-        inline bool isTokenOneOf(std::vector<uint8_t> tks) const
+        inline bool isTokenOneOf(const std::vector<uint8_t>& tks) const
         {
             return !this->isEOS() && std::find(tks.begin(), tks.end(), *this->cpos) != tks.end();
         }
 
-        inline bool isTokenPrefix(std::vector<uint8_t> tks) const
+        inline bool isTokenPrefix(const std::vector<uint8_t>& tks) const
         {
             for(size_t i = 0; i < tks.size(); ++i) {
                 if(this->cpos + i == this->epos || *(this->cpos + i) != tks[i]) {
@@ -74,7 +77,7 @@ namespace BREX
             return *this->cpos;
         }
 
-        void advanceTrivia()
+        void advanceTriviaOnly()
         {
             while(!this->isEOS() && (this->isTokenOneOf(s_whitespacechars) || this->isTokenPrefix(s_doubleslash))) {
                 if(this->isToken('\n')) {
@@ -82,11 +85,11 @@ namespace BREX
                 }
 
                 if(this->isTokenOneOf(s_whitespacechars)) {
-                    this->advance();
+                    this->cpos++;
                 }
                 else {
                     while(!this->isEOS() && !this->isToken('\n')) {
-                        this->advance();
+                        this->cpos++;
                     }
                 }
             }
@@ -103,7 +106,7 @@ namespace BREX
                 this->cpos++;
             }
 
-            this->advanceTrivia();
+            this->advanceTriviaOnly();
         }
 
         void advance(size_t dist)
@@ -117,42 +120,22 @@ namespace BREX
                 dist--;
             }
 
-            this->advanceTrivia();
-        }
-
-        void advanceInCharRanges() 
-        {
-            if(!this->isEOS())
-            {
-                if(this->isToken('\n')) {
-                    this->cline++;
-                }
-
-                this->cpos++;
-            }
-        }
-
-        void advanceInCharRanges(size_t dist)
-        {
-            while(dist > 0 && !this->isEOS()) {
-                if(this->isToken('\n')) {
-                    this->cline++;
-                }
-
-                this->cpos++;
-                dist--;
-            }
+            this->advanceTriviaOnly();
         }
 
         void scanToSyncToken(uint8_t tk, bool andeat)
         {
             while(!this->isEOS() && !this->isToken(tk)) {
-                this->advance();
+                if(this->isToken('\n')) {
+                    this->cline++;
+                }
+
+                this->cpos++;
             }
 
             //eat the sync token
             if(!this->isEOS() && andeat) {
-                this->advance();
+                this->cpos++;
             }
         }
 
@@ -163,7 +146,7 @@ namespace BREX
                 auto esccname = parserGenerateDiagnosticUnicodeEscapeName(c);
                 auto esccode = parserGenerateDiagnosticEscapeCode(c);
                 this->errors.push_back(RegexParserError(this->cline, u8"Newlines, slash chars, and non-printable chars are not allowed in regexes -- escape them with " + esccname + u8" or " + esccode));
-                this->advanceInCharRanges();
+                this->cpos++;
                 return 0;
             }
 
@@ -207,13 +190,13 @@ namespace BREX
                     }
                 }
 
-                this->advanceInCharRanges(bytecount + 1);
+                this->cpos += (bytecount + 1);
             }
             else {
                 auto bytecount = charCodeByteCount(this->cpos);
 
                 code = toRegexCharCodeFromBytes(this->cpos, bytecount);
-                this->advanceInCharRanges(bytecount);
+                this->cpos += bytecount;
             }
 
             return code;
@@ -311,11 +294,12 @@ namespace BREX
 
         const CharRangeOpt* parseCharRange(bool unicodeok)
         {
-            this->advance();
+            //eat the "["
+            this->cpos++;
 
             auto compliment = this->isToken('^');
             if(compliment) {
-                this->advance();
+                this->cpos++;
             }
 
             std::vector<SingleCharRange> range;
@@ -326,15 +310,15 @@ namespace BREX
                     range.push_back({ lb, lb });
                 }
                 else {
-                    this->advance();
+                    this->cpos++;
 
                     auto ub = this->parseRegexChar(unicodeok);
                     range.push_back({ lb, ub });
                 }
             }
 
-            if(this->isToken(U']')) {
-                this->advance();
+            if(this->isToken(']')) {
+                this->cpos++;
             }
             else {
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
@@ -343,8 +327,45 @@ namespace BREX
             return new CharRangeOpt(compliment, range);
         }
 
+        const RegexOpt* parseNamedOrEnvRegex()
+        {
+            this->advance();
+            std::u8string name;
+            while(!this->isEOS() && !this->isToken('}')) {
+                name.push_back(this->token());
+                this->cpos++;
+            }
+
+            if(this->isToken('}')) {
+                this->cpos++;
+            }
+            else {
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
+            }
+
+            if(name.starts_with(u8"env[" && name.ends_with(u8"]"))) {
+                if(!this->envAllowed) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Env regexes are not allowed in this context"));
+                }
+                
+                auto ssid = name.substr(4, name.size() - 5);
+                xxxx;
+            }
+            else {
+                //it must be a named regex
+
+                auto splitpos = name.find(u8"::");
+                if(splitpos == std::u8string::npos) {
+            }
+
+            return new NamedRegexOpt(name);
+        }
+
         const RegexOpt* parseBaseComponent() 
         {
+            //make sure we get any trivia out of the way
+            this->advanceTriviaOnly(); 
+
             const RegexOpt* res = nullptr;
             if(this->isToken('(')) {
                 this->advance();
@@ -382,46 +403,47 @@ namespace BREX
                 res = this->parseCharRange(this->isUnicode);
             }
             else if(this->isToken('.')) {
-                return new CharClassDotOpt();
+                res = new CharClassDotOpt();
             }
-            else if(this->isToken('{')) {
-                xxxx;
+            else if(this->isTokenPrefix(s_namedpfx)) {
+                res = this->parseNamedOrEnvRegex();
             }
             else {
-                auto slice = xxxx;
-                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found " + std::u8string((char)this->token())));
+                std::u8string slice(this->cpos, this->cpos + charCodeByteCount(this->cpos));
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", ${, or . but found " + slice));
                 res = new LiteralOpt({}, false);
             }
+
+            //make sure we get any trivia out of the way
+            this->advanceTriviaOnly();
 
             return res;
         }
 
         const RegexOpt* parseNegateOpt()
         {
+            this->advanceTriviaOnly();
+
             auto isnegate = this->isToken('!');
+            auto orignegageallowed = this->negateAllowed;
+
             if(isnegate) {
                 this->advance();
+
+                if(!this->negateAllowed) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Negate operator ! is not allowed in this context"));
+                }
+                this->negateAllowed = false;
             }
 
             const RegexOpt* opt = this->parseBaseComponent();
+            this->negateAllowed = orignegageallowed;
+                
             if(!isnegate) {
                 return opt;
             }
             else {
-                if(opt->isNegateOpt()) {
-                    return opt;
-                }
-                else if(opt->isRangeOpt()) {
-                    if(static_cast<const CharRangeOpt*>(opt)->compliment) {
-                        return new CharRangeOpt(false, static_cast<const CharRangeOpt*>(opt)->ranges);
-                    }
-                    else {
-                        return new CharRangeOpt(true, static_cast<const CharRangeOpt*>(opt)->ranges);
-                    }
-                }
-                else {
-                    return new NegateOpt(opt);
-                }
+                return new NegateOpt(opt);
             }
         }
 
@@ -481,6 +503,8 @@ namespace BREX
 
                     rcc = new BSQRangeRepeatRe(min, max, rcc);
                 }
+
+                this->advanceTriviaOnly();
             }   
 
             return rcc;
@@ -510,6 +534,8 @@ namespace BREX
                         sre.push_back(rpe);
                     }
                 }
+
+                this->advanceTriviaOnly();
             }
 
             if(sre.empty()) {
