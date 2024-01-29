@@ -586,30 +586,13 @@ namespace BREX
             }
         }
 
-        const RegexOpt* parseAllOfComponent()
+        const RegexOpt* parseAnyOfComponent()
         {
             std::vector<const RegexOpt*> are = {this->parseSequenceComponent()};
 
-            while (this->isToken('&')) {
-                this->advance();
-                are.push_back(this->parseSequenceComponent());
-            }
-
-            if(are.size() == 1) {
-                return are[0];
-            }
-            else {
-                return new AllOfOpt(are);
-            }
-        }
-
-        const RegexOpt* parseAnyOfComponent()
-        {
-            std::vector<const RegexOpt*> are = {this->parseAllOfComponent()};
-
             while (this->isToken('|')) {
                 this->advance();
-                are.push_back(this->parseAllOfComponent());
+                are.push_back(this->parseSequenceComponent());
             }
 
             if(are.size() == 1) {
@@ -702,13 +685,13 @@ namespace BREX
                 mre = re1;
             }
 
-            if(mre->isNegateOpt()) {
+            if(mre->tag == RegexOptTag::Negate) {
                 parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be negative"));
             }
             
-            if(mre->isAllOfOpt()) {
+            if(mre->tag == RegexOptTag::AllOf) {
                 auto aoopt = dynamic_cast<const AllOfOpt*>(mre);
-                if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->isNegateOpt(); })) {
+                if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->tag == RegexOptTag::Negate; })) {
                     parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be all negative"));
                 }
             }

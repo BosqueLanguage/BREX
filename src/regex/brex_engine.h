@@ -6,6 +6,74 @@ namespace BREX
 {
     typedef size_t StateID;
     
+    class NFASimpleStateToken
+    {
+    public:
+        StateID cstate;
+
+        NFASimpleStateToken() : cstate(0) {;}
+        NFASimpleStateToken(StateID cstate) : cstate(cstate) {;}
+        ~NFASimpleStateToken() {;}
+
+        NFASimpleStateToken(const NFASimpleStateToken& other) = default;
+        NFASimpleStateToken(NFASimpleStateToken&& other) = default;
+
+        NFASimpleStateToken& operator=(const NFASimpleStateToken& other) = default;
+        NFASimpleStateToken& operator=(NFASimpleStateToken&& other) = default;
+
+        bool operator==(const NFASimpleStateToken& other) const
+        {
+            return this->cstate == other.cstate;
+        }
+
+        bool operator!=(const NFASimpleStateToken& other) const
+        {
+            return this->cstate != other.cstate;
+        }
+
+        NFASimpleStateToken toNextState(StateID next) const
+        {
+            return NFASimpleStateToken(next);
+        }
+    };
+
+    class NFAFullStateToken
+    {
+    public:
+        StateID cstate;
+        std::vector<std::pair<StateID, uint16_t>> rangecounts;
+        
+        NFAFullStateToken() : cstate(0), rangecounts() {;}
+        NFAFullStateToken(StateID cstate, std::vector<std::pair<StateID, uint16_t>> rangecounts) : cstate(cstate), rangecounts(rangecounts) {;}
+        ~NFAFullStateToken() {;}
+
+        NFAFullStateToken(const NFAFullStateToken& other) = default;
+        NFAFullStateToken(NFAFullStateToken&& other) = default;
+
+        NFAFullStateToken& operator=(const NFAFullStateToken& other) = default;
+        NFAFullStateToken& operator=(NFAFullStateToken&& other) = default;
+
+        bool operator==(const NFAFullStateToken& other) const
+        {
+            return this->cstate == other.cstate && std::equal(this->rangecounts.cbegin(), this->rangecounts.cend(), other.rangecounts.cbegin(), other.rangecounts.cend());
+        }
+
+        bool operator!=(const NFAFullStateToken& other) const
+        {
+            return this->cstate != other.cstate || !std::equal(this->rangecounts.cbegin(), this->rangecounts.cend(), other.rangecounts.cbegin(), other.rangecounts.cend());
+        }
+
+        NFAFullStateToken toNextState(StateID next) const
+        {
+            return NFAFullStateToken(next, this->rangecounts);
+        }
+
+        NFAFullStateToken toNextStateWithIncrement(StateID next, StateID incState) const
+        {
+            return xxxx;
+        }
+    };
+
     class NFAOpt
     {
     public:
