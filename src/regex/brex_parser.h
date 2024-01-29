@@ -9,7 +9,8 @@ namespace BREX
 {
     std::vector<uint8_t> s_whitespacechars = { ' ', '\t', '\n', '\r', '\v', '\f' };
     std::vector<uint8_t> s_doubleslash = { '%', '%' };
-    std::vector<uint8_t> s_namedpfx = {'$', '{'};
+
+    std::vector<uint8_t> s_envpfx = { 'e', 'n', 'v', '[' };
 
     class RegexParserError
     {
@@ -36,14 +37,12 @@ namespace BREX
         const uint8_t* epos;
 
         const bool isUnicode;
-        bool negateAllowed;
         bool envAllowed;
 
         size_t cline;
         std::vector<RegexParserError> errors;
 
-
-        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool negateAllowed, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), negateAllowed(negateAllowed), envAllowed(envAllowed), cline(0), errors() {;}
+        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), envAllowed(envAllowed), cline(0), errors() {;}
         ~RegexParser() = default;
 
         inline bool isEOS() const
@@ -303,7 +302,7 @@ namespace BREX
             }
 
             std::vector<SingleCharRange> range;
-            while(!this->isToken(']')) {
+            while(!this->isEOS() && !this->isToken(']')) {
                 auto lb = this->parseRegexChar(unicodeok);
 
                 if (!this->isToken(U'-')) {
@@ -321,13 +320,13 @@ namespace BREX
                 this->cpos++;
             }
             else {
-                this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in char range regex"));
             }
 
             return new CharRangeOpt(compliment, range);
         }
 
-        const RegexOpt* parseNamedOrEnvRegex()
+        const RegexOpt* parseNamedRegex()
         {
             this->advance();
             std::u8string name;
@@ -340,37 +339,43 @@ namespace BREX
                 this->cpos++;
             }
             else {
-                this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing closing } in named regex"));
+            }
+
+            std::regex scopere("^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
+            if(!std::regex_match(name.cbegin(), name.cend(), scopere)) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid named regex name -- must be a valid scoped identifier"));
+            }
+
+            return new NamedRegexOpt(std::string(name.cbegin(), name.cend()));
+        }
+
+        const RegexOpt* parseEnvRegex()
+        {
+            if(!this->envAllowed) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Env regexes are not allowed in this context"));
+            }
+
+            this->cpos += 4;
+            std::u8string name;
+            while(!this->isEOS() && !this->isToken(']')) {
+                name.push_back(this->token());
+                this->cpos++;
+            }
+
+            if(this->isToken(']')) {
+                this->cpos++;
+            }
+            else {
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing closing ] in env regex"));
             }
 
             std::regex idre("^[_a-z][_a-zA-Z0-9]*$");
-            std::regex scopere("^([A-Z][_a-zA-Z0-9]*::)*[A-Z][_a-zA-Z0-9]*$");
-
-            if(name.starts_with(u8"env[" && name.ends_with(u8"]"))) {
-                if(!this->envAllowed) {
-                    this->errors.push_back(RegexParserError(this->cline, u8"Env regexes are not allowed in this context"));
-                }
-                
-                auto ssid = name.substr(4, name.size() - 5);
-                if(!std::regex_match(ssid.cbegin(), ssid.cend(), idre)) {
-                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
-                }
-
-                return new EnvRegexOpt(std::string(ssid.cbegin(), ssid.cend()));
-            }
-            else {
-                //it must be a named regex
-
-                auto splitpos = name.find_last_of(u8"::");
-                if(splitpos != std::u8string::npos) {
-                    xxxx;
-                }
-                else {
-                    xxxx;
-                }
+            if(!std::regex_match(name.cbegin(), name.cend(), idre)) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
             }
 
-            return new NamedRegexOpt(name);
+            return new EnvRegexOpt(std::string(name.cbegin(), name.cend()));
         }
 
         const RegexOpt* parseBaseComponent() 
@@ -382,14 +387,13 @@ namespace BREX
             if(this->isToken('(')) {
                 this->advance();
 
-                res = this->parseComponent();
+                res = this->parsePositiveComponent();
                 if(this->isToken(')')) {
                     this->advance();
                 }
                 else {
                     this->errors.push_back(RegexParserError(this->cline, u8"Missing ) in regex"));
                 }
-                
             }
             else if(this->isToken('"')) {
                 if(this->isUnicode) {
@@ -417,12 +421,15 @@ namespace BREX
             else if(this->isToken('.')) {
                 res = new CharClassDotOpt();
             }
-            else if(this->isTokenPrefix(s_namedpfx)) {
-                res = this->parseNamedOrEnvRegex();
+            else if(this->isToken('{')) {
+                res = this->parseNamedRegex();
+            }
+            else if(this->isTokenPrefix(s_envpfx)) {
+                res = this->parseEnvRegex();
             }
             else {
                 std::u8string slice(this->cpos, this->cpos + charCodeByteCount(this->cpos));
-                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", ${, or . but found " + slice));
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found " + slice));
                 res = new LiteralOpt({}, false);
             }
 
@@ -432,183 +439,292 @@ namespace BREX
             return res;
         }
 
-        const RegexOpt* parseNegateOpt()
+        bool parseRangeRepeatBound(uint16_t& vv)
         {
-            this->advanceTriviaOnly();
-
-            auto isnegate = this->isToken('!');
-            auto orignegageallowed = this->negateAllowed;
-
-            if(isnegate) {
-                this->advance();
-
-                if(!this->negateAllowed) {
-                    this->errors.push_back(RegexParserError(this->cline, u8"Negate operator ! is not allowed in this context"));
-                }
-                this->negateAllowed = false;
+            if(this->isToken('-')) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bound -- cannot have negative bound"));
+                this->cpos++;
             }
 
-            const RegexOpt* opt = this->parseBaseComponent();
-            this->negateAllowed = orignegageallowed;
-                
-            if(!isnegate) {
-                return opt;
+            if(this->isEOS() || !std::isdigit(this->token())) {
+                return false;
+            }
+
+            auto drange = std::find_if((const uint8_t*)this->cpos, this->epos, [](uint8_t c) { return !std::isdigit(c); });
+            std::string istr = std::string((const char*)this->cpos, (const char*)drange);
+            this->cpos += istr.size();
+
+            if(istr == "0") {
+                vv = 0;
+                return true;
             }
             else {
-                return new NegateOpt(opt);
+                if(istr.starts_with("0")) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bound -- invalid leading 0 on bound"));
+                    return false;
+                }
+
+                char* eptr = nullptr;
+                auto sval = std::strtol(istr.c_str(), &eptr, 10);
+                if(sval == 0) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bound -- invalid number"));
+                    return false;
+                }
+                else if(sval > UINT16_MAX) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bound -- number too large (max is 65535)"));
+                    return false;
+                }
+                else {
+                    vv = (uint16_t)sval;
+                    return true;
+                }
+            }
+        }
+
+        bool isValidRepeatPrefix()
+        {
+            auto next = this->cpos + 1;
+            if(next == this->epos) {
+                return true; //we will fail shortly but that is ok
+            }
+
+            if(*next == '}') {
+                return true;
+            }
+            else if(*next == ',') {
+                return true;
+            }
+            else if(*next == '-') {
+                return true;
+            }
+            else if(std::isdigit(*next)) {
+                return true;
+            }
+            else {
+                return false;
             }
         }
 
         const RegexOpt* parseRepeatComponent()
         {
-            auto rcc = this->parseNegateOpt();
-            if(rcc == nullptr) {
-                return nullptr;
-            }
+            auto rcc = this->parseBaseComponent();
 
-            while(this->isToken('*') || this->isToken('+') || this->isToken('?') || this->isToken('{')) {
-                if(this->isToken(U'*')) {
-                    rcc = new BSQStarRepeatRe(rcc);
+            while(this->isToken('*') || this->isToken('+') || this->isToken('?') || (this->isToken('{') && this->isValidRepeatPrefix())) {
+                if(this->isToken('*')) {
+                    rcc = new StarRepeatOpt(rcc);
                     this->advance();
                 }
-                else if(this->isToken(U'+')) {
-                    rcc = new BSQPlusRepeatRe(rcc);
+                else if(this->isToken('+')) {
+                    rcc = new PlusRepeatOpt(rcc);
                     this->advance();
                 }
-                else if(this->isToken(U'?')) {
-                    rcc = new BSQOptionalRe(rcc);
+                else if(this->isToken('?')) {
+                    rcc = new OptionalOpt(rcc);
                     this->advance();
                 }
                 else {
                     this->advance();
                     uint16_t min = 0;
-                    while(!this->done() && U'0' < this->token() && this->token() < U'9') {
-                        min = min * 10 + (this->token() - U'0');
-                        this->advance();
-                    }
+                    auto hasmin = this->parseRangeRepeatBound(min);
 
-                    while(!this->done() && this->isToken(U' ')) {
-                        this->advance();
+                    this->advanceTriviaOnly();
+                    if(!hasmin && !this->isToken(',')) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Missing , in range repeat -- must have at a bound or a ,"));
                     }
 
                     uint16_t max = min;
-                    if (!this->done() && this->isToken(U',')) {
+                    if (this->isToken(',')) {
                         this->advance();
+                        max = UINT16_MAX;
+                        this->parseRangeRepeatBound(max);
 
-                        while(!this->done() && this->isToken(U' ')) {
-                            this->advance();
-                        }
-
-                        if(!this->done() && !this->isToken(U'}')) {
-                            max = 0;
-                            while(!this->done() && U'0' < this->token() && this->token() < U'9') {
-                                max = max * 10 + (this->token() - U'0');
-                                this->advance();
-                            }
-                        }
+                        this->advanceTriviaOnly();
                     }
 
-                    if(this->done() || !this->isToken(U'}')) {
-                        return nullptr;
+                    if(this->isToken('}')) {
+                        this->advance();
                     }
-                    this->advance();
+                    else {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Missing } in range repeat"));
+                    }
 
-                    rcc = new BSQRangeRepeatRe(min, max, rcc);
+                    if(min == 0 && max == UINT16_MAX) {
+                        return new StarRepeatOpt(rcc);
+                    }
+                    else if(min == 1 && max == UINT16_MAX) {
+                        return new PlusRepeatOpt(rcc);
+                    }
+                    else if(min == 0 && max == 1) {
+                        return new OptionalOpt(rcc);
+                    }
+                    else {
+                        rcc = new RangeRepeatOpt(min, max, rcc);
+                    }
                 }
-
-                this->advanceTriviaOnly();
             }   
 
             return rcc;
         }
 
-        const BSQRegexOpt* parseSequenceComponent()
+        const RegexOpt* parseSequenceComponent()
         {
-            std::vector<const BSQRegexOpt*> sre;
+            std::vector<const RegexOpt*> sre;
 
-            while(!this->done() && !this->isToken(U'|') && !this->isToken(U')')) {
-                auto rpe = this->parseRepeatComponent();
-                if(rpe == nullptr) {
-                    return nullptr;
-                }
-
-                if(sre.empty()) {
-                    sre.push_back(rpe);
-                }
-                else {
-                    auto lcc = sre[sre.size() - 1];
-                    if(lcc->isLiteral() && rpe->isLiteral()) {
-                        sre[sre.size() - 1] = BSQLiteralRe::mergeLiterals(static_cast<const BSQLiteralRe*>(lcc), static_cast<const BSQLiteralRe*>(rpe));
-                        delete lcc;
-                        delete rpe;
-                    }
-                    else {
-                        sre.push_back(rpe);
-                    }
-                }
-
-                this->advanceTriviaOnly();
+            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(U')')) {
+                sre.push_back(this->parseRepeatComponent());
             }
 
             if(sre.empty()) {
-                return nullptr;
+                this->errors.push_back(RegexParserError(this->cline, u8"Empty regex sequence"));
             }
 
             if (sre.size() == 1) {
                 return sre[0];
             }
             else {
-                return new BSQSequenceRe(sre);
+                return new SequenceOpt(sre);
             }
         }
 
-        const BSQRegexOpt* parseAlternationComponent()
+        const RegexOpt* parseAllOfComponent()
         {
-            auto rpei = this->parseSequenceComponent();
-            if (rpei == nullptr) {
-                return nullptr;
-            }
+            std::vector<const RegexOpt*> are = {this->parseSequenceComponent()};
 
-            std::vector<const BSQRegexOpt*> are = {rpei};
-
-            while (!this->done() && this->isToken(U'|')) {
+            while (this->isToken('&')) {
                 this->advance();
-                auto rpe = this->parseSequenceComponent();
-                if (rpe == nullptr) {
-                    return nullptr;
-                }
-
-                are.push_back(rpe);
+                are.push_back(this->parseSequenceComponent());
             }
 
             if(are.size() == 1) {
                 return are[0];
             }
             else {
-                return new BSQAlternationRe(are);
+                return new AllOfOpt(are);
             }
         }
 
-        const BSQRegexOpt* parseComponent()
+        const RegexOpt* parseAnyOfComponent()
         {
-            return this->parseAlternationComponent();
+            std::vector<const RegexOpt*> are = {this->parseAllOfComponent()};
+
+            while (this->isToken('|')) {
+                this->advance();
+                are.push_back(this->parseAllOfComponent());
+            }
+
+            if(are.size() == 1) {
+                return are[0];
+            }
+            else {
+                return new AnyOfOpt(are);
+            }
+        }
+
+        const RegexOpt* parsePositiveComponent()
+        {
+            return this->parseAnyOfComponent();
+        }
+
+        const RegexOpt* parseNegativeComponent()
+        {
+            this->advance();
+            const RegexOpt* opt = this->parseRepeatComponent();
+                
+            auto cropt = dynamic_cast<const CharRangeOpt*>(opt);
+            if(cropt == nullptr) {
+                return new NegateOpt(opt);
+            }
+            else {
+                return new CharRangeOpt(!cropt->compliment, cropt->ranges);
+            }
+        }
+
+        const RegexOpt* parseRegexComponent()
+        {
+            std::vector<const RegexOpt*> are;
+
+            this->advanceTriviaOnly();
+            if(this->isToken('!')) {
+                are.push_back(this->parseNegativeComponent());
+            }
+            else {
+                are.push_back(this->parsePositiveComponent());
+            }
+
+            while (this->isToken('&')) {
+                this->advance();
+                if(this->isToken('!')) {
+                    are.push_back(this->parseNegativeComponent());
+                }
+                else {
+                    are.push_back(this->parsePositiveComponent());
+                }
+            }
+
+            if(are.size() == 1) {
+                return are[0];
+            }
+            else {
+                return new AllOfOpt(are);
+            }
         }
 
     public:
-        static BSQRegex* parseRegex(UnicodeString restr)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseValidatorRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
         {
-            auto parser = RegexParser(restr);
+            auto parser = RegexParser(data, len, isUnicode, isResource);
 
-            auto re = parser.parseComponent();
-            if(re == nullptr) {
-                return nullptr;
+            auto re = parser.parseRegexComponent();
+            if(!parser.errors.empty()) {
+                return std::make_pair(std::nullopt, parser.errors);
             }
 
-            std::vector<NFAOpt*> nfastates = { new NFAOptAccept(0) };
-            auto nfastart = re->compile(0, nfastates);
+            Regex* res = isUnicode ? (Regex*)new UnicodeValidatorRegex(re) : (Regex*)new ASCIIValidatorRegex(re, isPath, isResource);
+            return std::make_pair(res, std::vector<RegexParserError>());
+        }
 
-            auto nfare = new NFA(nfastart, 0, nfastates);
-            return new BSQRegex(re, nfare);
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseMatchingRegex(uint8_t* data, size_t len, bool isUnicode)
+        {
+            auto parser = RegexParser(data, len, isUnicode, false);
+
+            const RegexOpt* prefx = nullptr;
+            const RegexOpt* mre = nullptr;
+            const RegexOpt* postfx = nullptr;
+
+            auto re1 = parser.parseRegexComponent();
+            if(parser.isToken('^')) {
+                parser.advance();
+                
+                prefx = re1;
+                mre = parser.parseRegexComponent();
+            }
+            else {
+                mre = re1;
+            }
+
+            if(mre->isNegateOpt()) {
+                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be negative"));
+            }
+            
+            if(mre->isAllOfOpt()) {
+                auto aoopt = dynamic_cast<const AllOfOpt*>(mre);
+                if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->isNegateOpt(); })) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be all negative"));
+                }
+            }
+
+            if(parser.isToken('$')) {
+                parser.advance();
+
+                postfx = parser.parseRegexComponent();
+            }
+
+            if(!parser.errors.empty()) {
+                return std::make_pair(std::nullopt, parser.errors);
+            }
+
+            Regex* res = isUnicode ? (Regex*)new UnicodeMatcherRegex(prefx, mre, postfx) : (Regex*)new ASCIIMatcherRegex(prefx, mre, postfx);
+            return std::make_pair(res, std::vector<RegexParserError>());
         }
     };
 

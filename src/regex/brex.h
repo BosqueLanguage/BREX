@@ -20,6 +20,9 @@ namespace BREX
         virtual bool needsSequenceParens() const { return false; }
         virtual std::u8string toBSQONFormat() const = 0;
 
+        virtual bool isNegateOpt() const { return false; }
+        virtual bool isAllOfOpt() const { return false; }
+
         static RegexOpt* jparse(json j);
     };
 
@@ -128,24 +131,22 @@ namespace BREX
     class NamedRegexOpt : public RegexOpt
     {
     public:
-        const std::string ns;
+        //The namespace of the regex including scope (but not resolved)
         const std::string rname;
 
-        NamedRegexOpt(const std::string& ns, const std::string& rname) : RegexOpt(), ns(ns), rname(rname) {;}
+        NamedRegexOpt(const std::string& rname) : RegexOpt(), rname(rname) {;}
         virtual ~NamedRegexOpt() = default;
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            std::string fns = this->ns + "::" + this->rname;
-            return std::u8string{'{'} + std::u8string(fns.cbegin(), fns.cend()) + std::u8string{'}'};
+            return std::u8string{'{'} + std::u8string(this->rname.cbegin(), this->rname.cend()) + std::u8string{'}'};
         }
 
         static NamedRegexOpt* jparse(json j)
         {
-            const std::string ns = j["ns"].get<std::string>();
             const std::string rname = j["rname"].get<std::string>();
 
-            return new NamedRegexOpt(ns, rname);
+            return new NamedRegexOpt(rname);
         }
     };
 
@@ -167,32 +168,6 @@ namespace BREX
             const std::string ename = j["ename"].get<std::string>();
 
             return new EnvRegexOpt(ename);
-        }
-    };
-
-    class NegateOpt : public RegexOpt
-    {
-    public:
-        const RegexOpt* opt;
-
-        NegateOpt(const RegexOpt* opt) : RegexOpt(), opt(opt) {;}
-        virtual ~NegateOpt() { delete this->opt; }
-
-        virtual bool needsParens() const override final { return true; }
-        virtual std::u8string toBSQONFormat() const override final
-        {
-            if(!this->opt->needsParens()) {
-                return std::u8string{'!'} + this->opt->toBSQONFormat();
-            }
-            else {
-                return std::u8string{'!'} + std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'};
-            }
-        }
-
-        static NegateOpt* jparse(json j)
-        {
-            auto opt = RegexOpt::jparse(j["opt"]);
-            return new NegateOpt(opt);
         }
     };
 
@@ -253,7 +228,7 @@ namespace BREX
     public:
         const RegexOpt* repeat;
         const uint16_t low;
-        const uint16_t high;
+        const uint16_t high; //if high == INT16_MAX then this is an unbounded repeat
 
         RangeRepeatOpt(uint16_t low, uint16_t high, const RegexOpt* repeat) : RegexOpt(), repeat(repeat), low(low), high(high) {;}
         virtual ~RangeRepeatOpt() { delete this->repeat; }
@@ -277,7 +252,7 @@ namespace BREX
                 if(this->low == 0) {
                     iterstr += std::string{','} + std::to_string(this->high) + std::string{'}'};
                 }
-                else if(this->high == INT16_MAX) {
+                else if(this->high == UINT16_MAX) {
                     iterstr += std::to_string(this->low) + std::string{','} + std::string{'}'};
                 }
                 else {
@@ -292,7 +267,7 @@ namespace BREX
         {
             auto repeat = RegexOpt::jparse(j["repeat"]);
             auto low = j["low"].get<uint16_t>();
-            auto high = j["high"].is_null() ? INT16_MAX : j["high"].get<uint16_t>();
+            auto high = j["high"].is_null() ? UINT16_MAX : j["high"].get<uint16_t>();
 
             return new RangeRepeatOpt(low, high, repeat);
         }
@@ -358,6 +333,8 @@ namespace BREX
             
             return muststr;
         }
+
+        virtual bool isAllOfOpt() const override final { return true; }
 
         static AllOfOpt* jparse(json j)
         {
@@ -457,6 +434,34 @@ namespace BREX
             });
 
             return new SequenceOpt(regexs);
+        }
+    };
+
+    class NegateOpt : public RegexOpt
+    {
+    public:
+        const RegexOpt* opt;
+
+        NegateOpt(const RegexOpt* opt) : RegexOpt(), opt(opt) {;}
+        virtual ~NegateOpt() { delete this->opt; }
+
+        virtual bool needsParens() const override final { return true; }
+        virtual std::u8string toBSQONFormat() const override final
+        {
+            if(!this->opt->needsParens()) {
+                return std::u8string{'!'} + this->opt->toBSQONFormat();
+            }
+            else {
+                return std::u8string{'!'} + std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'};
+            }
+        }
+
+        virtual bool isNegateOpt() const override final { return true; }
+
+        static NegateOpt* jparse(json j)
+        {
+            auto opt = RegexOpt::jparse(j["opt"]);
+            return new NegateOpt(opt);
         }
     };
 

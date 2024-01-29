@@ -48,6 +48,10 @@
         "streambuf": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "ctime": "cpp",
+        "bitset": "cpp",
+        "regex": "cpp",
+        "sstream": "cpp"
     }
 }
