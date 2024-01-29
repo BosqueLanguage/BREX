@@ -343,19 +343,31 @@ namespace BREX
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in regex"));
             }
 
+            std::regex idre("^[_a-z][_a-zA-Z0-9]*$");
+            std::regex scopere("^([A-Z][_a-zA-Z0-9]*::)*[A-Z][_a-zA-Z0-9]*$");
+
             if(name.starts_with(u8"env[" && name.ends_with(u8"]"))) {
                 if(!this->envAllowed) {
                     this->errors.push_back(RegexParserError(this->cline, u8"Env regexes are not allowed in this context"));
                 }
                 
                 auto ssid = name.substr(4, name.size() - 5);
-                xxxx;
+                if(!std::regex_match(ssid.cbegin(), ssid.cend(), idre)) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
+                }
+
+                return new EnvRegexOpt(std::string(ssid.cbegin(), ssid.cend()));
             }
             else {
                 //it must be a named regex
 
-                auto splitpos = name.find(u8"::");
-                if(splitpos == std::u8string::npos) {
+                auto splitpos = name.find_last_of(u8"::");
+                if(splitpos != std::u8string::npos) {
+                    xxxx;
+                }
+                else {
+                    xxxx;
+                }
             }
 
             return new NamedRegexOpt(name);
