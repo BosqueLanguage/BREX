@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "brex.h"
+#include "brex_engine.h"
 
 namespace BREX
 {

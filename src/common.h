@@ -2,6 +2,9 @@
 
 #include <string>
 #include <optional>
+#include <vector>
+#include <map>
+#include <set>
 
 #include "json.hpp"
 typedef nlohmann::json json;
@@ -30,6 +33,12 @@ namespace BREX
     typedef char ASCIIStringChar;
 
     typedef uint32_t RegexChar;
+
+    struct SingleCharRange
+    {
+        RegexChar low;
+        RegexChar high;
+    };
 
 #ifdef BREX_DEBUG
     void processAssert(const char* file, int line, const char* msg) __attribute__ ((noreturn));

@@ -4,12 +4,6 @@
 
 namespace BREX
 {
-    struct SingleCharRange
-    {
-        RegexChar low;
-        RegexChar high;
-    };
-
     enum class RegexOptTag
     {
         Literal,
