@@ -86,14 +86,19 @@ namespace BREX
             return NFASingleStateToken(next, this->rangecount);
         }
 
-        inline static NFASingleStateToken toNextStateWithInitialize(StateID next, StateID incState) const
+        inline static NFASingleStateToken toNextStateWithInitialize(StateID next, StateID incState)
         {
             return NFASingleStateToken(next, std::make_pair(incState, 0));
         }
 
-        inline NFASingleStateToken toNextStateWithIncrement(StateID next, StateID incState) const
+        inline NFASingleStateToken toNextStateWithIncrement(StateID next) const
         {
-            return NFASingleStateToken(next, std::make_pair(incState, this->rangecount.second + 1));
+            return NFASingleStateToken(next, std::make_pair(this->rangecount.first, this->rangecount.second + 1));
+        }
+
+        inline NFASimpleStateToken toNextStateWithDoneRange(StateID next) const
+        {
+            return NFASimpleStateToken(next);
         }
     };
 
@@ -141,11 +146,9 @@ namespace BREX
             return NFAFullStateToken(next, this->rangecounts);
         }
 
-        inline static NFAFullStateToken toNextStateWithInitialize(StateID next, StateID incState) const
+        static inline NFAFullStateToken toNextStateWithInitialize(StateID next, std::pair<StateID, uint16_t> existingrng, StateID incState)
         {
-            std::vector<std::pair<StateID, uint16_t>> newrangecounts(this->rangecounts);
-            newrangecounts.push_back(std::make_pair(incState, 0));
-
+            std::vector<std::pair<StateID, uint16_t>> newrangecounts = {existingrng, std::make_pair(incState, 0)};
             return NFAFullStateToken(next, newrangecounts);
         }
 
@@ -168,8 +171,7 @@ namespace BREX
         Dot,
         AnyOf,
         Star,
-        MinK,
-        MaxK
+        RangeK
     };
 
     class NFAOpt
@@ -238,34 +240,28 @@ namespace BREX
         virtual ~NFAOptStar() {;}
     };
 
-    class NFAOptMinK : public NFAOpt
+    class NFAOptRangeK : public NFAOpt
     {
     public:
         const StateID infollow;
         const StateID outfollow;
-        const uint16_t k;
+        const uint16_t mink;
+        const uint16_t maxk;
 
-        NFAOptMinK(StateID stateid, uint16_t k, StateID infollow, StateID outfollow) : NFAOpt(NFAOptTag::MinK, stateid), k(k), infollow(infollow), outfollow(outfollow) {;}
-        virtual ~NFAOptMinK() {;}
-    };
-
-    class NFAOptMaxK : public NFAOpt
-    {
-    public:
-        const StateID infollow;
-        const StateID outfollow;
-        const uint16_t k;
-
-        NFAOptMaxK(StateID stateid, uint16_t k, StateID infollow, StateID outfollow) : NFAOpt(NFAOptTag::MaxK, stateid), k(k), infollow(infollow), outfollow(outfollow) {;}
-        virtual ~NFAOptMaxK() {;}
+        NFAOptRangeK(StateID stateid, uint16_t mink, uint16_t maxk, StateID infollow, StateID outfollow) : NFAOpt(NFAOptTag::RangeK, stateid), mink(mink), maxk(maxk), infollow(infollow), outfollow(outfollow) {;}
+        virtual ~NFAOptRangeK() {;}
     };
 
     class NFAState
     {
     public:
-        std::set<NFASimpleStateToken, decltype(&NFASimpleStateToken::cmp)> simplestates;
-        std::set<NFASingleStateToken, decltype(&NFASingleStateToken::cmp)> singlestates;
-        std::set<NFAFullStateToken, decltype(&NFAFullStateToken::cmp)> fullstates;
+        typedef std::set<NFASimpleStateToken, decltype(&NFASimpleStateToken::cmp)> TSimpleStates;
+        typedef std::set<NFASingleStateToken, decltype(&NFASingleStateToken::cmp)> TSingleStates;
+        typedef std::set<NFAFullStateToken, decltype(&NFAFullStateToken::cmp)> TFullStates;
+
+        TSimpleStates simplestates;
+        TSingleStates singlestates;
+        TFullStates fullstates;
 
         NFAState() : simplestates(&NFASimpleStateToken::cmp), singlestates(&NFASingleStateToken::cmp), fullstates(&NFAFullStateToken::cmp) {;}
         ~NFAState() {;}
@@ -278,19 +274,19 @@ namespace BREX
     {
     private:
         //true if the machine has accepted or all paths are rejected
-        bool inAccepted() const;
-        bool allRejected() const;
+        bool inAccepted(const NFAState& ostates) const;
+        bool allRejected(const NFAState& ostates) const;
 
         //process a single char and compute the new state
-        void advanceCharForSimpleStates(RegexChar c, NFAState& nstates) const;
-        void advanceCharForSingleStates(RegexChar c, NFAState& nstates) const;
-        void advanceCharForFullStates(RegexChar c, NFAState& nstates) const;
+        void advanceCharForSimpleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
+        void advanceCharForSingleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
+        void advanceCharForFullStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
 
-        void advanceChar(RegexChar c, NFAState& nstates) const
+        void advanceChar(RegexChar c, const NFAState& ostates, NFAState& nstates) const
         {
-            this->advanceCharForSimpleStates(c, nstates);
-            this->advanceCharForSingleStates(c, nstates);
-            this->advanceCharForFullStates(c, nstates);
+            this->advanceCharForSimpleStates(c, ostates, nstates);
+            this->advanceCharForSingleStates(c, ostates, nstates);
+            this->advanceCharForFullStates(c, ostates, nstates);
         }
 
         //process all the epsilon transitions and compute the new state
@@ -312,8 +308,6 @@ namespace BREX
         const StateID acceptstate;
 
         const std::vector<NFAOpt*> nfaopts;
-
-        NFAState states;
         NFASimpleStateToken acceptStateRepr;
 
         NFAMachine(StateID startstate, StateID acceptstate, std::vector<NFAOpt*> nfaopts) : startstate(startstate), acceptstate(acceptstate), nfaopts(nfaopts), states(), acceptStateRepr(acceptstate)
