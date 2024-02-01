@@ -6,6 +6,12 @@
         fprintf(stderr, "Assertion failed: %s:%d -- %s\n", file, line, msg);
         abort();
     }
+#else
+    void processAbort(const char* file, int line, const char* msg)
+    {
+        fprintf(stderr, "Abort: %s:%d -- %s\n", file, line, msg);
+        abort();
+    }
 #endif
 
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]

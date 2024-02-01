@@ -471,10 +471,11 @@ namespace BREX
         }
     };
 
-    enum class RegexMatchTag
+    enum class RegexKindTag
     {
-        ValidateOnly,
-        MatchAndValidate
+        Std,
+        Path,
+        Resource
     };
 
     enum class RegexCharInfoTag
@@ -486,89 +487,16 @@ namespace BREX
     class Regex
     {
     public:
-        const RegexMatchTag mtag;
+        const RegexKindTag rtag;
         const RegexCharInfoTag ctag;
 
-        Regex(RegexMatchTag mtag, RegexCharInfoTag ctag): mtag(mtag), ctag(ctag) {;}
-        virtual ~Regex() = default;
-
-        static Regex* jparse(json j);
-
-        virtual std::u8string toBSQONFormat() const = 0;
-    };
-
-    class ValidatorRegex : public Regex
-    {
-    public:
-        const RegexOpt* re; //of the form R+, !R+, or /\(R+|!R+)
-
-        ValidatorRegex(const RegexOpt* re, RegexCharInfoTag rtag) : Regex(RegexMatchTag::ValidateOnly, rtag), re(re) {;}
-        virtual ~ValidatorRegex() { delete this->re; };
-    };
-
-    class UnicodeValidatorRegex : public ValidatorRegex
-    {
-    public:
-        UnicodeValidatorRegex(const RegexOpt* re) : ValidatorRegex(re, RegexCharInfoTag::Unicode) {;}
-        virtual ~UnicodeValidatorRegex() = default;
-
-        virtual std::u8string toBSQONFormat() const override final
-        {
-            return std::u8string{'/'} + this->re->toBSQONFormat() + std::u8string{'/'};
-        }
-
-        static UnicodeValidatorRegex* jparse(json j)
-        {
-            auto re = RegexOpt::jparse(j["re"]);
-            return new UnicodeValidatorRegex(re);
-        }
-    };
-
-    class ASCIIValidatorRegex : public ValidatorRegex
-    {
-    public:
-        const bool isPathRegex;
-        const bool isResourceRegex;
-
-        ASCIIValidatorRegex(const RegexOpt* re, bool isPathRegex, bool isResourceRegex) : ValidatorRegex(re, RegexCharInfoTag::ASCII), isPathRegex(isPathRegex), isResourceRegex(isResourceRegex) {;}
-        virtual ~ASCIIValidatorRegex() = default;
-
-        virtual std::u8string toBSQONFormat() const override final
-        {
-            char8_t fchar;
-            if(this->isPathRegex) {
-                fchar = 'p';
-            }
-            else if(this->isResourceRegex) {
-                fchar = 'r';
-            }
-            else {
-                fchar = 'a';
-            }
-
-            return std::u8string{'/'} + this->re->toBSQONFormat() + std::u8string{'/', fchar};
-        }
-
-        static ASCIIValidatorRegex* jparse(json j)
-        {
-            auto re = RegexOpt::jparse(j["re"]);
-            auto isPathRegex = j["isPathRegex"].is_null() ? false : j["isPathRegex"].get<bool>();
-            auto isResourceRegex = j["isResourceRegex"].is_null() ? false : j["isResourceRegex"].get<bool>();
-
-            return new ASCIIValidatorRegex(re, isPathRegex, isResourceRegex);
-        }
-    };
-
-    class MatcherRegex : public Regex
-    {
-    public:
         const RegexOpt* sanchor; //may be nullptr or R
-        const RegexOpt* re; //of the form R+
+        const RegexOpt* re; //of the form R -- but if either anchor is negative then this must be positive (or a /\) AND must not contain \epsilon in the language
         const RegexOpt* eanchor; //may be nullptr or R
 
-        MatcherRegex(const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor, RegexCharInfoTag rtag) : Regex(RegexMatchTag::MatchAndValidate, rtag), sanchor(sanchor), re(re), eanchor(eanchor) {;}
+        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor): rtag(rtag), ctag(ctag), sanchor(sanchor), re(re), eanchor(eanchor) {;}
         
-        virtual ~MatcherRegex() 
+        ~Regex()
         {
             if(this->sanchor != nullptr) {
                 delete this->sanchor;
@@ -579,20 +507,25 @@ namespace BREX
             if(this->eanchor != nullptr) {
                 delete this->eanchor;
             }
-        };
-    };
+        }
 
-    class UnicodeMatcherRegex : public MatcherRegex
-    {
-    public:
-        UnicodeMatcherRegex(const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor) : MatcherRegex(sanchor, re, eanchor, RegexCharInfoTag::Unicode) {;}
-        virtual ~UnicodeMatcherRegex() = default;
+        static Regex* jparse(json j)
+        {
+            auto rtag = j["kind"].is_null() ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
+            auto ctag = (j["isASCII"].is_null() ? false : j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
 
-        virtual std::u8string toBSQONFormat() const override final
+            auto sanchor = j["sanchor"].is_null() ? nullptr : RegexOpt::jparse(j["sanchor"]);
+            auto re = RegexOpt::jparse(j["re"]);
+            auto eanchor = j["eanchor"].is_null() ? nullptr : RegexOpt::jparse(j["eanchor"]);
+
+            return new Regex(rtag, ctag, sanchor, re, eanchor);
+        }
+
+        std::u8string toBSQONFormat() const
         {
             std::u8string fstr;
             if(this->sanchor != nullptr) {
-                fstr = this->sanchor->toBSQONFormat() + std::u8string{'$'};
+                fstr = this->sanchor->toBSQONFormat() + std::u8string{'^'};
             }
 
             std::u8string estr;
@@ -600,37 +533,20 @@ namespace BREX
                 estr = std::u8string{'$'} + this->eanchor->toBSQONFormat();
             }
 
-            return std::u8string{'/'} + fstr + this->re->toBSQONFormat() + estr + std::u8string{'/', 'm'};
-        }
+            std::u8string fchar = u8"";
+            if(this->rtag == RegexKindTag::Path) {
+                fchar = u8"p";
+            }
+            else if(this->rtag == RegexKindTag::Resource) {
+                fchar = u8"r";
+            }
+            else {
+                if(this->ctag == RegexCharInfoTag::ASCII) {
+                    fchar = u8"a";
+                }
+            }
 
-        static UnicodeMatcherRegex* jparse(json j)
-        {
-            auto sanchor = j["sanchor"].is_null() ? nullptr : RegexOpt::jparse(j["sanchor"]);
-            auto re = RegexOpt::jparse(j["re"]);
-            auto eanchor = j["eanchor"].is_null() ? nullptr : RegexOpt::jparse(j["eanchor"]);
-
-            return new UnicodeMatcherRegex(sanchor, re, eanchor);
-        }
-    };
-
-    class ASCIIMatcherRegex : public MatcherRegex
-    {
-    public:
-        ASCIIMatcherRegex(const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor) : MatcherRegex(sanchor, re, eanchor, RegexCharInfoTag::ASCII) {;}
-        virtual ~ASCIIMatcherRegex() = default;
-
-        virtual std::u8string toBSQONFormat() const override final
-        {
-            return std::u8string{'/'} + this->re->toBSQONFormat() + std::u8string{'/', 'a', 'm'};
-        }
-
-        static ASCIIMatcherRegex* jparse(json j)
-        {
-            auto sanchor = j["sanchor"].is_null() ? nullptr : RegexOpt::jparse(j["sanchor"]);
-            auto re = RegexOpt::jparse(j["re"]);
-            auto eanchor = j["eanchor"].is_null() ? nullptr : RegexOpt::jparse(j["eanchor"]);
-
-            return new ASCIIMatcherRegex(sanchor, re, eanchor);
+            return std::u8string{'/'} + fstr + this->re->toBSQONFormat() + estr + std::u8string{'/'} + fchar;
         }
     };
 }

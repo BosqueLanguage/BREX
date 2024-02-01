@@ -156,6 +156,10 @@ namespace BREX
                     const NFAOptRangeK* rngk = static_cast<const NFAOptRangeK*>(opt);
                     nstates.singlestates.insert(NFASingleStateToken::toNextStateWithInitialize(rngk->infollow, rngk->stateid));
 
+                    if(rngk->mink == 0) {
+                        nstates.simplestates.insert(iter->toNextState(rngk->outfollow));
+                    }
+
                     advanced = true;
                     break;
                 }
@@ -200,12 +204,16 @@ namespace BREX
                     const NFAOptRangeK* rngk = static_cast<const NFAOptRangeK*>(opt);
                     if(rngk->stateid != iter->rangecount.first) {
                         nstates.fullstates.insert(NFAFullStateToken::toNextStateWithInitialize(rngk->infollow, iter->rangecount, rngk->stateid));
+
+                        if(rngk->mink == 0) {
+                            nstates.singlestates.insert(iter->toNextState(rngk->outfollow));
+                        }
                     }
                     else {
                         if(iter->rangecount.second < rngk->mink) {
                             nstates.singlestates.insert(iter->toNextStateWithIncrement(rngk->infollow));
                         }
-                        else if(iter->rangecount.second == rngk->maxk) {
+                        else if(rngk->maxk != INT16_MAX && iter->rangecount.second == rngk->maxk) {
                             nstates.simplestates.insert(iter->toNextStateWithDoneRange(rngk->outfollow));
                         }
                         else {

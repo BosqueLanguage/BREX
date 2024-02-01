@@ -150,4 +150,195 @@ namespace BREX
             }
         }
     }
+
+    StateID RegexCompiler::compileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt)
+    {
+        for(int64_t i = opt->codes.size() - 1; i >= 0; --i) {
+            auto thisstate = (StateID)states.size();
+            states.push_back(new NFAOptCharCode(thisstate, opt->codes[i], follows));
+
+            follows = thisstate;
+        }
+
+        return follows;
+    }
+
+    StateID RegexCompiler::compileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptRange(thisstate, opt->compliment, opt->ranges, follows));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptDot(thisstate, follows));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::compileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptStar(thisstate, optfollows, follows);
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::compileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptStar(thisstate, optfollows, follows);
+
+        return optfollows;
+    }
+
+    StateID RegexCompiler::compileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::compileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptRangeK(thisstate, opt->low, opt->high, optfollows, follows);
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt)
+    {
+        auto followopt = RegexCompiler::compileOpt(follows, states, opt->opt);
+
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptAnyOf(thisstate, { followopt, follows }));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt)
+    {
+        std::vector<StateID> followopts;
+        for(size_t i = 0; i < opt->opts.size(); ++i) {
+            followopts.push_back(RegexCompiler::compileOpt(follows, states, opt->opts[i]));
+        }
+
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptAnyOf(thisstate, followopts));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::compileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt)
+    {
+        for(int64_t i = opt->regexs.size() - 1; i >= 0; --i) {
+            follows = RegexCompiler::compileOpt(follows, states, opt->regexs[i]);
+        }
+
+        return follows;
+    }
+
+    StateID RegexCompiler::compileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt)
+    {
+        switch(opt->tag)
+        {
+        case RegexOptTag::Literal: {
+            return RegexCompiler::compileLiteralOpt(follows, states, static_cast<const LiteralOpt*>(opt));
+        }
+        case RegexOptTag::CharRange: {
+            return RegexCompiler::compileCharRangeOpt(follows, states, static_cast<const CharRangeOpt*>(opt));
+        }
+        case RegexOptTag::CharClassDot: {
+            return RegexCompiler::compileCharClassDotOpt(follows, states, static_cast<const CharClassDotOpt*>(opt));
+        }
+        case RegexOptTag::StarRepeat: {
+            return RegexCompiler::compileStarRepeatOpt(follows, states, static_cast<const StarRepeatOpt*>(opt));
+        }
+        case RegexOptTag::PlusRepeat: {
+            return RegexCompiler::compilePlusRepeatOpt(follows, states, static_cast<const PlusRepeatOpt*>(opt));
+        }
+        case RegexOptTag::RangeRepeat: {
+            return RegexCompiler::compileRangeRepeatOpt(follows, states, static_cast<const RangeRepeatOpt*>(opt));
+        }
+        case RegexOptTag::Optional: {
+            return RegexCompiler::compileOptionalOpt(follows, states, static_cast<const OptionalOpt*>(opt));
+        }
+        case RegexOptTag::AnyOf: {
+            return RegexCompiler::compileAnyOfOpt(follows, states, static_cast<const AnyOfOpt*>(opt));
+        }
+        case RegexOptTag::Sequence: {
+            return RegexCompiler::compileSequenceOpt(follows, states, static_cast<const SequenceOpt*>(opt));
+        }
+        default: {
+            BREX_ABORT("Invalid regex opt tag");
+            return 0;
+        }
+        }
+    }
+
+    StateID RegexCompiler::reverseCompileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt)
+    {
+        xxxx;
+        for(int64_t i = 0; i < opt->codes.size(); ++i) {
+            auto thisstate = (StateID)states.size();
+            states.push_back(new NFAOptCharCode(thisstate, opt->codes[i], follows));
+
+            follows = thisstate;
+        }
+
+        return follows;
+    }
+
+    StateID RegexCompiler::reverseCompileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt);
+    StateID RegexCompiler::reverseCompileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt);
+    StateID RegexCompiler::reverseCompileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt);
+    StateID RegexCompiler::reverseCompilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt);
+    StateID RegexCompiler::reverseCompileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt);
+    StateID RegexCompiler::reverseCompileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt);
+    StateID RegexCompiler::reverseCompileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt);
+    StateID RegexCompiler::reverseCompileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt);
+
+    StateID RegexCompiler::reverseCompileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt)
+    {
+        switch(opt->tag)
+        {
+        case RegexOptTag::Literal: {
+            return RegexCompiler::reverseCompileLiteralOpt(follows, states, static_cast<const LiteralOpt*>(opt));
+        }
+        case RegexOptTag::CharRange: {
+            return RegexCompiler::reverseCompileCharRangeOpt(follows, states, static_cast<const CharRangeOpt*>(opt));
+        }
+        case RegexOptTag::CharClassDot: {
+            return RegexCompiler::reverseCompileCharClassDotOpt(follows, states, static_cast<const CharClassDotOpt*>(opt));
+        }
+        case RegexOptTag::StarRepeat: {
+            return RegexCompiler::reverseCompileStarRepeatOpt(follows, states, static_cast<const StarRepeatOpt*>(opt));
+        }
+        case RegexOptTag::PlusRepeat: {
+            return RegexCompiler::reverseCompilePlusRepeatOpt(follows, states, static_cast<const PlusRepeatOpt*>(opt));
+        }
+        case RegexOptTag::RangeRepeat: {
+            return RegexCompiler::reverseCompileRangeRepeatOpt(follows, states, static_cast<const RangeRepeatOpt*>(opt));
+        }
+        case RegexOptTag::Optional: {
+            return RegexCompiler::reverseCompileOptionalOpt(follows, states, static_cast<const OptionalOpt*>(opt));
+        }
+        case RegexOptTag::AnyOf: {
+            return RegexCompiler::reverseCompileAnyOfOpt(follows, states, static_cast<const AnyOfOpt*>(opt));
+        }
+        case RegexOptTag::Sequence: {
+            return RegexCompiler::reverseCompileSequenceOpt(follows, states, static_cast<const SequenceOpt*>(opt));
+        }
+        default: {
+            BREX_ABORT("Invalid regex opt tag");
+            return 0;
+        }
+        }
+    }
 }

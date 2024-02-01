@@ -312,7 +312,7 @@ namespace BREX
                     this->cpos++;
 
                     auto ub = this->parseRegexChar(unicodeok);
-                    range.push_back({ lb, ub });
+                    range.push_back({ std::min(lb, ub), std::max(lb, ub) });
                 }
             }
 
@@ -548,6 +548,18 @@ namespace BREX
                         this->errors.push_back(RegexParserError(this->cline, u8"Missing } in range repeat"));
                     }
 
+                    if(min == 0 && max == 0) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- both min and max are 0 so the repeat is empty"));
+                    }
+
+                    if(min == 1 && max == 1) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant"));
+                    }
+
+                    if(max < min) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- max is less than min"));
+                    }
+
                     if(min == 0 && max == UINT16_MAX) {
                         return new StarRepeatOpt(rcc);
                     }
@@ -653,22 +665,9 @@ namespace BREX
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseValidatorRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
         {
             auto parser = RegexParser(data, len, isUnicode, isResource);
-
-            auto re = parser.parseRegexComponent();
-            if(!parser.errors.empty()) {
-                return std::make_pair(std::nullopt, parser.errors);
-            }
-
-            Regex* res = isUnicode ? (Regex*)new UnicodeValidatorRegex(re) : (Regex*)new ASCIIValidatorRegex(re, isPath, isResource);
-            return std::make_pair(res, std::vector<RegexParserError>());
-        }
-
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseMatchingRegex(uint8_t* data, size_t len, bool isUnicode)
-        {
-            auto parser = RegexParser(data, len, isUnicode, false);
 
             const RegexOpt* prefx = nullptr;
             const RegexOpt* mre = nullptr;
@@ -686,6 +685,7 @@ namespace BREX
             }
 
             if(mre->tag == RegexOptTag::Negate) {
+                xxxx;
                 parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be negative"));
             }
             

@@ -14,7 +14,7 @@ typedef nlohmann::json json;
 #define BREX_ASSERT(condition, msg) if(!(condition)) { processAssert(__FILE__, __LINE__, msg); }
 #else
 
-#define BREX_ABORT(msg)
+#define BREX_ABORT(msg) processAbort(__FILE__, __LINE__, msg)
 #define BREX_ASSERT(condition, msg)
 #endif
 
@@ -42,6 +42,8 @@ namespace BREX
 
 #ifdef BREX_DEBUG
     void processAssert(const char* file, int line, const char* msg) __attribute__ ((noreturn));
+#else
+    void processAbort(const char* file, int line, const char* msg) __attribute__ ((noreturn));
 #endif
 
     class UnicodeRegexIterator

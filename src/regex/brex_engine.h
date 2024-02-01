@@ -88,7 +88,7 @@ namespace BREX
 
         inline static NFASingleStateToken toNextStateWithInitialize(StateID next, StateID incState)
         {
-            return NFASingleStateToken(next, std::make_pair(incState, 0));
+            return NFASingleStateToken(next, std::make_pair(incState, 1));
         }
 
         inline NFASingleStateToken toNextStateWithIncrement(StateID next) const
@@ -148,7 +148,7 @@ namespace BREX
 
         static inline NFAFullStateToken toNextStateWithInitialize(StateID next, std::pair<StateID, uint16_t> existingrng, StateID incState)
         {
-            std::vector<std::pair<StateID, uint16_t>> newrangecounts = {existingrng, std::make_pair(incState, 0)};
+            std::vector<std::pair<StateID, uint16_t>> newrangecounts = {existingrng, std::make_pair(incState, 1)};
             return NFAFullStateToken(next, newrangecounts);
         }
 

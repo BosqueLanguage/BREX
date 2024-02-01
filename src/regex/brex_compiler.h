@@ -72,6 +72,31 @@ namespace BREX
 
     class RegexCompiler
     {
+    private:
+        static StateID compileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt);
+        static StateID compileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt);
+        static StateID compileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt);
+        static StateID compileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt);
+        static StateID compilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt);
+        static StateID compileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt);
+        static StateID compileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt);
+        static StateID compileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt);
+        static StateID compileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt);
+
+        static StateID compileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt);
+
+        static StateID reverseCompileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt);
+        static StateID reverseCompileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt);
+        static StateID reverseCompileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt);
+        static StateID reverseCompileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt);
+        static StateID reverseCompilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt);
+        static StateID reverseCompileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt);
+        static StateID reverseCompileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt);
+        static StateID reverseCompileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt);
+        static StateID reverseCompileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt);
+
+        static StateID reverseCompileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt);
+
     public:
         RegexCompiler() { ; }
         ~RegexCompiler() = default;
