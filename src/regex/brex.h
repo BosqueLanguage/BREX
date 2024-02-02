@@ -491,7 +491,7 @@ namespace BREX
         const RegexCharInfoTag ctag;
 
         const RegexOpt* sanchor; //may be nullptr or R
-        const RegexOpt* re; //of the form R -- but if either anchor is negative then this must be positive (or a /\) AND must not contain \epsilon in the language
+        const RegexOpt* re; //of the form R -- but if either anchor is present then this positive (or an and with positive)
         const RegexOpt* eanchor; //may be nullptr or R
 
         Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor): rtag(rtag), ctag(ctag), sanchor(sanchor), re(re), eanchor(eanchor) {;}

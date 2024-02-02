@@ -101,7 +101,15 @@ namespace BREX
         RegexCompiler() { ; }
         ~RegexCompiler() = default;
 
+        xxxx;
         static NFAMachine* compile(const RegexOpt* opt);
         static NFAMachine* compileReverse(const RegexOpt* opt);
+
+        xxxx;
+        static REExecutorUnicode* compileUnicodeRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
+        static REExecutorUnicode* compileACIIRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
+
+        static REExecutorUnicode* compilePathRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
+        static REExecutorUnicode* compileResourceRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
     };
 }

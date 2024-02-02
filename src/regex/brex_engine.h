@@ -6,6 +6,11 @@ namespace BREX
 {
     typedef size_t StateID;
     
+    uint16_t saturateNFATokenIncrement(uint16_t count)
+    {
+        return count == UINT16_MAX ? count : count + 1;
+    }
+
     class NFASimpleStateToken
     {
     public:
@@ -93,7 +98,7 @@ namespace BREX
 
         inline NFASingleStateToken toNextStateWithIncrement(StateID next) const
         {
-            return NFASingleStateToken(next, std::make_pair(this->rangecount.first, this->rangecount.second + 1));
+            return NFASingleStateToken(next, std::make_pair(this->rangecount.first, saturateNFATokenIncrement(this->rangecount.second + 1)));
         }
 
         inline NFASimpleStateToken toNextStateWithDoneRange(StateID next) const
@@ -154,10 +159,10 @@ namespace BREX
 
         inline NFAFullStateToken toNextStateWithIncrement(StateID next, StateID incState) const
         {
-            std::vector<std::pair<StateID, uint16_t>> newrangecounts(this->rangecounts);
-            std::find_if(newrangecounts.begin(), newrangecounts.end(), [incState](const std::pair<StateID, uint16_t>& rc) {
-                return rc.first == incState;
-            })->second += 1;
+            std::vector<std::pair<StateID, uint16_t>> newrangecounts(this->rangecounts.size());
+            std::transform(this->rangecounts.cbegin(), this->rangecounts.cend(), newrangecounts.begin(), [incState](const std::pair<StateID, uint16_t>& rc) {
+                return rc.first == incState ? std::make_pair(rc.first, saturateNFATokenIncrement(rc.second)) : rc;
+            });
 
             return NFAFullStateToken(next, newrangecounts);
         }
@@ -268,40 +273,32 @@ namespace BREX
 
         NFAState(NFAState&& other) = default;
         NFAState& operator=(NFAState&& other) = default;
+
+        void intitialize() {
+            this->simplestates.clear();
+            this->singlestates.clear();
+            this->fullstates.clear();
+        }
+
+        void reset() {
+            this->simplestates.clear();
+            this->singlestates.clear();
+            this->fullstates.clear();
+        }
     };
 
     class NFAMachine
     {
     private:
-        //true if the machine has accepted or all paths are rejected
-        bool inAccepted(const NFAState& ostates) const;
-        bool allRejected(const NFAState& ostates) const;
-
         //process a single char and compute the new state
         void advanceCharForSimpleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
         void advanceCharForSingleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
         void advanceCharForFullStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
 
-        void advanceChar(RegexChar c, const NFAState& ostates, NFAState& nstates) const
-        {
-            this->advanceCharForSimpleStates(c, ostates, nstates);
-            this->advanceCharForSingleStates(c, ostates, nstates);
-            this->advanceCharForFullStates(c, ostates, nstates);
-        }
-
         //process all the epsilon transitions and compute the new state
         bool advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const;
         bool advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const;
         bool advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const;
-
-        bool advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
-        {
-            bool advsimple = this->advanceEpsilonForSimpleStates(ostates, nstates);
-            bool advsingle = this->advanceEpsilonForSingleStates(ostates, nstates);
-            bool advfull = this->advanceEpsilonForFullStates(ostates, nstates);
-
-            return advsimple | advsingle | advfull;
-        }
 
     public:
         const StateID startstate;
@@ -310,7 +307,7 @@ namespace BREX
         const std::vector<NFAOpt*> nfaopts;
         NFASimpleStateToken acceptStateRepr;
 
-        NFAMachine(StateID startstate, StateID acceptstate, std::vector<NFAOpt*> nfaopts) : startstate(startstate), acceptstate(acceptstate), nfaopts(nfaopts), states(), acceptStateRepr(acceptstate)
+        NFAMachine(StateID startstate, StateID acceptstate, std::vector<NFAOpt*> nfaopts) : startstate(startstate), acceptstate(acceptstate), nfaopts(nfaopts), acceptStateRepr(acceptstate)
         {
             ;
         }
@@ -322,40 +319,113 @@ namespace BREX
             }
         }
 
-        bool test(CharCodeIterator& cci) const
+        //true if the machine has accepted or all paths are rejected
+        bool inAccepted(const NFAState& ostates) const;
+        bool allRejected(const NFAState& ostates) const;
+
+        void advanceChar(RegexChar c, const NFAState& ostates, NFAState& nstates) const
         {
-            std::vector<StateID> cstates;
-            this->nfaopts[this->startstate]->advanceEpsilon(this->nfaopts, cstates);
-            
-            while(cci.valid()) {
-                auto cc = cci.get();
-                cci.advance();
-
-                std::vector<StateID> nstates;
-                for(size_t i = 0; i < cstates.size(); ++i) {
-                    this->nfaopts[cstates[i]]->advanceChar(cc, this->nfaopts, nstates);
-                }
-
-                std::sort(nstates.begin(), nstates.end());
-                auto nend = std::unique(nstates.begin(), nstates.end());
-                nstates.erase(nend, nstates.end());
-
-                std::vector<StateID> estates;
-                for(size_t i = 0; i < nstates.size(); ++i) {
-                    this->nfaopts[nstates[i]]->advanceEpsilon(this->nfaopts, estates);
-                }
-
-                std::sort(estates.begin(), estates.end());
-                auto eend = std::unique(estates.begin(), estates.end());
-                estates.erase(eend, estates.end());
-
-                cstates = std::move(estates);
-                if(cstates.empty()) {
-                    return false;
-                }
-            }
-
-            return std::find(cstates.cbegin(), cstates.cend(), this->acceptstate) != cstates.cend();
+            this->advanceCharForSimpleStates(c, ostates, nstates);
+            this->advanceCharForSingleStates(c, ostates, nstates);
+            this->advanceCharForFullStates(c, ostates, nstates);
         }
+
+        bool advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
+        {
+            bool advsimple = this->advanceEpsilonForSimpleStates(ostates, nstates);
+            bool advsingle = this->advanceEpsilonForSingleStates(ostates, nstates);
+            bool advfull = this->advanceEpsilonForFullStates(ostates, nstates);
+
+            return advsimple | advsingle | advfull;
+        }
+    };
+
+    class NFAUnicodeExecutor
+    {
+    private:
+        void runIntialStep();
+        void runStep(RegexChar c);
+
+        bool accepted() const;
+        bool rejected() const;
+
+        bool testReNoAnchor();
+        bool testReStartAnchor();
+
+    public:
+        NFAMachine* forward; 
+        NFAMachine* reverse;
+
+        UnicodeRegexIterator iter;
+
+        NFAMachine* m;
+        NFAState cstates;
+
+        NFAUnicodeExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
+        ~NFAUnicodeExecutor() {;}
+
+        bool test(UnicodeString* sstr, int64_t spos, int64_t epos);
+        bool matchTestForward(UnicodeString* sstr, int64_t spos, int64_t epos);
+        bool matchTestReverse(UnicodeString* sstr, int64_t spos, int64_t epos);
+
+        std::vector<int64_t> matchForward(UnicodeString* sstr, int64_t spos, int64_t epos);
+        std::vector<int64_t> matchReverse(UnicodeString* sstr, int64_t spos, int64_t epos);
+    };
+
+    class NFAASCIIExecutor
+    {
+    private:
+        void runIntialStep();
+        void runStep(RegexChar c);
+
+        bool accepted() const;
+        bool rejected() const;
+
+        bool testReNoAnchor();
+        bool testReStartAnchor();
+
+    public:
+        NFAMachine* forward; 
+        NFAMachine* reverse;
+
+        ASCIIRegexIterator iter;
+
+        NFAMachine* m;
+        NFAState cstates;
+
+        NFAASCIIExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
+        ~NFAASCIIExecutor() {;}
+
+        bool test(ASCIIString* sstr, int64_t spos, int64_t epos);
+        bool matchTestForward(ASCIIString* sstr, int64_t spos, int64_t epos);
+        bool matchTestReverse(ASCIIString* sstr, int64_t spos, int64_t epos);
+
+        std::vector<int64_t> matchForward(ASCIIString* sstr, int64_t spos, int64_t epos);
+        std::vector<int64_t> matchReverse(ASCIIString* sstr, int64_t spos, int64_t epos);
+    };
+
+    class REExecutorUnicode
+    {
+    public:
+        NFAUnicodeExecutor* sanchor; 
+        NFAUnicodeExecutor* re; 
+        NFAUnicodeExecutor* eanchor; 
+
+        REExecutorUnicode(NFAUnicodeExecutor* sanchor, NFAUnicodeExecutor* re, NFAUnicodeExecutor* eanchor) : sanchor(sanchor), re(re), eanchor(eanchor) {;}
+        ~REExecutorUnicode() {;}
+
+        bool test(UnicodeString* sstr, int64_t spos, int64_t epos);
+        bool matchTestFront(UnicodeString* sstr, int64_t spos, int64_t epos);
+        bool matchTestBack(UnicodeString* sstr, int64_t spos, int64_t epos);
+
+        std::optional<int64_t> matchFront(UnicodeString* sstr, int64_t spos, int64_t epos);
+        std::optional<int64_t> matchBack(UnicodeString* sstr, int64_t spos, int64_t epos);
+
+        bool test(UnicodeString* sstr) { return this->test(sstr, 0, (int64_t)sstr->size() - 1); }
+        bool matchTestFront(UnicodeString* sstr) { return this->matchTestFront(sstr, 0, (int64_t)sstr->size() - 1); }
+        bool matchTestBack(UnicodeString* sstr) { return this->matchTestBack(sstr, 0, (int64_t)sstr->size() - 1); }
+
+        std::optional<int64_t> matchFront(UnicodeString* sstr) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1); }
+        std::optional<int64_t> matchBack(UnicodeString* sstr) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1); }
     };
 }

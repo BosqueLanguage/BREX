@@ -15,6 +15,7 @@
 #endif
 
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]
+#define UTF8_IS_CONTINUATION_BYTE(B) (((B) & 0xC0) == 0x80)
 
 namespace BREX
 {
@@ -130,29 +131,39 @@ namespace BREX
         {126, "%tilde;"}
     };
 
-    size_t UnicodeRegexIterator::charCodeByteCount() const
+    int64_t UnicodeRegexIterator::charCodeByteCount() const
     {
-        return UTF8_ENCODING_BYTE_COUNT(*this->curr);
+        return UTF8_ENCODING_BYTE_COUNT(this->sstr->at(this->curr));
+    }
+
+    int64_t UnicodeRegexIterator::charCodeByteCountReverse() const
+    {
+        int64_t count = 0;
+        while(UTF8_IS_CONTINUATION_BYTE(this->sstr->at(this->curr - count))) {
+            count++;
+        }
+
+        return count;
     }
 
     RegexChar UnicodeRegexIterator::toRegexCharCodeFromBytes() const
     {
-        auto bytecount = UTF8_ENCODING_BYTE_COUNT(*this->curr);
-        if(this->curr + bytecount > this->sstr->cend()) {
+        auto bytecount = UTF8_ENCODING_BYTE_COUNT(this->sstr->at(this->curr));
+        if(this->curr + bytecount > this->epos) {
             return 0;
         }
 
         if(bytecount == 1) {
-            return (RegexChar)(*this->curr);
+            return (RegexChar)(this->sstr->at(this->curr));
         }
         else if(bytecount == 2) {
-            return (RegexChar)(((*this->curr & 0x1F) << 6) | (*(this->curr + 1) & 0x3F));
+            return (RegexChar)(((this->sstr->at(this->curr) & 0x1F) << 6) | (this->sstr->at(this->curr + 1) & 0x3F));
         }
         else if(bytecount == 3) {
-            return (RegexChar)(((*this->curr & 0x0F) << 12) | ((*(this->curr + 1) & 0x3F) << 6) | (*(this->curr + 2) & 0x3F));
+            return (RegexChar)(((this->sstr->at(this->curr) & 0x0F) << 12) | ((this->sstr->at(this->curr + 1) & 0x3F) << 6) | (this->sstr->at(this->curr + 2) & 0x3F));
         }
         else {
-            return (RegexChar)(((*this->curr & 0x07) << 18) | ((*(this->curr + 1) & 0x3F) << 12) | ((*(this->curr + 2) & 0x3F) << 6) | (*(this->curr + 3) & 0x3F));
+            return (RegexChar)(((this->sstr->at(this->curr) & 0x07) << 18) | ((this->sstr->at(this->curr + 1) & 0x3F) << 12) | ((this->sstr->at(this->curr + 2) & 0x3F) << 6) | (this->sstr->at(this->curr + 3) & 0x3F));
         }
     } 
 

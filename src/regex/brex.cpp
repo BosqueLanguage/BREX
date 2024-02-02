@@ -46,22 +46,4 @@ namespace BREX
             return SequenceOpt::jparse(j);
         }
     }
-
-    Regex* Regex::jparse(json j)
-    {
-        auto tag = j["tag"].get<std::string>();
-
-        if(tag == "UnicodeValidatorRegex") {
-            return UnicodeValidatorRegex::jparse(j);
-        }
-        else if(tag == "ASCIIValidatorRegex") {
-            return ASCIIValidatorRegex::jparse(j);
-        }
-        else if(tag == "UnicodeMatcherRegex") {
-            return UnicodeMatcherRegex::jparse(j);
-        }
-        else {
-            return ASCIIMatcherRegex::jparse(j);
-        }
-    }
 }

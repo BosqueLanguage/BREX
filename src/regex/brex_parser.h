@@ -623,7 +623,7 @@ namespace BREX
         const RegexOpt* parseNegativeComponent()
         {
             this->advance();
-            const RegexOpt* opt = this->parseRepeatComponent();
+            const RegexOpt* opt = this->parseAnyOfComponent();
                 
             auto cropt = dynamic_cast<const CharRangeOpt*>(opt);
             if(cropt == nullptr) {
@@ -684,31 +684,34 @@ namespace BREX
                 mre = re1;
             }
 
-            if(mre->tag == RegexOptTag::Negate) {
-                xxxx;
-                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be negative"));
-            }
-            
-            if(mre->tag == RegexOptTag::AllOf) {
-                auto aoopt = dynamic_cast<const AllOfOpt*>(mre);
-                if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->tag == RegexOptTag::Negate; })) {
-                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex cannot be all negative"));
-                }
-            }
-
             if(parser.isToken('$')) {
                 parser.advance();
 
                 postfx = parser.parseRegexComponent();
             }
 
+            if(prefx != nullptr || postfx != nullptr) {
+                if(mre->tag == RegexOptTag::Negate) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex (with anchors) cannot be negative"));
+                }
+                
+                if(mre->tag == RegexOptTag::AllOf) {
+                    auto aoopt = dynamic_cast<const AllOfOpt*>(mre);
+                    if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->tag == RegexOptTag::Negate; })) {
+                        parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex (with anchors) cannot be all negative"));
+                    }
+                }
+            }
+
             if(!parser.errors.empty()) {
                 return std::make_pair(std::nullopt, parser.errors);
             }
 
-            Regex* res = isUnicode ? (Regex*)new UnicodeMatcherRegex(prefx, mre, postfx) : (Regex*)new ASCIIMatcherRegex(prefx, mre, postfx);
-            return std::make_pair(res, std::vector<RegexParserError>());
+            auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
+            auto kindtag = isPath ? RegexKindTag::Path : (isResource ? RegexKindTag::Resource : RegexKindTag::Std);
+            Regex* res = new Regex(kindtag, chartype, prefx, mre, postfx);
+
+            return std::make_pair(std::make_optional(res), std::vector<RegexParserError>());
         }
     };
-
 }

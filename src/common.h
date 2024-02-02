@@ -49,24 +49,34 @@ namespace BREX
     class UnicodeRegexIterator
     {
     public:
-        const UnicodeString* sstr;
-        UnicodeString::const_iterator curr;
+        UnicodeString* sstr;
 
-        UnicodeRegexIterator(const UnicodeString* sstr) : sstr(sstr), curr(sstr->cbegin()) {;}
+        int64_t spos; //the first position where the iterator is valid (inclusive)
+        int64_t epos; //the last position where the iterator is valid (exclusive)
+
+        int64_t curr;
+
+        UnicodeRegexIterator() : sstr(nullptr), spos(0), epos(-1), curr(0) {;}
+        UnicodeRegexIterator(UnicodeString* sstr) : sstr(sstr), spos(0), epos(sstr->size() - 1), curr(0) {;}
+        UnicodeRegexIterator(UnicodeString* sstr, int64_t spos, int64_t epos, int64_t curr) : sstr(sstr), spos(spos), epos(epos), curr(curr) {;}
         ~UnicodeRegexIterator() = default;
-        
-        size_t charCodeByteCount() const;
+
+        UnicodeRegexIterator(const UnicodeRegexIterator& other) = default;
+        UnicodeRegexIterator& operator=(const UnicodeRegexIterator& other) = default;
+
+        int64_t charCodeByteCount() const;
+        int64_t charCodeByteCountReverse() const;
         RegexChar toRegexCharCodeFromBytes() const;
 
         inline bool valid() const
         {
-            return this->curr != this->sstr->cend();
+            return (this->curr <= this->spos) & (this->curr <= this->epos);
         }
 
-        inline void advance()
+        inline void inc()
         {
             //if this is a multibyte char then advance by the number of bytes -- fast path on single byte
-            if(UTF8_IS_SINGLEBYTE_ENCODING(*this->curr)) {
+            if(UTF8_IS_SINGLEBYTE_ENCODING(this->sstr->at(this->curr))) {
                 this->curr++;
             }
             else {
@@ -74,11 +84,22 @@ namespace BREX
             }
         }
 
+        inline void dec()
+        {
+            //if this is a multibyte char then advance by the number of bytes -- fast path on single byte
+            if(UTF8_IS_SINGLEBYTE_ENCODING(this->sstr->at(this->curr))) {
+                this->curr--;
+            }
+            else {
+                this->curr -= this->charCodeByteCountReverse();
+            }
+        }
+
         inline RegexChar get() const
         {
             //if this is a multibyte char then decode the number of bytes -- fast path on single byte
-            if(UTF8_CHARCODE_USES_SINGLEBYTE_ENCODING(*this->curr)) {
-                return *this->curr;
+            if(UTF8_CHARCODE_USES_SINGLEBYTE_ENCODING(this->sstr->at(this->curr))) {
+                return this->sstr->at(this->curr);
             }
             else {
                 return this->toRegexCharCodeFromBytes();
@@ -90,24 +111,38 @@ namespace BREX
     {
     public:
         const ASCIIString* sstr;
-        ASCIIString::const_iterator curr;
-
-        ASCIIRegexIterator(const ASCIIString* sstr) : sstr(sstr), curr(sstr->cbegin()) {;}
-        ~ASCIIRegexIterator() = default;
         
-        bool valid() const
+        int64_t spos; //the first position where the iterator is valid (inclusive)
+        int64_t epos; //the last position where the iterator is valid (exclusive)
+
+        int64_t curr;
+
+        ASCIIRegexIterator() : sstr(nullptr), spos(0), epos(-1), curr(0) {;}
+        ASCIIRegexIterator(const ASCIIString* sstr) : sstr(sstr), spos(0), epos(sstr->size() - 1), curr(0) {;}
+        ASCIIRegexIterator(const ASCIIString* sstr, int64_t spos, int64_t epos, int64_t curr) : sstr(sstr), spos(spos), epos(epos), curr(curr) {;}
+        ~ASCIIRegexIterator() = default;
+
+        ASCIIRegexIterator(const ASCIIRegexIterator& other) = default;
+        ASCIIRegexIterator& operator=(const ASCIIRegexIterator& other) = default;
+        
+        inline bool valid() const
         {
-            return this->curr != this->sstr->cend();
+            return (this->curr <= this->spos) & (this->curr <= this->epos);
         }
 
-        void advance()
+        inline void inc()
         {
             this->curr++;
         }
 
-        RegexChar get() const
+        inline void dec()
         {
-            return *this->curr;
+            this->curr--;
+        }
+
+        inline RegexChar get() const
+        {
+            return (RegexChar)this->sstr->at(this->curr);
         }
     };
 

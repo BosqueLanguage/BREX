@@ -284,7 +284,6 @@ namespace BREX
 
     StateID RegexCompiler::reverseCompileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt)
     {
-        xxxx;
         for(int64_t i = 0; i < opt->codes.size(); ++i) {
             auto thisstate = (StateID)states.size();
             states.push_back(new NFAOptCharCode(thisstate, opt->codes[i], follows));
@@ -295,14 +294,86 @@ namespace BREX
         return follows;
     }
 
-    StateID RegexCompiler::reverseCompileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt);
-    StateID RegexCompiler::reverseCompileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt);
-    StateID RegexCompiler::reverseCompileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt);
-    StateID RegexCompiler::reverseCompilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt);
-    StateID RegexCompiler::reverseCompileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt);
-    StateID RegexCompiler::reverseCompileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt);
-    StateID RegexCompiler::reverseCompileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt);
-    StateID RegexCompiler::reverseCompileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt);
+    StateID RegexCompiler::reverseCompileCharRangeOpt(StateID follows, std::vector<NFAOpt*>& states, const CharRangeOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptRange(thisstate, opt->compliment, opt->ranges, follows));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompileCharClassDotOpt(StateID follows, std::vector<NFAOpt*>& states, const CharClassDotOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptDot(thisstate, follows));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompileStarRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const StarRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::reverseCompileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptStar(thisstate, optfollows, follows);
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompilePlusRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const PlusRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::reverseCompileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptStar(thisstate, optfollows, follows);
+
+        return optfollows;
+    }
+
+    StateID RegexCompiler::reverseCompileRangeRepeatOpt(StateID follows, std::vector<NFAOpt*>& states, const RangeRepeatOpt* opt)
+    {
+        auto thisstate = (StateID)states.size();
+        states.push_back(nullptr); //placeholder
+
+        auto optfollows = RegexCompiler::reverseCompileOpt(thisstate, states, opt->repeat);
+        states[thisstate] = new NFAOptRangeK(thisstate, opt->low, opt->high, optfollows, follows);
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompileOptionalOpt(StateID follows, std::vector<NFAOpt*>& states, const OptionalOpt* opt)
+    {
+        auto followopt = RegexCompiler::reverseCompileOpt(follows, states, opt->opt);
+
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptAnyOf(thisstate, { followopt, follows }));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompileAnyOfOpt(StateID follows, std::vector<NFAOpt*>& states, const AnyOfOpt* opt)
+    {
+        std::vector<StateID> followopts;
+        for(size_t i = 0; i < opt->opts.size(); ++i) {
+            followopts.push_back(RegexCompiler::reverseCompileOpt(follows, states, opt->opts[i]));
+        }
+
+        auto thisstate = (StateID)states.size();
+        states.push_back(new NFAOptAnyOf(thisstate, followopts));
+
+        return thisstate;
+    }
+
+    StateID RegexCompiler::reverseCompileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt)
+    {
+        for(int64_t i = 0; i < opt->regexs.size(); ++i) {
+            follows = RegexCompiler::reverseCompileOpt(follows, states, opt->regexs[i]);
+        }
+
+        return follows;
+    }
 
     StateID RegexCompiler::reverseCompileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt)
     {
