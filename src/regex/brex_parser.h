@@ -620,88 +620,80 @@ namespace BREX
             return this->parseAnyOfComponent();
         }
 
-        const RegexOpt* parseNegativeComponent()
-        {
-            this->advance();
-            const RegexOpt* opt = this->parseAnyOfComponent();
-                
-            auto cropt = dynamic_cast<const CharRangeOpt*>(opt);
-            if(cropt == nullptr) {
-                return new NegateOpt(opt);
-            }
-            else {
-                return new CharRangeOpt(!cropt->compliment, cropt->ranges);
-            }
-        }
-
-        const RegexOpt* parseRegexComponent()
+        RegexToplevelEntry parseSingleToplevelRegexComponent()
         {
             std::vector<const RegexOpt*> are;
 
             this->advanceTriviaOnly();
-            if(this->isToken('!')) {
-                are.push_back(this->parseNegativeComponent());
-            }
-            else {
-                are.push_back(this->parsePositiveComponent());
+            bool isNegate = false;
+            bool isFrontCheck = false;
+            bool isBackCheck = false;
+
+            while(this->isToken('!') || this->isToken('$') || this->isToken('^')) {
+                if(this->isToken('!')) {
+                    if(isNegate) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple negations"));
+                    }
+                    else {
+                        isNegate = true;
+                    }
+                }
+                else if(this->isToken('$')) {
+                    if(isBackCheck) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple back checks"));
+                    }
+                    else {
+                        isBackCheck = true;
+                    }
+                }
+                else if(this->isToken('^')) {
+                    if(isFrontCheck) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple front checks"));
+                    }
+                    else {
+                        isFrontCheck = true;
+                    }
+                }
+
+                this->advance();
             }
 
+            if(isFrontCheck && isBackCheck) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- front and back checks cannot be used together"));
+            }
+
+            const RegexOpt* popt = this->parsePositiveComponent();
+            return RegexToplevelEntry(isNegate, isFrontCheck, isBackCheck, popt);
+        }
+
+        std::pair<RegexToplevelEntry, RegexTopLevelAllOf> parseToplevelRegexComponent()
+        {
+            std::vector<RegexToplevelEntry> are;
+
+            are.push_back(this->parseSingleToplevelRegexComponent());
             while (this->isToken('&')) {
                 this->advance();
-                if(this->isToken('!')) {
-                    are.push_back(this->parseNegativeComponent());
-                }
-                else {
-                    are.push_back(this->parsePositiveComponent());
-                }
+                are.push_back(this->parseSingleToplevelRegexComponent());
+            }
+
+            if(std::all_of(are.cbegin(), are.cend(), [](const RegexToplevelEntry& e) { return e.isFrontCheck || e.isBackCheck; })) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- all top-level components are front or back checks"));
             }
 
             if(are.size() == 1) {
-                return are[0];
+                return std::make_pair(are[0], RegexTopLevelAllOf{});
             }
             else {
-                return new AllOfOpt(are);
+                return std::make_pair(RegexToplevelEntry{}, RegexTopLevelAllOf(are));
             }
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
+        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
         {
             auto parser = RegexParser(data, len, isUnicode, isResource);
 
-            const RegexOpt* prefx = nullptr;
-            const RegexOpt* mre = nullptr;
-            const RegexOpt* postfx = nullptr;
-
-            auto re1 = parser.parseRegexComponent();
-            if(parser.isToken('^')) {
-                parser.advance();
-                
-                prefx = re1;
-                mre = parser.parseRegexComponent();
-            }
-            else {
-                mre = re1;
-            }
-
-            if(parser.isToken('$')) {
-                parser.advance();
-
-                postfx = parser.parseRegexComponent();
-            }
-
-            if(prefx != nullptr || postfx != nullptr) {
-                if(mre->tag == RegexOptTag::Negate) {
-                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex (with anchors) cannot be negative"));
-                }
-                
-                if(mre->tag == RegexOptTag::AllOf) {
-                    auto aoopt = dynamic_cast<const AllOfOpt*>(mre);
-                    if(std::all_of(aoopt->musts.cbegin(), aoopt->musts.cend(), [](const RegexOpt* opt) { return opt->tag == RegexOptTag::Negate; })) {
-                        parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- matching regex (with anchors) cannot be all negative"));
-                    }
-                }
-            }
+            auto rr = parser.parseToplevelRegexComponent();
 
             if(!parser.errors.empty()) {
                 return std::make_pair(std::nullopt, parser.errors);
@@ -709,9 +701,8 @@ namespace BREX
 
             auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
             auto kindtag = isPath ? RegexKindTag::Path : (isResource ? RegexKindTag::Resource : RegexKindTag::Std);
-            Regex* res = new Regex(kindtag, chartype, prefx, mre, postfx);
-
-            return std::make_pair(std::make_optional(res), std::vector<RegexParserError>());
+            
+            return std::make_pair(std::make_optional(Regex(kindtag, chartype, rr.first, rr.second)), std::vector<RegexParserError>());
         }
     };
 }

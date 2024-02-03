@@ -21,9 +21,6 @@ namespace BREX
         else if(tag == "EnvRegexOpt") {
             return EnvRegexOpt::jparse(j);
         }
-        else if(tag == "NegateOpt") {
-            return NegateOpt::jparse(j);
-        }
         else if(tag == "StarRepeatOpt") {
             return StarRepeatOpt::jparse(j);
         }
@@ -35,9 +32,6 @@ namespace BREX
         }
         else if(tag == "OptionalOpt") {
             return OptionalOpt::jparse(j);
-        }
-        else if(tag == "AllOfOpt") {
-            return AllOfOpt::jparse(j);
         }
         else if(tag == "AnyOfOpt") {
             return AnyOfOpt::jparse(j);

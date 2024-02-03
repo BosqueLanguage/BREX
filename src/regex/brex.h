@@ -16,9 +16,7 @@ namespace BREX
         RangeRepeat,
         Optional,
         AnyOf,
-        Sequence,
-        Negate,
-        AllOf
+        Sequence
     };
 
     class RegexOpt
@@ -277,7 +275,7 @@ namespace BREX
         {
             auto repeat = RegexOpt::jparse(j["repeat"]);
             auto low = j["low"].get<uint16_t>();
-            auto high = j["high"].is_null() ? UINT16_MAX : j["high"].get<uint16_t>();
+            auto high = (!j.contains("high") || j["high"].is_null()) ? UINT16_MAX : j["high"].get<uint16_t>();
 
             return new RangeRepeatOpt(low, high, repeat);
         }
@@ -398,49 +396,82 @@ namespace BREX
         }
     };
 
-    class NegateOpt : public RegexOpt
+    class RegexToplevelEntry
     {
     public:
+        bool isNegated;
+        bool isFrontCheck;
+        bool isBackCheck;
+
         const RegexOpt* opt;
 
-        NegateOpt(const RegexOpt* opt) : RegexOpt(RegexOptTag::Negate), opt(opt) {;}
-        virtual ~NegateOpt() { delete this->opt; }
+        RegexToplevelEntry() : isNegated(false), isFrontCheck(false), isBackCheck(false), opt(nullptr) {;}
+        RegexToplevelEntry(bool isNegated, bool isFrontCheck, bool isBackCheck, const RegexOpt* opt) : isNegated(isNegated), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck), opt(opt) {;}
+        ~RegexToplevelEntry() { delete this->opt; }
 
-        virtual bool needsParens() const override final { return true; }
-        virtual std::u8string toBSQONFormat() const override final
+        RegexToplevelEntry(const RegexToplevelEntry& other) = default;
+        RegexToplevelEntry(RegexToplevelEntry&& other) = default;
+
+        RegexToplevelEntry& operator=(const RegexToplevelEntry& other) = default;
+        RegexToplevelEntry& operator=(RegexToplevelEntry&& other) = default;
+
+        std::u8string toBSQONFormat() const
         {
+            std::u8string optstr;
+            if(this->isNegated) {
+                optstr += std::u8string{'!'};
+            }
+
+            if(this->isFrontCheck) {
+                optstr += std::u8string{'^'};
+            }
+
+            if(this->isBackCheck) {
+                optstr += std::u8string{'$'};
+            }
+
             if(!this->opt->needsParens()) {
-                return std::u8string{'!'} + this->opt->toBSQONFormat();
+                optstr += this->opt->toBSQONFormat();
             }
             else {
-                return std::u8string{'!'} + std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'};
+                optstr += std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'};
             }
+
+            return optstr;
         }
 
-        static NegateOpt* jparse(json j)
+        static RegexToplevelEntry jparse(json j)
         {
+            bool isNegated = j["isNegated"].get<bool>();
+            bool isFrontCheck = j["isFrontCheck"].get<bool>();
+            bool isBackCheck = j["isBackCheck"].get<bool>();
+
             auto opt = RegexOpt::jparse(j["opt"]);
-            return new NegateOpt(opt);
+            return RegexToplevelEntry(isNegated, isFrontCheck, isBackCheck, opt);
         }
     };
 
-    class AllOfOpt : public RegexOpt
+    class RegexTopLevelAllOf
     {
     public:
-        const std::vector<const RegexOpt*> musts;
+        std::vector<RegexToplevelEntry> musts;
 
-        AllOfOpt(std::vector<const RegexOpt*> AllOfOpt) : RegexOpt(RegexOptTag::Negate), musts(musts) {;}
+        RegexTopLevelAllOf() : musts() {;}
+        RegexTopLevelAllOf(const std::vector<RegexToplevelEntry>& musts) : musts(musts) {;}
+        ~RegexTopLevelAllOf() = default;
 
-        virtual ~AllOfOpt()
+        RegexTopLevelAllOf(const RegexTopLevelAllOf& other) = default;
+        RegexTopLevelAllOf(RegexTopLevelAllOf&& other) = default;
+
+        RegexTopLevelAllOf& operator=(const RegexTopLevelAllOf& other) = default;
+        RegexTopLevelAllOf& operator=(RegexTopLevelAllOf&& other) = default;
+
+        bool isEmpty() const
         {
-            for(size_t i = 0; i < this->musts.size(); ++i) {
-                delete this->musts[i];
-            }
+            return this->musts.empty();
         }
 
-        virtual bool needsParens() const override final { return true; }
-        virtual bool needsSequenceParens() const override final { return true; }
-        virtual std::u8string toBSQONFormat() const override final
+        std::u8string toBSQONFormat() const
         {
             std::u8string muststr;
             for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
@@ -448,26 +479,22 @@ namespace BREX
                     muststr += std::u8string{'&'};
                 }
 
-                if(!(*ii)->needsParens()) {
-                    muststr += (*ii)->toBSQONFormat();
-                }
-                else {
-                    muststr += std::u8string{'('} + (*ii)->toBSQONFormat() + std::u8string{')'};
-                }
+                muststr += ii->toBSQONFormat();
             }
             
             return muststr;
         }
 
-        static AllOfOpt* jparse(json j)
+        static RegexTopLevelAllOf jparse(json j)
         {
-            std::vector<const RegexOpt*> musts;
             auto jmusts = j["musts"];
+            std::vector<RegexToplevelEntry> musts;
+
             std::transform(jmusts.cbegin(), jmusts.cend(), std::back_inserter(musts), [](json arg) {
-                return RegexOpt::jparse(arg);
+                return RegexToplevelEntry::jparse(arg);
             });
 
-            return new AllOfOpt(musts);
+            return RegexTopLevelAllOf(musts);
         }
     };
 
@@ -490,47 +517,38 @@ namespace BREX
         const RegexKindTag rtag;
         const RegexCharInfoTag ctag;
 
-        const RegexOpt* sanchor; //may be nullptr or R
-        const RegexOpt* re; //of the form R -- but if either anchor is present then this positive (or an and with positive)
-        const RegexOpt* eanchor; //may be nullptr or R
+        const RegexToplevelEntry sre; //null if allopt is used
+        const RegexTopLevelAllOf allopt; //if empty then no allopt is not used
 
-        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexOpt* sanchor, const RegexOpt* re, const RegexOpt* eanchor): rtag(rtag), ctag(ctag), sanchor(sanchor), re(re), eanchor(eanchor) {;}
-        
-        ~Regex()
-        {
-            if(this->sanchor != nullptr) {
-                delete this->sanchor;
-            } 
-
-            delete this->re; 
-
-            if(this->eanchor != nullptr) {
-                delete this->eanchor;
-            }
-        }
+        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexToplevelEntry& sre, const RegexTopLevelAllOf& allopt): rtag(rtag), ctag(ctag), sre(sre), allopt(allopt) {;}
+        ~Regex() = default;
 
         static Regex* jparse(json j)
         {
-            auto rtag = j["kind"].is_null() ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
-            auto ctag = (j["isASCII"].is_null() ? false : j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
+            auto rtag = (!j.contains("kind") || j["kind"].is_null()) ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
+            auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
 
-            auto sanchor = j["sanchor"].is_null() ? nullptr : RegexOpt::jparse(j["sanchor"]);
-            auto re = RegexOpt::jparse(j["re"]);
-            auto eanchor = j["eanchor"].is_null() ? nullptr : RegexOpt::jparse(j["eanchor"]);
+            RegexToplevelEntry sre;
+            if(j.contains("sre") && !j["sre"].is_null()) {
+                sre = RegexToplevelEntry::jparse(j["sre"]);
+            }
 
-            return new Regex(rtag, ctag, sanchor, re, eanchor);
+            RegexTopLevelAllOf allopt;
+            if((j.contains("allopt") || !j["allopt"].is_null())) {
+                allopt = RegexTopLevelAllOf::jparse(j["allopt"]);
+            }
+
+            return new Regex(rtag, ctag, sre, allopt);
         }
 
         std::u8string toBSQONFormat() const
         {
             std::u8string fstr;
-            if(this->sanchor != nullptr) {
-                fstr = this->sanchor->toBSQONFormat() + std::u8string{'^'};
+            if(this->allopt.isEmpty()) {
+                fstr = this->sre.toBSQONFormat();
             }
-
-            std::u8string estr;
-            if(this->eanchor != nullptr) {
-                estr = std::u8string{'$'} + this->eanchor->toBSQONFormat();
+            else {
+                fstr = this->allopt.toBSQONFormat();
             }
 
             std::u8string fchar = u8"";
@@ -546,7 +564,7 @@ namespace BREX
                 }
             }
 
-            return std::u8string{'/'} + fstr + this->re->toBSQONFormat() + estr + std::u8string{'/'} + fchar;
+            return std::u8string{'/'} + fstr + std::u8string{'/'} + fchar;
         }
     };
 }

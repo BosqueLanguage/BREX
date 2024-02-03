@@ -362,7 +362,12 @@ namespace BREX
         NFAState cstates;
 
         NFAUnicodeExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
-        ~NFAUnicodeExecutor() {;}
+        
+        ~NFAUnicodeExecutor() 
+        {
+            delete this->forward;
+            delete this->reverse;
+        }
 
         bool test(UnicodeString* sstr, int64_t spos, int64_t epos);
         bool matchTestForward(UnicodeString* sstr, int64_t spos, int64_t epos);
@@ -394,7 +399,12 @@ namespace BREX
         NFAState cstates;
 
         NFAASCIIExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
-        ~NFAASCIIExecutor() {;}
+        
+        ~NFAASCIIExecutor() 
+        {
+            delete this->forward;
+            delete this->reverse;
+        }
 
         bool test(ASCIIString* sstr, int64_t spos, int64_t epos);
         bool matchTestForward(ASCIIString* sstr, int64_t spos, int64_t epos);
@@ -404,28 +414,46 @@ namespace BREX
         std::vector<int64_t> matchReverse(ASCIIString* sstr, int64_t spos, int64_t epos);
     };
 
+    struct SingleCheckREInfo
+    {
+        NFAUnicodeExecutor* executor;
+        bool isNegative;
+        bool isFrontCheck;
+        bool isBackCheck;
+    };
+
+    enum ExecutorError
+    {
+        Ok,
+        NegativeNotAllowed
+    };
+
     class REExecutorUnicode
     {
     public:
-        NFAUnicodeExecutor* sanchor; 
-        NFAUnicodeExecutor* re; 
-        NFAUnicodeExecutor* eanchor; 
+        std::vector<SingleCheckREInfo> checks;
 
-        REExecutorUnicode(NFAUnicodeExecutor* sanchor, NFAUnicodeExecutor* re, NFAUnicodeExecutor* eanchor) : sanchor(sanchor), re(re), eanchor(eanchor) {;}
-        ~REExecutorUnicode() {;}
+        REExecutorUnicode(std::vector<SingleCheckREInfo> checks) : checks(checks) {;}
+        
+        ~REExecutorUnicode() 
+        {
+            for(size_t i = 0; i < this->checks.size(); ++i) {
+                delete this->checks[i].executor;
+            }
+        }
 
         bool test(UnicodeString* sstr, int64_t spos, int64_t epos);
         bool matchTestFront(UnicodeString* sstr, int64_t spos, int64_t epos);
         bool matchTestBack(UnicodeString* sstr, int64_t spos, int64_t epos);
 
-        std::optional<int64_t> matchFront(UnicodeString* sstr, int64_t spos, int64_t epos);
-        std::optional<int64_t> matchBack(UnicodeString* sstr, int64_t spos, int64_t epos);
+        std::optional<int64_t> matchFront(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error);
+        std::optional<int64_t> matchBack(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error);
 
         bool test(UnicodeString* sstr) { return this->test(sstr, 0, (int64_t)sstr->size() - 1); }
         bool matchTestFront(UnicodeString* sstr) { return this->matchTestFront(sstr, 0, (int64_t)sstr->size() - 1); }
         bool matchTestBack(UnicodeString* sstr) { return this->matchTestBack(sstr, 0, (int64_t)sstr->size() - 1); }
 
-        std::optional<int64_t> matchFront(UnicodeString* sstr) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1); }
-        std::optional<int64_t> matchBack(UnicodeString* sstr) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1); }
+        std::optional<int64_t> matchFront(UnicodeString* sstr, ExecutorError& error) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1, error); }
+        std::optional<int64_t> matchBack(UnicodeString* sstr, ExecutorError& error) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1, error); }
     };
 }

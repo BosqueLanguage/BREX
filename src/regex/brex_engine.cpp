@@ -488,36 +488,20 @@ namespace BREX
 
     bool REExecutorUnicode::test(UnicodeString* sstr, int64_t spos, int64_t epos)
     {
-        if(this->sanchor == nullptr && this->eanchor == nullptr) {
-            return this->re->test(sstr, spos, epos);
+        if(this->checks.size() == 1) {
+            auto accept = this->checks[0].executor->test(sstr, spos, epos);
+            return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            if(this->sanchor == nullptr) {
-                auto opts = this->re->matchForward(sstr, spos, epos);
-                auto mm = std::find_if(opts.cbegin(), opts.cend(), [sstr, this, epos](int64_t pos) {
-                    return this->eanchor->test(sstr, pos + 1, epos);
-                });
-
-                return mm != opts.cend();
-            }
-            else if(this->eanchor == nullptr) {
-                auto opts = this->re->matchReverse(sstr, spos, epos);
-                auto mm = std::find_if(opts.cbegin(), opts.cend(), [sstr, this, spos](int64_t pos) {
-                    return this->sanchor->test(sstr, spos, pos - 1);
-                });
-
-                return mm != opts.cend();
-            }
-            else {
-                xxxx;
-            }
+            xxxx;
         }
     }
 
     bool REExecutorUnicode::matchTestFront(UnicodeString* sstr, int64_t spos, int64_t epos)
     {
-        if(this->sanchor == nullptr && this->eanchor == nullptr) {
-            return this->re->matchTestForward(sstr, spos, epos);
+        if(this->checks.size() == 1) {
+            auto accept = this->checks[0].executor->matchTestForward(sstr, spos, epos);
+            return this->checks[0].isNegative ? !accept : accept;
         }
         else {
             xxxx;
@@ -526,40 +510,41 @@ namespace BREX
 
     bool REExecutorUnicode::matchTestBack(UnicodeString* sstr, int64_t spos, int64_t epos)
     {
-        if(this->sanchor == nullptr && this->eanchor == nullptr) {
-            return this->re->matchTestReverse(sstr, spos, epos);
+        if(this->checks.size() == 1) {
+            auto accept = this->checks[0].executor->matchTestReverse(sstr, spos, epos);
+            return this->checks[0].isNegative ? !accept : accept;
         }
         else {
             xxxx;
         }
     }
 
-    std::optional<int64_t> REExecutorUnicode::matchFront(UnicodeString* sstr, int64_t spos, int64_t epos)
+    std::optional<int64_t> REExecutorUnicode::matchFront(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
-        if(this->sanchor == nullptr && this->eanchor == nullptr) {
-            auto opts = this->re->matchForward(sstr, spos, epos);
-            if(opts.empty()) {
+        error = ExecutorError::Ok;
+
+        if(this->checks.size() == 1) {
+            if(this->checks[0].isNegative) {
+                error = ExecutorError::NegativeNotAllowed;
                 return std::nullopt;
             }
-            else {
-                return std::make_optional(opts[0]);
-            }
+            auto opts = this->checks[0].executor->matchForward(sstr, spos, epos);
+            return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }
         else {
             xxxx;
         }
     }
 
-    std::optional<int64_t> REExecutorUnicode::matchBack(UnicodeString* sstr, int64_t spos, int64_t epos)
+    std::optional<int64_t> REExecutorUnicode::matchBack(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
-        if(this->sanchor == nullptr && this->eanchor == nullptr) {
-            auto opts = this->re->matchReverse(sstr, spos, epos);
-            if(opts.empty()) {
+        if(this->checks.size() == 1) {
+            if(this->checks[0].isNegative) {
+                error = ExecutorError::NegativeNotAllowed;
                 return std::nullopt;
             }
-            else {
-                return std::make_optional(opts[0]);
-            }
+            auto opts = this->checks[0].executor->matchReverse(sstr, spos, epos);
+            return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }
         else {
             xxxx;
