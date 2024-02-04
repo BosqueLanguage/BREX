@@ -516,17 +516,21 @@ namespace BREX
     public:
         const RegexKindTag rtag;
         const RegexCharInfoTag ctag;
+        const bool isContainsable;
+        const bool isMatchable;
 
         const RegexToplevelEntry sre; //null if allopt is used
         const RegexTopLevelAllOf allopt; //if empty then no allopt is not used
 
-        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexToplevelEntry& sre, const RegexTopLevelAllOf& allopt): rtag(rtag), ctag(ctag), sre(sre), allopt(allopt) {;}
+        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, bool isContainsable, bool isMatchable, const RegexToplevelEntry& sre, const RegexTopLevelAllOf& allopt): rtag(rtag), ctag(ctag), isContainsable(isContainsable), isMatchable(isMatchable), sre(sre), allopt(allopt) {;}
         ~Regex() = default;
 
         static Regex* jparse(json j)
         {
             auto rtag = (!j.contains("kind") || j["kind"].is_null()) ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
             auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
+            auto isContainsable = (!j.contains("isContainsable") || !j["isContainsable"].get<bool>()) ? false : j["isContainsable"].get<bool>();
+            auto isMatchable = (!j.contains("isMatchable") || !j["isMatchable"].get<bool>()) ? false : j["isMatchable"].get<bool>();
 
             RegexToplevelEntry sre;
             if(j.contains("sre") && !j["sre"].is_null()) {
@@ -538,7 +542,7 @@ namespace BREX
                 allopt = RegexTopLevelAllOf::jparse(j["allopt"]);
             }
 
-            return new Regex(rtag, ctag, sre, allopt);
+            return new Regex(rtag, ctag, isContainsable, isMatchable, sre, allopt);
         }
 
         std::u8string toBSQONFormat() const

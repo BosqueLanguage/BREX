@@ -493,12 +493,53 @@ namespace BREX
             return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            xxxx;
+            auto accept = std::all_of(this->checks.cbegin(), this->checks.cend(), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                bool accepted = false;
+                if(check.isFrontCheck) {
+                    accepted = check.executor->matchTestForward(sstr, spos, epos);
+                }
+                else if(check.isBackCheck) {
+                    accepted = check.executor->matchTestReverse(sstr, spos, epos);
+                }
+                else {
+                    accepted = check.executor->test(sstr, spos, epos);
+                }
+
+                return check.isNegative ? !accepted : accepted;
+            });
+
+            return accept;
         }
     }
 
-    bool REExecutorUnicode::matchTestFront(UnicodeString* sstr, int64_t spos, int64_t epos)
+    bool REExecutorUnicode::testContains(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
+        error = ExecutorError::Ok;
+        if(!this->isContainsable) {
+            error = ExecutorError::NotContainsable;
+            return false;
+        }
+
+        if(this->checks.size() == 1) {
+            for(int64_t ii = spos; ii <= epos; ++ii) {
+                if(this->checks[0].executor->test(sstr, ii, epos)) {
+                    return true;
+                }
+            }
+        }
+        else {
+           xxxx;
+        }
+    }
+
+    bool REExecutorUnicode::testFront(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+    {
+        error = ExecutorError::Ok;
+        if(!this->isMatchable) {
+            error = ExecutorError::NotMatchable;
+            return false;
+        }
+
         if(this->checks.size() == 1) {
             auto accept = this->checks[0].executor->matchTestForward(sstr, spos, epos);
             return this->checks[0].isNegative ? !accept : accept;
@@ -508,8 +549,14 @@ namespace BREX
         }
     }
 
-    bool REExecutorUnicode::matchTestBack(UnicodeString* sstr, int64_t spos, int64_t epos)
+    bool REExecutorUnicode::testBack(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
+        error = ExecutorError::Ok;
+        if(!this->isMatchable) {
+            error = ExecutorError::NotMatchable;
+            return false;
+        }
+
         if(this->checks.size() == 1) {
             auto accept = this->checks[0].executor->matchTestReverse(sstr, spos, epos);
             return this->checks[0].isNegative ? !accept : accept;
@@ -519,15 +566,27 @@ namespace BREX
         }
     }
 
+    std::optional<std::pair<int64_t, int64_t>> REExecutorUnicode::matchContains(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+    {
+        error = ExecutorError::Ok;
+        if(!this->isContainsable) {
+            error = ExecutorError::NotContainsable;
+            return false;
+        }
+
+        xxxx;
+    }
+        
+
     std::optional<int64_t> REExecutorUnicode::matchFront(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
         error = ExecutorError::Ok;
+        if(!this->isMatchable) {
+            error = ExecutorError::NotMatchable;
+            return false;
+        }
 
         if(this->checks.size() == 1) {
-            if(this->checks[0].isNegative) {
-                error = ExecutorError::NegativeNotAllowed;
-                return std::nullopt;
-            }
             auto opts = this->checks[0].executor->matchForward(sstr, spos, epos);
             return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }
@@ -538,11 +597,13 @@ namespace BREX
 
     std::optional<int64_t> REExecutorUnicode::matchBack(UnicodeString* sstr, int64_t spos, int64_t epos, ExecutorError& error)
     {
+        error = ExecutorError::Ok;
+        if(!this->isMatchable) {
+            error = ExecutorError::NotMatchable;
+            return false;
+        }
+
         if(this->checks.size() == 1) {
-            if(this->checks[0].isNegative) {
-                error = ExecutorError::NegativeNotAllowed;
-                return std::nullopt;
-            }
             auto opts = this->checks[0].executor->matchReverse(sstr, spos, epos);
             return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }

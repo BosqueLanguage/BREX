@@ -701,8 +701,26 @@ namespace BREX
 
             auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
             auto kindtag = isPath ? RegexKindTag::Path : (isResource ? RegexKindTag::Resource : RegexKindTag::Std);
-            
-            return std::make_pair(std::make_optional(Regex(kindtag, chartype, rr.first, rr.second)), std::vector<RegexParserError>());
+
+            //TODO: maybe semantic check on containsable that:
+            // (1) does not contain epsilon
+            // (2) has an anchor set for the front *OR* back of the match -- e.g. epsilon is not a prefix or suffix
+            // (3) neither front/back match all chars
+
+            bool isContainsable = false;
+            bool isMatchable = false;
+            if(rr.second.isEmpty()) {
+                isContainsable = !rr.first.isFrontCheck && !rr.first.isBackCheck && !rr.first.isNegated;
+                isMatchable = !rr.first.isFrontCheck && !rr.first.isBackCheck && !rr.first.isNegated;
+            }
+            else {
+                //isContainsable stays false
+                isMatchable = std::any_of(rr.second.musts.cbegin(), rr.second.musts.cend(), [](const RegexToplevelEntry& opt) { 
+                    return !opt.isNegated && !opt.isFrontCheck && !opt.isBackCheck;
+                });
+            }
+
+            return std::make_pair(std::make_optional(Regex(kindtag, chartype, isContainsable, isMatchable, rr.first, rr.second)), std::vector<RegexParserError>());
         }
     };
 }
