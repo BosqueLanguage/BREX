@@ -486,6 +486,18 @@ namespace BREX
         return matches;
     }
 
+    void splitOpsPolarity(const std::vector<SingleCheckREInfo>& allopts, std::vector<SingleCheckREInfo>& posopts, std::vector<SingleCheckREInfo>& negopts)
+    {
+        for(auto iter = allopts.cbegin(); iter != allopts.cend(); ++iter) {
+            if(iter->isNegative) {
+                negopts.push_back(*iter);
+            }
+            else {
+                posopts.push_back(*iter);
+            }
+        }
+    }
+
     bool REExecutorUnicode::test(UnicodeString* sstr, int64_t spos, int64_t epos)
     {
         if(this->checks.size() == 1) {
@@ -520,15 +532,10 @@ namespace BREX
             return false;
         }
 
-        if(this->checks.size() == 1) {
-            for(int64_t ii = spos; ii <= epos; ++ii) {
-                if(this->checks[0].executor->test(sstr, ii, epos)) {
-                    return true;
-                }
+        for(int64_t ii = spos; ii <= epos; ++ii) {
+            if(this->checks[0].executor->test(sstr, ii, epos)) {
+                return true;
             }
-        }
-        else {
-           xxxx;
         }
     }
 
@@ -545,7 +552,25 @@ namespace BREX
             return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            xxxx;
+            std::vector<SingleCheckREInfo> posopts;
+            std::vector<SingleCheckREInfo> negopts;
+            splitOpsPolarity(this->checks, posopts, negopts);
+
+            if(posopts.size() == 1 && negopts.empty()) {
+                std::vector<int64_t> pmatches = posopts[0].executor->matchForward(sstr, spos, epos);
+
+                xxxx;//extract this logic
+                return std::any_of(pmatches.cbegin(), pmatches.cend(), [&sstr, spos, &negopts](int64_t mend) {
+                    return std::all_of(negopts.cbegin(), negopts.cend(), [&sstr, spos, mend](const SingleCheckREInfo& check) {
+                        xxxx; //or do we need to handle the front back anchors?
+                        return !check.executor->test(sstr, spos, mend);
+                    });
+                });
+            }
+            else {
+                xxxx;
+                std::vector<std::vector<int64_t>> posmatches(posopts.size());
+            }
         }
     }
 
