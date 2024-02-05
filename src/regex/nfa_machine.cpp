@@ -1,4 +1,4 @@
-#include "brex_engine.h"
+#include "nfa_machine.h"
 
 namespace BREX
 {
@@ -242,209 +242,8 @@ namespace BREX
         return true;
     }
 
-    void NFAUnicodeExecutor::runIntialStep()
-    {
-        this->cstates.intitialize();
-        this->cstates.simplestates.insert(NFASimpleStateToken{this->m->startstate});
-
-        NFAState nstates;
-        while(this->m->advanceEpsilon(this->cstates, nstates)) {
-            this->cstates = std::move(nstates);
-            nstates.reset();
-        }
-    }
-
-    void NFAUnicodeExecutor::runStep(RegexChar c)
-    {
-        NFAState ncstates;
-        this->m->advanceChar(c, this->cstates, ncstates);
-
-        NFAState nstates;
-        while(this->m->advanceEpsilon(ncstates, nstates)) {
-            ncstates = std::move(nstates);
-            nstates.reset();
-        }
-
-        this->cstates = std::move(ncstates);
-    }
-
-    bool NFAUnicodeExecutor::accepted() const
-    {
-        return this->m->inAccepted(this->cstates);
-    }
-
-    bool NFAUnicodeExecutor::rejected() const
-    {
-        return this->m->allRejected(this->cstates);
-    }
-
-    bool NFAUnicodeExecutor::test(UnicodeString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->forward;
-        this->iter = UnicodeRegexIterator{sstr, spos, epos, spos};
-
-        this->runIntialStep();
-        while(this->iter.valid()) {
-            this->runStep(this->iter.get());
-            this->iter.inc();
-
-            if(this->rejected()) {
-                return false;
-            }
-        }
-
-        return this->accepted();
-    }
-
-    bool NFAUnicodeExecutor::matchTestForward(UnicodeString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->forward;
-        this->iter = UnicodeRegexIterator{sstr, spos, epos, spos};
-
-        this->runIntialStep();
-        while(this->iter.valid() && !this->accepted()) {
-            this->runStep(this->iter.get());
-            this->iter.inc();
-        }
-
-        return this->accepted();
-    }
-
-    bool NFAUnicodeExecutor::matchTestReverse(UnicodeString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->reverse;
-        this->iter = UnicodeRegexIterator{sstr, spos, epos, epos};
-
-        this->runIntialStep();
-        while(this->iter.valid() && !this->accepted()) {
-            this->runStep(this->iter.get());
-            this->iter.dec();
-        }
-
-        return this->accepted();
-    }
-
-    std::vector<int64_t> NFAUnicodeExecutor::matchForward(UnicodeString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->forward;
-        this->iter = UnicodeRegexIterator{sstr, spos, epos, spos};
-
-        std::vector<int64_t> matches;
-        this->runIntialStep();
-        while(this->iter.valid()) {
-            this->runStep(this->iter.get());
-
-            if(this->accepted()) {
-                matches.push_back(this->iter.curr);
-            }
-
-            this->iter.inc();
-        }
-
-        return matches;
-    }
-
-    std::vector<int64_t> NFAUnicodeExecutor::matchReverse(UnicodeString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->reverse;
-        this->iter = UnicodeRegexIterator{sstr, spos, epos, epos};
-
-        std::vector<int64_t> matches;
-        this->runIntialStep();
-        while(this->iter.valid()) {
-            this->runStep(this->iter.get());
-
-            if(this->accepted()) {
-                matches.push_back(this->iter.curr);
-            }
-
-            this->iter.dec();
-        }
-
-        return matches;
-    }
-
-    void NFAASCIIExecutor::runIntialStep()
-    {
-        this->cstates.intitialize();
-        this->cstates.simplestates.insert(NFASimpleStateToken{this->m->startstate});
-
-        NFAState nstates;
-        while(this->m->advanceEpsilon(this->cstates, nstates)) {
-            this->cstates = std::move(nstates);
-            nstates.reset();
-        }
-    }
-
-    void NFAASCIIExecutor::runStep(RegexChar c)
-    {
-        NFAState ncstates;
-        this->m->advanceChar(c, this->cstates, ncstates);
-
-        NFAState nstates;
-        while(this->m->advanceEpsilon(ncstates, nstates)) {
-            ncstates = std::move(nstates);
-            nstates.reset();
-        }
-
-        this->cstates = std::move(ncstates);
-    }
-
-    bool NFAASCIIExecutor::accepted() const
-    {
-        return this->m->inAccepted(this->cstates);
-    }
-
-    bool NFAASCIIExecutor::rejected() const
-    {
-        return this->m->allRejected(this->cstates);
-    }
-
-    bool NFAASCIIExecutor::test(ASCIIString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->forward;
-        this->iter = ASCIIRegexIterator{sstr, spos, epos, spos};
-
-        this->runIntialStep();
-        while(this->iter.valid()) {
-            this->runStep(this->iter.get());
-            this->iter.inc();
-
-            if(this->rejected()) {
-                return false;
-            }
-        }
-
-        return this->accepted();
-    }
-
-    bool NFAASCIIExecutor::matchTestForward(ASCIIString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->forward;
-        this->iter = ASCIIRegexIterator{sstr, spos, epos, spos};
-
-        this->runIntialStep();
-        while(this->iter.valid() && !this->accepted()) {
-            this->runStep(this->iter.get());
-            this->iter.inc();
-        }
-
-        return this->accepted();
-    }
-
-    bool NFAASCIIExecutor::matchTestReverse(ASCIIString* sstr, int64_t spos, int64_t epos)
-    {
-        this->m = this->reverse;
-        this->iter = ASCIIRegexIterator{sstr, spos, epos, epos};
-
-        this->runIntialStep();
-        while(this->iter.valid() && !this->accepted()) {
-            this->runStep(this->iter.get());
-            this->iter.dec();
-        }
-
-        return this->accepted();
-    }
+    
+    ///////////////////////////////////////////
 
     std::vector<int64_t> NFAASCIIExecutor::matchForward(ASCIIString* sstr, int64_t spos, int64_t epos)
     {
@@ -486,16 +285,65 @@ namespace BREX
         return matches;
     }
 
-    void splitOpsPolarity(const std::vector<SingleCheckREInfo>& allopts, std::vector<SingleCheckREInfo>& posopts, std::vector<SingleCheckREInfo>& negopts)
+    void splitOpsPolarity(const std::vector<SingleCheckREInfo>& allopts, std::vector<SingleCheckREInfo>& posopts, std::vector<SingleCheckREInfo>& checkopts)
     {
         for(auto iter = allopts.cbegin(); iter != allopts.cend(); ++iter) {
-            if(iter->isNegative) {
-                negopts.push_back(*iter);
-            }
-            else {
+            if(!iter->isNegative && !iter->isFrontCheck && !iter->isBackCheck) {
                 posopts.push_back(*iter);
             }
+            else {
+                checkopts.push_back(*iter);
+            }
         }
+    }
+
+    std::vector<int64_t> computeSharedMatches(const std::vector<std::vector<int64_t>>& matches)
+    {
+        if(matches.empty()) {
+            return std::vector<int64_t>();
+        }
+
+        std::vector<int64_t> sharedmatches = matches[0];
+        for(auto iter = matches.cbegin() + 1; iter != matches.cend(); ++iter) {
+            std::vector<int64_t> newmatches;
+            std::set_intersection(sharedmatches.cbegin(), sharedmatches.cend(), iter->cbegin(), iter->cend(), std::back_inserter(newmatches));
+            sharedmatches = std::move(newmatches);
+        }
+
+        return sharedmatches;
+    }
+
+    bool validateSingleOp(const SingleCheckREInfo& check, UnicodeString* sstr, int64_t spos, int64_t epos)
+    {
+        bool accepted = false;
+        if(check.isFrontCheck) {
+            accepted = check.executor->matchTestForward(sstr, spos, epos);
+        }
+        else if(check.isBackCheck) {
+            accepted = check.executor->matchTestReverse(sstr, spos, epos);
+        }
+        else {
+            accepted = check.executor->test(sstr, spos, epos);
+        }
+
+        return check.isNegative ? !accepted : accepted;
+    }
+
+    bool validateOpSet(const std::vector<SingleCheckREInfo>& opts, UnicodeString* sstr, int64_t spos, int64_t epos)
+    {
+        return std::all_of(opts.cbegin(), opts.cend(), [sstr, spos, epos](const SingleCheckREInfo& check) {
+            return validateSingleOp(check, sstr, spos, epos);
+        });
+    }
+
+    std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, const std::vector<SingleCheckREInfo>& checks, UnicodeString* sstr, int64_t spos)
+    {
+        std::vector<int64_t> matches;
+        std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(matches), [sstr, spos, &checks](int64_t epos) {
+            return validateOpSet(checks, sstr, spos, epos);
+        });
+
+        return matches;
     }
 
     bool REExecutorUnicode::test(UnicodeString* sstr, int64_t spos, int64_t epos)
@@ -505,22 +353,7 @@ namespace BREX
             return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            auto accept = std::all_of(this->checks.cbegin(), this->checks.cend(), [sstr, spos, epos](const SingleCheckREInfo& check) {
-                bool accepted = false;
-                if(check.isFrontCheck) {
-                    accepted = check.executor->matchTestForward(sstr, spos, epos);
-                }
-                else if(check.isBackCheck) {
-                    accepted = check.executor->matchTestReverse(sstr, spos, epos);
-                }
-                else {
-                    accepted = check.executor->test(sstr, spos, epos);
-                }
-
-                return check.isNegative ? !accepted : accepted;
-            });
-
-            return accept;
+            return validateOpSet(this->checks, sstr, spos, epos);
         }
     }
 
@@ -532,8 +365,10 @@ namespace BREX
             return false;
         }
 
+        //by def a single option that is not negative or front/back marked
+        auto scheck = this->checks[0];
         for(int64_t ii = spos; ii <= epos; ++ii) {
-            if(this->checks[0].executor->test(sstr, ii, epos)) {
+            if(scheck.executor->matchTestForward(sstr, ii, epos)) {
                 return true;
             }
         }
@@ -548,28 +383,29 @@ namespace BREX
         }
 
         if(this->checks.size() == 1) {
+            //by def a single option that is not negative or front/back marked
             auto accept = this->checks[0].executor->matchTestForward(sstr, spos, epos);
             return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            std::vector<SingleCheckREInfo> posopts;
-            std::vector<SingleCheckREInfo> negopts;
-            splitOpsPolarity(this->checks, posopts, negopts);
+            std::vector<SingleCheckREInfo> matchopts;
+            std::vector<SingleCheckREInfo> checkops;
+            splitOpsPolarity(this->checks, matchopts, checkops);
 
-            if(posopts.size() == 1 && negopts.empty()) {
-                std::vector<int64_t> pmatches = posopts[0].executor->matchForward(sstr, spos, epos);
-
-                xxxx;//extract this logic
-                return std::any_of(pmatches.cbegin(), pmatches.cend(), [&sstr, spos, &negopts](int64_t mend) {
-                    return std::all_of(negopts.cbegin(), negopts.cend(), [&sstr, spos, mend](const SingleCheckREInfo& check) {
-                        xxxx; //or do we need to handle the front back anchors?
-                        return !check.executor->test(sstr, spos, mend);
-                    });
-                });
+            if(matchopts.size() == 1) {
+                auto matches = matchopts[0].executor->matchForward(sstr, spos, epos);
+                return !matches.empty() && validateOpSet(checkops, sstr, spos, matches.back());
             }
             else {
-                xxxx;
-                std::vector<std::vector<int64_t>> posmatches(posopts.size());
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                    return check.executor->matchForward(sstr, spos, epos);
+                });
+
+                auto sharedmatches = computeSharedMatches(matches);
+                auto validmatches = validateMatchSetOptions(sharedmatches, checkops, sstr, spos);
+                
+                return !validmatches.empty();
             }
         }
     }
@@ -583,11 +419,30 @@ namespace BREX
         }
 
         if(this->checks.size() == 1) {
+            //by def a single option that is not negative or front/back marked
             auto accept = this->checks[0].executor->matchTestReverse(sstr, spos, epos);
             return this->checks[0].isNegative ? !accept : accept;
         }
         else {
-            xxxx;
+            std::vector<SingleCheckREInfo> matchopts;
+            std::vector<SingleCheckREInfo> checkops;
+            splitOpsPolarity(this->checks, matchopts, checkops);
+
+            if(matchopts.size() == 1) {
+                auto matches = matchopts[0].executor->matchForward(sstr, spos, epos);
+                return !matches.empty() && validateOpSet(checkops, sstr, spos, matches.back());
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                    return check.executor->matchReverse(sstr, spos, epos);
+                });
+
+                auto sharedmatches = computeSharedMatches(matches);
+                auto validmatches = validateMatchSetOptions(sharedmatches, checkops, sstr, spos);
+                
+                return !validmatches.empty();
+            }
         }
     }
 
@@ -596,10 +451,19 @@ namespace BREX
         error = ExecutorError::Ok;
         if(!this->isContainsable) {
             error = ExecutorError::NotContainsable;
-            return false;
+            return std::nullopt;
         }
 
-        xxxx;
+        //by def a single option that is not negative or front/back marked
+        auto scheck = this->checks[0];
+
+        for(int64_t ii = spos; ii <= epos; ++ii) {
+            auto mm = scheck.executor->matchForward(sstr, ii, epos);
+
+            if(!mm.empty()) {
+                return std::make_optional(std::make_pair(ii, mm.back()));
+            }
+        }
     }
         
 
@@ -612,11 +476,30 @@ namespace BREX
         }
 
         if(this->checks.size() == 1) {
+            //by def a single option that is not negative or front/back marked
             auto opts = this->checks[0].executor->matchForward(sstr, spos, epos);
             return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }
         else {
-            xxxx;
+            std::vector<SingleCheckREInfo> matchopts;
+            std::vector<SingleCheckREInfo> checkops;
+            splitOpsPolarity(this->checks, matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts[0].executor->matchForward(sstr, spos, epos);
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                    return check.executor->matchForward(sstr, spos, epos);
+                });
+
+                realmatches = computeSharedMatches(matches);
+            }
+
+            auto validmatches = validateMatchSetOptions(realmatches, checkops, sstr, spos);
+            return !validmatches.empty() ? std::make_optional(validmatches.back()) : std::nullopt;
         }
     }
 
@@ -629,11 +512,30 @@ namespace BREX
         }
 
         if(this->checks.size() == 1) {
+            //by def a single option that is not negative or front/back marked
             auto opts = this->checks[0].executor->matchReverse(sstr, spos, epos);
             return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
         }
         else {
-            xxxx;
+            std::vector<SingleCheckREInfo> matchopts;
+            std::vector<SingleCheckREInfo> checkops;
+            splitOpsPolarity(this->checks, matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts[0].executor->matchReverse(sstr, spos, epos);
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                    return check.executor->matchReverse(sstr, spos, epos);
+                });
+
+                realmatches = computeSharedMatches(matches);
+            }
+
+            auto validmatches = validateMatchSetOptions(realmatches, checkops, sstr, spos);
+            return !validmatches.empty() ? std::make_optional(validmatches.back()) : std::nullopt;
         }
     }
 }
