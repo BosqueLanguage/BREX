@@ -4,6 +4,11 @@ namespace BREX
 {
     const RegexOpt* RegexResolver::resolveNamedRegexOpt(const NamedRegexOpt* opt)
     {
+        if(this->nameResolverFn == nullptr) {
+            this->errors.push_back(RegexCompileError(u8"Named regexes are not supported in this context"));
+            return opt;
+        }
+
         auto realname = this->nameResolverFn(opt->rname, this->resolverState);
 
         if(std::find(this->pending_resolves.cbegin(), this->pending_resolves.cend(), realname) != this->pending_resolves.cend()) {
@@ -125,22 +130,6 @@ namespace BREX
                 }
 
                 return new SequenceOpt(seq);
-            }
-            case RegexOptTag::Negate:
-            {
-                auto negate = static_cast<const NegateOpt*>(opt);
-                return new NegateOpt(resolve(negate->opt));
-            }
-            case RegexOptTag::AllOf:
-            {
-                auto allof = static_cast<const AllOfOpt*>(opt);
-                std::vector<const RegexOpt*> opts;
-                for(auto ii = allof->musts.cbegin(); ii != allof->musts.cend(); ++ii)
-                {
-                    opts.push_back(resolve(*ii));
-                }
-
-                return new AllOfOpt(opts);
             }
             default:
             {

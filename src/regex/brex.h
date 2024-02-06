@@ -185,7 +185,7 @@ namespace BREX
         const RegexOpt* repeat;
 
         StarRepeatOpt(const RegexOpt* repeat) : RegexOpt(RegexOptTag::StarRepeat), repeat(repeat) {;}
-        virtual ~StarRepeatOpt() { delete this->repeat; }
+        virtual ~StarRepeatOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual std::u8string toBSQONFormat() const override final
@@ -211,7 +211,7 @@ namespace BREX
         const RegexOpt* repeat;
 
         PlusRepeatOpt(const RegexOpt* repeat) : RegexOpt(RegexOptTag::PlusRepeat), repeat(repeat) {;}
-        virtual ~PlusRepeatOpt() { delete this->repeat; }
+        virtual ~PlusRepeatOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual std::u8string toBSQONFormat() const override final
@@ -239,7 +239,7 @@ namespace BREX
         const uint16_t high; //if high == INT16_MAX then this is an unbounded repeat
 
         RangeRepeatOpt(uint16_t low, uint16_t high, const RegexOpt* repeat) : RegexOpt(RegexOptTag::RangeRepeat), repeat(repeat), low(low), high(high) {;}
-        virtual ~RangeRepeatOpt() { delete this->repeat; }
+        virtual ~RangeRepeatOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual std::u8string toBSQONFormat() const override final
@@ -287,7 +287,7 @@ namespace BREX
         const RegexOpt* opt;
 
         OptionalOpt(const RegexOpt* opt) : RegexOpt(RegexOptTag::Optional), opt(opt) {;}
-        virtual ~OptionalOpt() { delete this->opt; }
+        virtual ~OptionalOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual std::u8string toBSQONFormat() const override final
@@ -313,13 +313,7 @@ namespace BREX
         const std::vector<const RegexOpt*> opts;
 
         AnyOfOpt(std::vector<const RegexOpt*> opts) : RegexOpt(RegexOptTag::AnyOf), opts(opts) {;}
-
-        virtual ~AnyOfOpt()
-        {
-            for(size_t i = 0; i < this->opts.size(); ++i) {
-                delete this->opts[i];
-            }
-        }
+        virtual ~AnyOfOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual bool needsSequenceParens() const override final { return true; }
@@ -360,13 +354,7 @@ namespace BREX
         const std::vector<const RegexOpt*> regexs;
 
         SequenceOpt(std::vector<const RegexOpt*> regexs) : RegexOpt(RegexOptTag::Sequence), regexs(regexs) {;}
-
-        virtual ~SequenceOpt()
-        {
-            for(size_t i = 0; i < this->regexs.size(); ++i) {
-                delete this->regexs[i];
-            }
-        }
+        virtual ~SequenceOpt() = default;
 
         virtual bool needsParens() const override final { return true; }
         virtual std::u8string toBSQONFormat() const override final
@@ -407,7 +395,7 @@ namespace BREX
 
         RegexToplevelEntry() : isNegated(false), isFrontCheck(false), isBackCheck(false), opt(nullptr) {;}
         RegexToplevelEntry(bool isNegated, bool isFrontCheck, bool isBackCheck, const RegexOpt* opt) : isNegated(isNegated), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck), opt(opt) {;}
-        ~RegexToplevelEntry() { delete this->opt; }
+        ~RegexToplevelEntry() = default;
 
         RegexToplevelEntry(const RegexToplevelEntry& other) = default;
         RegexToplevelEntry(RegexToplevelEntry&& other) = default;

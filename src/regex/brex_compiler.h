@@ -2,7 +2,7 @@
 
 #include "common.h"
 #include "brex.h"
-#include "brex_engine.h"
+#include "brex_executor.h"
 
 namespace BREX
 {
@@ -43,28 +43,7 @@ namespace BREX
         std::vector<RegexCompileError> errors;
         std::vector<std::string> pending_resolves;
 
-        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, std::map<std::string, const RegexOpt*> namedRegexes, std::map<std::string, const RegexOpt*>* envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), errors(), namedRegexes(namedRegexes), envRegexes(envRegexes) 
-        {
-            for(auto ii = this->namedRegexes.begin(); ii != this->namedRegexes.end(); ++ii)
-            {
-                if(ii->second->tag == RegexOptTag::Negate || ii->second->tag == RegexOptTag::AllOf)
-                {
-                    this->errors.push_back(RegexCompileError(u8"Negation and AllOf regexes cannot be used in substitution patterns"));
-                }
-            }
-
-            if(this->envRegexes)
-            {
-                for(auto ii = this->envRegexes->begin(); ii != this->envRegexes->end(); ++ii)
-                {
-                    if(ii->second->tag == RegexOptTag::Negate || ii->second->tag == RegexOptTag::AllOf)
-                    {
-                        this->errors.push_back(RegexCompileError(u8"Negation and AllOf regexes cannot be used in substitution patterns"));
-                    }
-                }
-            }
-        }
-        
+        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, std::map<std::string, const RegexOpt*> namedRegexes, std::map<std::string, const RegexOpt*>* envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), errors(), namedRegexes(namedRegexes), envRegexes(envRegexes) { ; }
         ~RegexResolver() = default;
 
         const RegexOpt* resolve(const RegexOpt* opt);
@@ -97,19 +76,126 @@ namespace BREX
 
         static StateID reverseCompileOpt(StateID follows, std::vector<NFAOpt*>& states, const RegexOpt* opt);
 
+        std::vector<RegexCompileError> errors;
+
+        template <typename TStr, typename TIter>
+        std::optional<SingleCheckREInfo<TStr, TIter>> compileSingleTopLevelEntry(const RegexToplevelEntry& tlre, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn)
+        {
+            RegexResolver resolver(resolverState, nameResolverFn, namedRegexes, envRegexes);
+            auto fullre = resolver.resolve(tlre.opt);
+            if(resolver.errors.size() > 0) {
+                std::copy(resolver.errors.cbegin(), resolver.errors.cend(), std::back_inserter(this->errors));
+                return std::nullopt;
+            }
+
+            std::vector<NFAOpt*> nfastates_forward = { new NFAOptAccept(0) };
+            auto nfastart_forward = RegexCompiler::compileOpt(0, nfastates_forward, fullre);
+            NFAMachine* nfaforward = new NFAMachine(nfastart_forward, 0, nfastates_forward);
+
+            std::vector<NFAOpt*> nfastates_reverse = { new NFAOptAccept(0) };
+            auto nfastart_reverse = RegexCompiler::reverseCompileOpt(0, nfastates_reverse, fullre);
+            NFAMachine* nfareverse = new NFAMachine(nfastart_reverse, 0, nfastates_reverse);
+            
+            NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
+            return std::make_optional(SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck));
+        }
+        
+
     public:
-        RegexCompiler() { ; }
+        RegexCompiler() : errors() { ; }
         ~RegexCompiler() = default;
 
-        xxxx;
-        static NFAMachine* compile(const RegexOpt* opt);
-        static NFAMachine* compileReverse(const RegexOpt* opt);
 
-        xxxx;
-        static REExecutorUnicode* compileUnicodeRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
-        static REExecutorUnicode* compileACIIRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
+        template <typename TStr, typename TIter>
+        static REExecutor<TStr, TIter>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        {
+            RegexCompiler rcc;
 
-        static REExecutorUnicode* compilePathRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
-        static REExecutorUnicode* compileResourceRegexToExecutor(const RegexOpt* opt, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn);
+            std::vector<SingleCheckREInfo<TStr, TIter>> checks;
+            if(re->allopt.isEmpty()) {
+                auto cv = rcc.compileSingleTopLevelEntry<TStr, TIter>(re->sre, namedRegexes, envRegexes, resolverState, nameResolverFn);
+                if(cv.has_value()) {
+                    checks.push_back(cv.value());
+                }
+                else {
+                    std::copy(rcc.errors.cbegin(), rcc.errors.cend(), std::back_inserter(errinfo));
+                    return nullptr;
+                }
+            }
+            else {
+                for(auto ii = re->allopt.musts.cbegin(); ii != re->allopt.musts.cend(); ++ii) {
+                    auto cv = rcc.compileSingleTopLevelEntry<TStr, TIter>(*ii, namedRegexes, envRegexes, resolverState, nameResolverFn);
+                    if(cv.has_value()) {
+                        checks.push_back(cv.value());
+                    }
+                    else {
+                        std::copy(rcc.errors.cbegin(), rcc.errors.cend(), std::back_inserter(errinfo));
+                        return nullptr;
+                    }
+                }
+            }
+            
+            return new REExecutor<TStr, TIter>(checks, re->isContainsable, re->isMatchable);
+        }
+        
+        static UnicodeRegexExecutor* compileUnicodeRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        {
+            if(re->ctag != RegexCharInfoTag::Unicode) {
+                errinfo.push_back(RegexCompileError(u8"Expected a Unicode regex"));
+                return nullptr;
+            }
+
+            if(re->rtag != RegexKindTag::Std) {
+                errinfo.push_back(RegexCompileError(u8"Expected a standard regex"));
+                return nullptr;
+            }
+
+            return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator>(re, namedRegexes, nullptr, resolverState, nameResolverFn, errinfo);
+        }
+
+        static ASCIIRegexExecutor* compileASCIIRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        {
+            if(re->ctag != RegexCharInfoTag::ASCII) {
+                errinfo.push_back(RegexCompileError(u8"Expected an ASCII regex"));
+                return nullptr;
+            }
+
+            if(re->rtag != RegexKindTag::Std) {
+                errinfo.push_back(RegexCompileError(u8"Expected a standard regex"));
+                return nullptr;
+            }
+
+            return compileRegexToExecutor<ASCIIString, ASCIIRegexIterator>(re, namedRegexes, nullptr, resolverState, nameResolverFn, errinfo);
+        }
+
+        static ASCIIRegexExecutor* compilePathRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        {
+            if(re->ctag != RegexCharInfoTag::ASCII) {
+                errinfo.push_back(RegexCompileError(u8"Expected an ASCII regex"));
+                return nullptr;
+            }
+
+            if(re->rtag != RegexKindTag::Std) {
+                errinfo.push_back(RegexCompileError(u8"Expected a standard regex"));
+                return nullptr;
+            }
+
+            return compileRegexToExecutor<ASCIIString, ASCIIRegexIterator>(re, namedRegexes, nullptr, resolverState, nameResolverFn, errinfo);
+        }
+
+        static ASCIIRegexExecutor* compileResourceRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        {
+            if(re->ctag != RegexCharInfoTag::ASCII) {
+                errinfo.push_back(RegexCompileError(u8"Expected an ASCII regex"));
+                return nullptr;
+            }
+
+            if(re->rtag != RegexKindTag::Std) {
+                errinfo.push_back(RegexCompileError(u8"Expected a standard regex"));
+                return nullptr;
+            }
+
+            return compileRegexToExecutor<ASCIIString, ASCIIRegexIterator>(re, namedRegexes, envRegexes, resolverState, nameResolverFn, errinfo);
+        }
     };
 }

@@ -307,17 +307,8 @@ namespace BREX
         const std::vector<NFAOpt*> nfaopts;
         NFASimpleStateToken acceptStateRepr;
 
-        NFAMachine(StateID startstate, StateID acceptstate, std::vector<NFAOpt*> nfaopts) : startstate(startstate), acceptstate(acceptstate), nfaopts(nfaopts), acceptStateRepr(acceptstate)
-        {
-            ;
-        }
-        
-        ~NFAMachine() 
-        {
-            for(size_t i = 0; i < this->nfaopts.size(); ++i) {
-                delete this->nfaopts[i];
-            }
-        }
+        NFAMachine(StateID startstate, StateID acceptstate, std::vector<NFAOpt*> nfaopts) : startstate(startstate), acceptstate(acceptstate), nfaopts(nfaopts), acceptStateRepr(acceptstate) { ; }
+        ~NFAMachine() = default;
 
         //true if the machine has accepted or all paths are rejected
         bool inAccepted(const NFAState& ostates) const;

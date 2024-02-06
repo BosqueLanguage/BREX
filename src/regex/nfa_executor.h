@@ -47,12 +47,7 @@ namespace BREX
 
     public:
         NFAExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
-        
-        ~NFAExecutor() 
-        {
-            delete this->forward;
-            delete this->reverse;
-        }
+        ~NFAExecutor() = default;
 
         bool test(TStr* sstr, int64_t spos, int64_t epos)
         {
