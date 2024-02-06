@@ -5,7 +5,7 @@ namespace BREX
     RegexOpt* RegexOpt::jparse(json j)
     {
         auto tag = j["tag"].get<std::string>();
-        
+
         if(tag == "LiteralOpt") {
             return LiteralOpt::jparse(j);
         }
