@@ -6,7 +6,7 @@
 
 #include <regex>
 
-namespace BREX
+namespace brex
 {
     std::vector<uint8_t> s_whitespacechars = { ' ', '\t', '\n', '\r', '\v', '\f' };
     std::vector<uint8_t> s_doubleslash = { '%', '%' };
@@ -139,7 +139,7 @@ namespace BREX
             }
         }
 
-        const RegexChar parseRegexChar(bool unicodeok)
+        RegexChar parseRegexChar(bool unicodeok)
         {
             auto c = this->token();
             if(c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
@@ -343,7 +343,7 @@ namespace BREX
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing } in named regex"));
             }
 
-            std::regex scopere("^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
+            std::basic_regex<char8_t> scopere(u8"^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
             if(!std::regex_match(name.cbegin(), name.cend(), scopere)) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid named regex name -- must be a valid scoped identifier"));
             }
@@ -371,7 +371,7 @@ namespace BREX
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing ] in env regex"));
             }
 
-            std::regex idre("^[_a-z][_a-zA-Z0-9]*$");
+            std::basic_regex<char8_t> idre(u8"^[_a-z][_a-zA-Z0-9]*$");
             if(!std::regex_match(name.cbegin(), name.cend(), idre)) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
             }
@@ -722,6 +722,16 @@ namespace BREX
             }
 
             return std::make_pair(std::make_optional(Regex(kindtag, chartype, isContainsable, isMatchable, rr.first, rr.second)), std::vector<RegexParserError>());
+        }
+
+        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
+        {
+            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false);
+        }
+
+        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re)
+        {
+            return parseRegex((uint8_t*)re.c_str(), re.size(), false, false, false);
         }
     };
 }

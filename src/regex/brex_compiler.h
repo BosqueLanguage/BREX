@@ -5,7 +5,7 @@
 #include "brex.h"
 #include "brex_executor.h"
 
-namespace BREX
+namespace brex
 {
     typedef void* NameResolverState;
     typedef std::string (*fnNameResolver)(const std::string& name, void* resolverS);

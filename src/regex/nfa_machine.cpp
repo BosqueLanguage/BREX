@@ -1,6 +1,6 @@
 #include "nfa_machine.h"
 
-namespace BREX
+namespace brex
 {
     bool NFAMachine::inAccepted(const NFAState& ostates) const
     {

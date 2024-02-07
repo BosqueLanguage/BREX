@@ -4,7 +4,7 @@
 
 #include "nfa_machine.h"
 
-namespace BREX
+namespace brex
 {
     template <typename TStr, typename TIter>
     class NFAExecutor

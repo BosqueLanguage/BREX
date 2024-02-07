@@ -17,7 +17,7 @@
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]
 #define UTF8_IS_CONTINUATION_BYTE(B) (((B) & 0xC0) == 0x80)
 
-namespace BREX
+namespace brex
 {
         size_t utf8_encoding_sizes[16] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4};
 

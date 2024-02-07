@@ -1,6 +1,6 @@
 #include "brex.h"
 
-namespace BREX
+namespace brex
 {
     RegexOpt* RegexOpt::jparse(json j)
     {

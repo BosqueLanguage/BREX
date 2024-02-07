@@ -1,6 +1,6 @@
 #include "brex_compiler.h"
 
-namespace BREX
+namespace brex
 {
     const RegexOpt* RegexResolver::resolveNamedRegexOpt(const NamedRegexOpt* opt)
     {

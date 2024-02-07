@@ -1,7 +1,7 @@
 #include "../common.h"
 #include "nfa_executor.h"
 
-namespace BREX
+namespace brex
 {
     template <typename TStr, typename TIter>
     class SingleCheckREInfo

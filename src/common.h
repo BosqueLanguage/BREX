@@ -24,7 +24,7 @@ typedef nlohmann::json json;
 #define UTF8_CHARCODE_USES_SINGLEBYTE_ENCODING(cc) ((cc) <= 0x7F)
 #define UTF8_CHARCODE_USES_MULTIBYTE_ENCODING(cc) ((cc) > 0x7F)
 
-namespace BREX
+namespace brex
 {
     typedef std::u8string UnicodeString;
     typedef char8_t UnicodeStringChar;

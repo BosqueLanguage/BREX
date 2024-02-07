@@ -1,23 +1,27 @@
 MAKE_PATH=$(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR=$(MAKE_PATH)/../../build/
-BIN_DIR=$(MAKE_PATH)../../bin/
+BIN_DIR=$(MAKE_PATH)/../../bin/
 RE_DIR=$(MAKE_PATH)/
 SRC_DIR=$(MAKE_PATH)/../
+TEST_SRC_DIR=$(MAKE_PATH)/../../test/regex/
 
 OUT_EXE=$(BUILD_DIR)output/
 OUT_OBJ=$(BUILD_DIR)output/obj/
 
 JSON_INCLUDES=-I $(BUILD_DIR)include/headers/json/
+LIB_PATH=$(OUT_EXE)
 
-#dev is default, for another flavor : make BUILD=release
+#dev is default, for another flavor : make BUILD=release or debug
 BUILD := dev
 
 CPP=g++
 CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20
 
-CPPFLAGS_OPT.dev=-Og -ggdb -fno-omit-frame-pointer -fsanitize=address
+CPPFLAGS_OPT.debug=-Og -ggdb -fno-omit-frame-pointer -fsanitize=address
+CPPFLAGS_OPT.dev=-Og -ggdb -fno-omit-frame-pointer
 CPPFLAGS_OPT.release=-O3 -march=x86-64-v3
-CPPFLAGS := ${CPPFLAGS_OPT.${BUILD}} ${CPP_STDFLAGS}
+CPPFLAGS=${CPPFLAGS_OPT.${BUILD}} ${CPP_STDFLAGS}
+CPPFLAGS_TEST=${CPPFLAGS_OPT.dev} ${CPP_STDFLAGS}
 
 AR=ar
 ARFLAGS=rs
@@ -32,9 +36,9 @@ REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
 MAKEFLAGS += -j4
 
-all: brexlib
+all: $(OUT_EXE)brexlib.a
 
-brexlib: $(REGEX_HEADERS) $(REGEX_OBJS) $(COMMON_HEADERS) $(COMMON_OBJS)
+$(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(COMMON_OBJS)
 	@mkdir -p $(OUT_EXE)
 	$(AR) $(ARFLAGS) $(OUT_EXE)brexlib.a $(REGEX_OBJS) $(COMMON_OBJS)
 
@@ -53,6 +57,13 @@ $(OUT_OBJ)nfa_machine.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)nfa_machine
 $(OUT_OBJ)common.o: $(COMMON_HEADERS) $(COMMON_SOURCES)
 	@mkdir -p $(OUT_OBJ)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(COMMON_SOURCES)
+
+testfiles: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(TEST_SRC_DIR)main.cpp $(TEST_SRC_DIR)parsing.cpp $(TEST_SRC_DIR)test.cpp
+	@mkdir -p $(OUT_EXE)
+	$(CPP) $(CPPFLAGS_TEST) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)regex_test $(TEST_SRC_DIR)main.cpp $(TEST_SRC_DIR)parsing.cpp $(TEST_SRC_DIR)test.cpp $(OUT_EXE)brexlib.a -lboost_unit_test_framework
+
+test: testfiles
+	$(BIN_DIR)regex_test 
 
 clean:
 	rm -rf $(OUT_EXE)* $(OUT_OBJ)*.o

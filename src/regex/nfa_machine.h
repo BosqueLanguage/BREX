@@ -2,7 +2,7 @@
 
 #include "../common.h"
 
-namespace BREX
+namespace brex
 {
     typedef size_t StateID;
     
