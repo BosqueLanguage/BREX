@@ -1,5 +1,7 @@
+#define once 
 
-#include "common.h"
+#include "../common.h"
+
 #include "nfa_machine.h"
 
 namespace BREX
@@ -46,8 +48,15 @@ namespace BREX
         inline bool rejected() const { return this->m->allRejected(this->cstates); }
 
     public:
-        NFAExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse) {;}
+        NFAExecutor(): forward(nullptr), reverse(nullptr), TIter(), m(nullptr), cstates() {;}
+        NFAExecutor(NFAMachine* forward, NFAMachine* reverse) : forward(forward), reverse(reverse), iter(), m(nullptr), cstates() {;}
         ~NFAExecutor() = default;
+
+        NFAExecutor(const NFAExecutor& other) = default;
+        NFAExecutor(NFAExecutor&& other) = default;
+
+        NFAExecutor& operator=(const NFAExecutor& other) = default;
+        NFAExecutor& operator=(NFAExecutor&& other) = default;
 
         bool test(TStr* sstr, int64_t spos, int64_t epos)
         {

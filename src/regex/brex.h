@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "../common.h"
 
 namespace BREX
 {
@@ -99,7 +99,7 @@ namespace BREX
             }
             rngs.push_back(']');
 
-            return std::move(rngs);
+            return rngs;
         }
 
         static CharRangeOpt* jparse(json j)

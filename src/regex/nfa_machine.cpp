@@ -36,6 +36,7 @@ namespace BREX
                     if(doinsert) {
                         nstates.simplestates.insert(iter->toNextState(range->follow));
                     }
+                    break;
                 }
                 case NFAOptTag::Dot: {
                     const NFAOptDot* dot = static_cast<const NFAOptDot*>(opt);
@@ -74,6 +75,7 @@ namespace BREX
                     if(doinsert) {
                         nstates.singlestates.insert(iter->toNextState(range->follow));
                     }
+                    break;
                 }
                 case NFAOptTag::Dot: {
                     const NFAOptDot* dot = static_cast<const NFAOptDot*>(opt);
@@ -112,6 +114,7 @@ namespace BREX
                     if(doinsert) {
                         nstates.fullstates.insert(iter->toNextState(range->follow));
                     }
+                    break;
                 }
                 case NFAOptTag::Dot: {
                     const NFAOptDot* dot = static_cast<const NFAOptDot*>(opt);

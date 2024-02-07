@@ -148,7 +148,7 @@ namespace BREX
 
     RegexChar UnicodeRegexIterator::toRegexCharCodeFromBytes() const
     {
-        auto bytecount = UTF8_ENCODING_BYTE_COUNT(this->sstr->at(this->curr));
+        int64_t bytecount = UTF8_ENCODING_BYTE_COUNT(this->sstr->at(this->curr));
         if(this->curr + bytecount > this->epos) {
             return 0;
         }
@@ -211,7 +211,7 @@ namespace BREX
             return std::nullopt;
         }
 
-        RegexChar cval;
+        uint32_t cval;
         auto sct = sscanf((char*)(s + 1), "%%%x;", &cval);
         if(sct != 1 || sct > 0x10FFFF) {
             return std::nullopt;
@@ -230,7 +230,7 @@ namespace BREX
             return std::nullopt;
         }
 
-        char32_t cval = 0;
+        uint32_t cval = 0;
         auto sct = sscanf((char*)(s + 1), "%%%x;", &cval);
         if(sct != 1 || cval > 0x10FFFF) {
             return std::nullopt;
@@ -260,7 +260,7 @@ namespace BREX
             return std::nullopt;
         }
 
-        char32_t cval = 0;
+        uint32_t cval = 0;
         auto sct = sscanf((char*)(s + 1), "%%%x;", &cval);
         if(sct != 1 || cval > 127) {
             return std::nullopt;
@@ -288,7 +288,7 @@ namespace BREX
 
     const char* resolveEscapeUnicodeFromCode(UnicodeStringChar c)
     {
-        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [c](const std::pair<uint8_t, UnicodeString>& p) { 
+        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [c](const std::pair<uint8_t, const char*>& p) { 
             return p.first == c; 
         });
         return ii->second;
@@ -296,8 +296,8 @@ namespace BREX
 
     std::optional<uint8_t> resolveEscapeUnicodeFromName(const uint8_t* s, const uint8_t* e)
     {
-        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [s, e](const std::pair<uint8_t, UnicodeString>& p) { 
-            return std::equal(p.second.cbegin(), p.second.cend(), s, e);
+        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [s, e](const std::pair<uint8_t, const char*>& p) { 
+            return std::equal(p.second, p.second + strlen(p.second), s, e);
         });
         if(ii == s_escape_names_unicode.cend()) {
             return std::nullopt;
@@ -309,7 +309,7 @@ namespace BREX
 
     const char* resolveEscapeASCIIFromCode(ASCIIStringChar c)
     {
-        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [c](const std::pair<uint8_t, std::string>& p) { 
+        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [c](const std::pair<uint8_t, const char*>& p) { 
             return p.first == c; 
         });
         return ii->second;
@@ -317,8 +317,8 @@ namespace BREX
 
     std::optional<uint8_t> resolveEscapeASCIIFromName(const uint8_t* s, const uint8_t* e)
     {
-        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [s, e](const std::pair<uint8_t, std::string>& p) { 
-            return std::equal(p.second.cbegin(), p.second.cend(), s, e); 
+        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [s, e](const std::pair<uint8_t, const char*>& p) { 
+            return std::equal(p.second, p.second + strlen(p.second), s, e); 
         });
         if(ii == s_escape_names_ascii.cend()) {
             return std::nullopt;
@@ -389,7 +389,7 @@ namespace BREX
             }
         }
 
-        return std::move(acc);
+        return acc;
     }
 
     std::optional<ASCIIString> unescapeASCIIString(const uint8_t* bytes, size_t length)
@@ -452,10 +452,10 @@ namespace BREX
             }
         }
 
-        return std::move(acc);
+        return acc;
     }
 
-    std::optional<std::vector<RegexChar>> unescapeRegexLiteral(const const uint8_t* bytes, size_t length)
+    std::optional<std::vector<RegexChar>> unescapeRegexLiteral(const uint8_t* bytes, size_t length)
     {
         std::vector<RegexChar> acc;
         for(size_t i = 0; i < length; ++i) {
@@ -501,7 +501,7 @@ namespace BREX
         return std::make_optional<std::vector<RegexChar>>(acc.cbegin(), acc.cend());
     }
 
-    std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const const uint8_t* bytes, size_t length)
+    std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const uint8_t* bytes, size_t length)
     {
         std::vector<RegexChar> acc;
         for(size_t i = 0; i < length; ++i) {
@@ -544,7 +544,7 @@ namespace BREX
         return std::make_optional<std::vector<RegexChar>>(acc.cbegin(), acc.cend());
     }
 
-    std::optional<RegexChar> unescapeSingleRegexChar(const const uint8_t* s, const const uint8_t* e)
+    std::optional<RegexChar> unescapeSingleRegexChar(const uint8_t* s, const uint8_t* e)
     {
         if(std::isxdigit(*s)) {
             return decodeHexEscapeAsRegex(s, e);
@@ -554,7 +554,7 @@ namespace BREX
         }
     }
 
-    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const const uint8_t* s, const const uint8_t* e)
+    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const uint8_t* s, const uint8_t* e)
     {
         if(std::isxdigit(*s)) {
             return decodeHexEscapeAsRegex(s, e);
@@ -579,7 +579,7 @@ namespace BREX
             std::copy(escc.cbegin(), escc.cend(), std::back_inserter(acc));
         }
 
-        return std::move(acc);
+        return acc;
     }
 
     std::vector<uint8_t> escapeRegexLiteralCharBuffer(const std::vector<RegexChar>& sv)
@@ -600,12 +600,12 @@ namespace BREX
             }
         }
 
-        return std::move(acc);
+        return acc;
     }
 
     std::u8string parserGenerateDiagnosticUnicodeEscapeName(uint8_t c)
     {
-        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [c](const std::pair<uint8_t, UnicodeString>& p) { 
+        auto ii = std::find_if(s_escape_names_unicode.cbegin(), s_escape_names_unicode.cend(), [c](const std::pair<uint8_t, const char*>& p) { 
             return p.first == c; 
         });
         return std::u8string(ii->second, ii->second + strlen(ii->second));
@@ -613,7 +613,7 @@ namespace BREX
 
     std::u8string parserGenerateDiagnosticASCIIEscapeName(uint8_t c)
     {
-        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [c](const std::pair<uint8_t, std::string>& p) { 
+        auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [c](const std::pair<uint8_t, const char*>& p) { 
             return p.first == c; 
         });
         return std::u8string(ii->second, ii->second + strlen(ii->second));
@@ -707,6 +707,8 @@ namespace BREX
                 s += bytecount;
             }
         }
+
+        return std::nullopt;
     }
 
     std::optional<std::u8string> parserValidateAllASCIIEncoding(const uint8_t* s, const uint8_t* e)
@@ -719,6 +721,8 @@ namespace BREX
                 s++;
             }
         }
+
+        return std::nullopt;
     }
 
     std::optional<std::u8string> parserValidateUTF8ByteEncoding_SingleChar(const uint8_t* s, const uint8_t* epos)
@@ -774,6 +778,8 @@ namespace BREX
                 }
             }
         }
+
+        return std::nullopt;
     }
 
     std::optional<std::u8string> parserValidateAllASCIIEncoding_SingleChar(const uint8_t* s, const uint8_t* epos)
@@ -806,5 +812,7 @@ namespace BREX
                 }
             }
         }
+
+        return std::nullopt;
     }
 }

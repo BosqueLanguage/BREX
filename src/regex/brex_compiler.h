@@ -1,6 +1,7 @@
 #define once
 
-#include "common.h"
+#include "../common.h"
+
 #include "brex.h"
 #include "brex_executor.h"
 
@@ -37,13 +38,13 @@ namespace BREX
         NameResolverState resolverState;
         fnNameResolver nameResolverFn;
 
-        std::map<std::string, const RegexOpt*> namedRegexes;
-        std::map<std::string, const RegexOpt*>* envRegexes;
+        const std::map<std::string, const RegexOpt*> namedRegexes;
+        const std::map<std::string, const RegexOpt*>* envRegexes;
 
         std::vector<RegexCompileError> errors;
         std::vector<std::string> pending_resolves;
 
-        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, std::map<std::string, const RegexOpt*> namedRegexes, std::map<std::string, const RegexOpt*>* envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), errors(), namedRegexes(namedRegexes), envRegexes(envRegexes) { ; }
+        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), namedRegexes(namedRegexes), envRegexes(envRegexes), errors(), pending_resolves() { ; }
         ~RegexResolver() = default;
 
         const RegexOpt* resolve(const RegexOpt* opt);
@@ -97,7 +98,9 @@ namespace BREX
             NFAMachine* nfareverse = new NFAMachine(nfastart_reverse, 0, nfastates_reverse);
             
             NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
-            return std::make_optional(SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck));
+
+            SingleCheckREInfo<TStr, TIter> scc(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
+            return std::make_optional(scc);
         }
         
 

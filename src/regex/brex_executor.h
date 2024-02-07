@@ -1,4 +1,4 @@
-#include "common.h"
+#include "../common.h"
 #include "nfa_executor.h"
 
 namespace BREX
@@ -44,7 +44,7 @@ namespace BREX
     private:
         void splitOpsPolarity(std::vector<SingleCheckREInfo<TStr, TIter>>& posopts, std::vector<SingleCheckREInfo<TStr, TIter>>& checkopts)
         {
-            for(auto iter = allopts.cbegin(); iter != allopts.cend(); ++iter) {
+            for(auto iter = this->checks.cbegin(); iter != this->checks.cend(); ++iter) {
                 if(!iter->isNegative && !iter->isFrontCheck && !iter->isBackCheck) {
                     posopts.push_back(*iter);
                 }
@@ -146,8 +146,8 @@ namespace BREX
                 return this->checks[0].isNegative ? !accept : accept;
             }
             else {
-                std::vector<SingleCheckREInfo> matchopts;
-                std::vector<SingleCheckREInfo> checkops;
+                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
                 splitOpsPolarity(this->checks, matchopts, checkops);
 
                 if(matchopts.size() == 1) {
@@ -182,8 +182,8 @@ namespace BREX
                 return this->checks[0].isNegative ? !accept : accept;
             }
             else {
-                std::vector<SingleCheckREInfo> matchopts;
-                std::vector<SingleCheckREInfo> checkops;
+                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
                 splitOpsPolarity(this->checks, matchopts, checkops);
 
                 if(matchopts.size() == 1) {
@@ -238,8 +238,8 @@ namespace BREX
                 return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
             }
             else {
-                std::vector<SingleCheckREInfo> matchopts;
-                std::vector<SingleCheckREInfo> checkops;
+                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
                 splitOpsPolarity(this->checks, matchopts, checkops);
 
                 std::vector<int64_t> realmatches;
@@ -274,8 +274,8 @@ namespace BREX
                 return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
             }
             else {
-                std::vector<SingleCheckREInfo> matchopts;
-                std::vector<SingleCheckREInfo> checkops;
+                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
                 splitOpsPolarity(this->checks, matchopts, checkops);
 
                 std::vector<int64_t> realmatches;
@@ -284,7 +284,7 @@ namespace BREX
                 }
                 else {
                     std::vector<std::vector<int64_t>> matches;
-                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo& check) {
+                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
                         return check.executor->matchReverse(sstr, spos, epos);
                     });
 

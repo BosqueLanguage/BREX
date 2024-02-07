@@ -1,6 +1,7 @@
 #define once
 
-#include "common.h"
+#include "../common.h"
+
 #include "brex.h"
 
 #include <regex>

@@ -273,7 +273,7 @@ namespace BREX
 
     StateID RegexCompiler::reverseCompileLiteralOpt(StateID follows, std::vector<NFAOpt*>& states, const LiteralOpt* opt)
     {
-        for(int64_t i = 0; i < opt->codes.size(); ++i) {
+        for(size_t i = 0; i < opt->codes.size(); ++i) {
             auto thisstate = (StateID)states.size();
             states.push_back(new NFAOptCharCode(thisstate, opt->codes[i], follows));
 
@@ -357,7 +357,7 @@ namespace BREX
 
     StateID RegexCompiler::reverseCompileSequenceOpt(StateID follows, std::vector<NFAOpt*>& states, const SequenceOpt* opt)
     {
-        for(int64_t i = 0; i < opt->regexs.size(); ++i) {
+        for(size_t i = 0; i < opt->regexs.size(); ++i) {
             follows = RegexCompiler::reverseCompileOpt(follows, states, opt->regexs[i]);
         }
 

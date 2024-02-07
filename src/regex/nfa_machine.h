@@ -1,6 +1,6 @@
 #define once
 
-#include "common.h"
+#include "../common.h"
 
 namespace BREX
 {
@@ -253,7 +253,7 @@ namespace BREX
         const uint16_t mink;
         const uint16_t maxk;
 
-        NFAOptRangeK(StateID stateid, uint16_t mink, uint16_t maxk, StateID infollow, StateID outfollow) : NFAOpt(NFAOptTag::RangeK, stateid), mink(mink), maxk(maxk), infollow(infollow), outfollow(outfollow) {;}
+        NFAOptRangeK(StateID stateid, uint16_t mink, uint16_t maxk, StateID infollow, StateID outfollow) : NFAOpt(NFAOptTag::RangeK, stateid), infollow(infollow), outfollow(outfollow), mink(mink), maxk(maxk) {;}
         virtual ~NFAOptRangeK() {;}
     };
 
@@ -271,7 +271,10 @@ namespace BREX
         NFAState() : simplestates(&NFASimpleStateToken::cmp), singlestates(&NFASingleStateToken::cmp), fullstates(&NFAFullStateToken::cmp) {;}
         ~NFAState() {;}
 
+        NFAState(const NFAState& other) = default;
         NFAState(NFAState&& other) = default;
+
+        NFAState& operator=(const NFAState& other) = default;
         NFAState& operator=(NFAState&& other) = default;
 
         void intitialize() {
