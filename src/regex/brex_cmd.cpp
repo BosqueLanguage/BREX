@@ -11,7 +11,7 @@ void useage(std::optional<std::string> msg)
         std::cout << msg.value() << std::endl;
     }
 
-    std::cout << "Usage: brex [-n -c -x -s -h] <regex> [input]" << std::endl;
+    std::cout << "Usage: brex [-n -c -x -s -t -h] <regex> [input]" << std::endl;
     std::cout << "  <regex> - The regex to match against" << std::endl;
     std::cout << "  [input] - The input to match" << std::endl;
     std::cout << std::endl;
@@ -20,6 +20,7 @@ void useage(std::optional<std::string> msg)
     std::cout << "  -c - Only report the match count" << std::endl;
     std::cout << "  -x - Test whole lines instead of searching for match" << std::endl;
     std::cout << "  -s - Read input from stdin" << std::endl;
+    std::cout << "  -l - Treat the input as a literal double quoted string \"...\"" << std::endl;
     std::cout << "  -h - Print this help message" << std::endl;
     std::exit(1);
 }
@@ -29,9 +30,9 @@ enum class Flags
     Accepts,
     LineNumbers,
     Count,
-    WholeLines
+    WholeLines,
+    InputLiteral,
 };
-
 
 bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flags>& flags, std::string& helpmsg)
 {
@@ -41,7 +42,7 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
     helpmsg = "";
 
     bool isstdin = false;
-    for(int i = 0; i < argc; ++i) {
+    for(int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
         if(arg == "-a") {
@@ -61,6 +62,9 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
         }
         else if(arg == "-s") {
             isstdin = true;
+        }
+        else if(arg == "-l") {
+            flags.insert(Flags::InputLiteral);
         }
         else {
             if(*re == nullptr) {
@@ -85,6 +89,11 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
         return false;
     }
 
+    if(isstdin && flags.contains(Flags::InputLiteral)) {
+        helpmsg = "Cannot specify -t with -s";
+        return false;
+    }
+
     if(!isstdin && *file == nullptr) {
         helpmsg = "No input file specified";
         return false;
@@ -103,13 +112,23 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
     return true;
 }
 
-std::string loadText(const char* file)
+std::string loadText(const char* file, bool isliteralin)
 {
     try {
         if(file == nullptr) {
             std::cin >> std::noskipws;
             std::string str((std::istream_iterator<char>(std::cin)), std::istream_iterator<char>());
             return str;
+        }
+        else if(isliteralin) {
+            std::string ff(file);
+            if(ff.starts_with('"') && ff.ends_with('"')) {
+                return ff.substr(1, ff.size() - 2);
+            }
+            else {
+                std::cout << "Error: input literal must be enclosed in double quotes but got: " << ff << std::endl;
+                std::exit(1);
+            }
         }
         else {
             std::ifstream istr(file);
@@ -158,7 +177,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto text = loadText(file);
+    auto text = loadText(file, flags.contains(Flags::InputLiteral));
     auto uustr = brex::UnicodeString(text.cbegin(), text.cend());
 
     if(flags.contains(Flags::Accepts)) {

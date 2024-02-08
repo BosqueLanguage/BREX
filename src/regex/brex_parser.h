@@ -230,9 +230,9 @@ namespace brex
                 return new LiteralOpt({ }, true);
             }
             else {
+                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
                 this->cpos = curr + 1;
 
-                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
                 if(!codes.has_value()) {
                     auto errors = parserValidateEscapeSequences(false, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
@@ -275,9 +275,9 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
             else {
+                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
                 this->cpos = curr + 1;
 
-                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
                 if(!codes.has_value()) {
                     auto errors = parserValidateEscapeSequences(true, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
@@ -430,6 +430,8 @@ namespace brex
             }
             else {
                 std::u8string slice(this->cpos, this->cpos + charCodeByteCount(this->cpos));
+                this->advance(charCodeByteCount(this->cpos));
+
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found " + slice));
                 res = new LiteralOpt({}, false);
             }
@@ -692,9 +694,24 @@ namespace brex
     public:
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
         {
-            auto parser = RegexParser(data, len, isUnicode, isResource);
+            if(len < 1) {
+                return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Empty string is not a valid regex -- must be of form /.../")});
+            }
+
+            if(*data != '/') {
+                return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must start with /")});
+            }
+            if(*(data + len - 1) != '/') {
+                return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
+            }
+
+            auto parser = RegexParser(data + 1, len - 2, isUnicode, isResource);
 
             auto rr = parser.parseToplevelRegexComponent();
+
+            if(parser.cpos != parser.epos) {
+                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- trailing characters after end of regex"));
+            }
 
             if(!parser.errors.empty()) {
                 return std::make_pair(std::nullopt, parser.errors);
