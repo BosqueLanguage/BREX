@@ -492,7 +492,7 @@ namespace brex
                 i += std::distance(bytes + i, sc) - 1;
             }
             else {
-                acc.push_back(toRegexCharCodeFromBytes(bytes, length - i));
+                acc.push_back(toRegexCharCodeFromBytes(bytes + i, length - i));
 
                 i += charCodeByteCount(bytes + i) - 1;
             }

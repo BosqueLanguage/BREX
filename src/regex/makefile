@@ -17,8 +17,8 @@ BUILD := dev
 CPP=g++
 CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20
 
-CPPFLAGS_OPT.debug=-Og -ggdb -fno-omit-frame-pointer -DBREX_DEBUG -fsanitize=address
-CPPFLAGS_OPT.dev=-Og -ggdb -fno-omit-frame-pointer -DBREX_DEBUG
+CPPFLAGS_OPT.debug=-Og -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG -fsanitize=address
+CPPFLAGS_OPT.dev=-Og -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG
 CPPFLAGS_OPT.release=-O3 -march=x86-64-v3
 CPPFLAGS=${CPPFLAGS_OPT.${BUILD}} ${CPP_STDFLAGS}
 CPPFLAGS_TEST=${CPPFLAGS_OPT.dev} ${CPP_STDFLAGS}
