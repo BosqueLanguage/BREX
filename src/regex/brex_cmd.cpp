@@ -1,5 +1,6 @@
 #include "brex.h"
 #include "brex_parser.h"
+#include "brex_compiler.h"
 
 #include <iostream>
 #include <fstream>
@@ -14,6 +15,7 @@ void useage(std::optional<std::string> msg)
     std::cout << "  <regex> - The regex to match against" << std::endl;
     std::cout << "  [input] - The input to match" << std::endl;
     std::cout << std::endl;
+    std::cout << "  -a - Test if the regex accepts the input" << std::endl;
     std::cout << "  -n - Include line numbers in the output" << std::endl;
     std::cout << "  -c - Only report the match count" << std::endl;
     std::cout << "  -x - Test whole lines instead of searching for match" << std::endl;
@@ -24,6 +26,7 @@ void useage(std::optional<std::string> msg)
 
 enum class Flags
 {
+    Accepts,
     LineNumbers,
     Count,
     WholeLines
@@ -41,7 +44,10 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
     for(int i = 0; i < argc; ++i) {
         std::string arg = argv[i];
 
-        if(arg == "-n") {
+        if(arg == "-a") {
+            flags.insert(Flags::Accepts);
+        }
+        else if(arg == "-n") {
             flags.insert(Flags::LineNumbers);
         }
         else if(arg == "-c") {
@@ -81,6 +87,11 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
 
     if(!isstdin && *file == nullptr) {
         helpmsg = "No input file specified";
+        return false;
+    }
+
+    if(flags.contains(Flags::Accepts) && (flags.contains(Flags::LineNumbers) || flags.contains(Flags::Count) || flags.contains(Flags::WholeLines))) {
+        helpmsg = "Cannot specify -a with other flags (except -s)";
         return false;
     }
 
@@ -136,7 +147,33 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    std::map<std::string, const brex::RegexOpt*> emptymap;
+    std::vector<brex::RegexCompileError> compileerror;
+    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), emptymap, nullptr, nullptr, compileerror);
+    if(!compileerror.empty()) {
+        std::cout << "Error compiling regex" << std::endl;
+        for(auto iter = compileerror.begin(); iter != compileerror.end(); ++iter) {
+            std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << std::endl;
+        }
+        return 1;
+    }
 
+    auto text = loadText(file);
+    auto uustr = brex::UnicodeString(text.cbegin(), text.cend());
+
+    if(flags.contains(Flags::Accepts)) {
+        auto accepts = executor->test(&uustr);
+        if(accepts) {
+            std::cout << "Accepted" << std::endl;
+        }
+        else {
+            std::cout << "Rejected" << std::endl;
+        }
+    }
+    else {
+        std::cout << "Other modes not supported yet!!!" << std::endl;
+        return 1;
+    }
 
     return 0;
 }

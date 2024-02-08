@@ -6,10 +6,7 @@ namespace brex
 {
     typedef size_t StateID;
     
-    uint16_t saturateNFATokenIncrement(uint16_t count)
-    {
-        return count == UINT16_MAX ? count : count + 1;
-    }
+    uint16_t saturateNFATokenIncrement(uint16_t count);
 
     class NFASimpleStateToken
     {

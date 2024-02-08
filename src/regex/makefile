@@ -17,8 +17,8 @@ BUILD := dev
 CPP=g++
 CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20
 
-CPPFLAGS_OPT.debug=-Og -ggdb -fno-omit-frame-pointer -fsanitize=address
-CPPFLAGS_OPT.dev=-Og -ggdb -fno-omit-frame-pointer
+CPPFLAGS_OPT.debug=-Og -ggdb -fno-omit-frame-pointer -DBREX_DEBUG -fsanitize=address
+CPPFLAGS_OPT.dev=-Og -ggdb -fno-omit-frame-pointer -DBREX_DEBUG
 CPPFLAGS_OPT.release=-O3 -march=x86-64-v3
 CPPFLAGS=${CPPFLAGS_OPT.${BUILD}} ${CPP_STDFLAGS}
 CPPFLAGS_TEST=${CPPFLAGS_OPT.dev} ${CPP_STDFLAGS}
@@ -36,7 +36,11 @@ REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
 MAKEFLAGS += -j4
 
-all: $(OUT_EXE)brexlib.a
+all: $(OUT_EXE)brexlib.a $(BIN_DIR)brex
+
+$(BIN_DIR)brex: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(RE_DIR)brex_cmd.cpp
+	@mkdir -p $(OUT_EXE)
+	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)brex $(RE_DIR)brex_cmd.cpp $(OUT_EXE)brexlib.a
 
 $(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(COMMON_OBJS)
 	@mkdir -p $(OUT_EXE)
@@ -66,4 +70,4 @@ test: testfiles
 	$(BIN_DIR)regex_test 
 
 clean:
-	rm -rf $(OUT_EXE)* $(OUT_OBJ)*.o
+	rm -rf $(OUT_EXE)* $(OUT_OBJ)*.o $(BIN_DIR)*

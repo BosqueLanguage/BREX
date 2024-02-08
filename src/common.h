@@ -13,7 +13,6 @@ typedef nlohmann::json json;
 #define BREX_ABORT(msg) processAssert(__FILE__, __LINE__, msg)
 #define BREX_ASSERT(condition, msg) if(!(condition)) { processAssert(__FILE__, __LINE__, msg); }
 #else
-
 #define BREX_ABORT(msg) processAbort(__FILE__, __LINE__, msg)
 #define BREX_ASSERT(condition, msg)
 #endif

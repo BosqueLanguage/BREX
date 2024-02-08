@@ -34,7 +34,7 @@ namespace brex
     class REExecutor
     {
     public:
-        const std::vector<SingleCheckREInfo<TStr, TIter>> checks;
+        std::vector<SingleCheckREInfo<TStr, TIter>> checks;
         const bool isContainsable;
         const bool isMatchable;
 
@@ -70,7 +70,7 @@ namespace brex
             return sharedmatches;
         }
 
-        bool validateSingleOp(const SingleCheckREInfo<TStr, TIter>& check, TStr* sstr, int64_t spos, int64_t epos)
+        bool validateSingleOp(SingleCheckREInfo<TStr, TIter>& check, TStr* sstr, int64_t spos, int64_t epos)
         {
             bool accepted = false;
             if(check.isFrontCheck) {
@@ -86,18 +86,18 @@ namespace brex
             return check.isNegative ? !accepted : accepted;
         }
 
-        bool validateOpSet(const std::vector<SingleCheckREInfo<TStr, TIter>>& opts, TStr* sstr, int64_t spos, int64_t epos)
+        bool validateOpSet(std::vector<SingleCheckREInfo<TStr, TIter>>& opts, TStr* sstr, int64_t spos, int64_t epos)
         {
-            return std::all_of(opts.cbegin(), opts.cend(), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                return validateSingleOp(check, sstr, spos, epos);
+            return std::all_of(opts.begin(), opts.end(), [this, sstr, spos, epos](SingleCheckREInfo<TStr, TIter>& check) {
+                return this->validateSingleOp(check, sstr, spos, epos);
             });
         }
 
-        std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, const std::vector<SingleCheckREInfo<TStr, TIter>>& checks, TStr* sstr, int64_t spos)
+        std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, std::vector<SingleCheckREInfo<TStr, TIter>>& checks, TStr* sstr, int64_t spos)
         {
             std::vector<int64_t> matches;
-            std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(matches), [sstr, spos, &checks](int64_t epos) {
-                return validateOpSet(checks, sstr, spos, epos);
+            std::copy_if(opts.begin(), opts.end(), std::back_inserter(matches), [this, sstr, spos, &checks](int64_t epos) {
+                return this->validateOpSet(checks, sstr, spos, epos);
             });
 
             return matches;
@@ -107,7 +107,7 @@ namespace brex
         bool test(TStr* sstr, int64_t spos, int64_t epos)
         {
            if(this->checks.size() == 1) {
-                auto accept = this->checks[0].executor->test(sstr, spos, epos);
+                auto accept = this->checks[0].executor.test(sstr, spos, epos);
                 return this->checks[0].isNegative ? !accept : accept;
             }
             else {

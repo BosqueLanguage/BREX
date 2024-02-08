@@ -2,6 +2,11 @@
 
 namespace brex
 {
+    uint16_t saturateNFATokenIncrement(uint16_t count)
+    {
+        return count == UINT16_MAX ? count : count + 1;
+    }
+
     bool NFAMachine::inAccepted(const NFAState& ostates) const
     {
         return ostates.simplestates.find(this->acceptstate) != ostates.simplestates.cend();

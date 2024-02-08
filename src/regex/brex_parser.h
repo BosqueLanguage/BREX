@@ -690,7 +690,7 @@ namespace brex
         }
 
     public:
-        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
         {
             auto parser = RegexParser(data, len, isUnicode, isResource);
 
@@ -721,15 +721,15 @@ namespace brex
                 });
             }
 
-            return std::make_pair(std::make_optional(Regex(kindtag, chartype, isContainsable, isMatchable, rr.first, rr.second)), std::vector<RegexParserError>());
+            return std::make_pair(std::make_optional(new Regex(kindtag, chartype, isContainsable, isMatchable, rr.first, rr.second)), std::vector<RegexParserError>());
         }
 
-        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
         {
             return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false);
         }
 
-        static std::pair<std::optional<Regex>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re)
         {
             return parseRegex((uint8_t*)re.c_str(), re.size(), false, false, false);
         }
