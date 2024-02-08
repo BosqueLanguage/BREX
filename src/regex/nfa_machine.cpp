@@ -246,7 +246,12 @@ namespace brex
 
     bool NFAMachine::advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const
     {
-        BREX_ASSERT(false, "Not implemented");
-        return true;
+        bool advanced = false;
+
+        for(auto iter = ostates.fullstates.cbegin(); iter != ostates.fullstates.cend(); ++iter) {
+            BREX_ASSERT(false, "Not implemented");
+        }
+
+        return advanced;
     }
 }
