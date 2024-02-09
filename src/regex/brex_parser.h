@@ -8,11 +8,6 @@
 
 namespace brex
 {
-    std::vector<uint8_t> s_whitespacechars = { ' ', '\t', '\n', '\r', '\v', '\f' };
-    std::vector<uint8_t> s_doubleslash = { '%', '%' };
-
-    std::vector<uint8_t> s_envpfx = { 'e', 'n', 'v', '[' };
-
     class RegexParserError
     {
     public:
@@ -56,20 +51,19 @@ namespace brex
             return !this->isEOS() && *this->cpos == tk;
         }
 
-        inline bool isTokenOneOf(const std::vector<uint8_t>& tks) const
+        inline bool isTokenWS() const
         {
-            return !this->isEOS() && std::find(tks.begin(), tks.end(), *this->cpos) != tks.end();
+            return (this->cpos < this->epos && std::isspace(*this->cpos));
         }
 
-        inline bool isTokenPrefix(const std::vector<uint8_t>& tks) const
+        inline bool isTokenCommentStart() const
         {
-            for(size_t i = 0; i < tks.size(); ++i) {
-                if(this->cpos + i == this->epos || *(this->cpos + i) != tks[i]) {
-                    return false;
-                }
-            }
+            return (this->cpos + 1 < this->epos) && (*this->cpos == '%' && *(this->cpos + 1) == '%');
+        }
 
-            return true;
+        inline bool isTokenEnvPfx() const
+        {
+            return (this->cpos + 3 < this->epos) && (*this->cpos == 'e' && *(this->cpos + 1) == 'n' && *(this->cpos + 2) == 'v' && *(this->cpos + 3) == '[');
         }
 
         inline uint8_t token() const
@@ -79,12 +73,12 @@ namespace brex
 
         void advanceTriviaOnly()
         {
-            while(!this->isEOS() && (this->isTokenOneOf(s_whitespacechars) || this->isTokenPrefix(s_doubleslash))) {
+            while(this->isTokenWS() || this->isTokenCommentStart()) {
                 if(this->isToken('\n')) {
                     this->cline++;
                 }
 
-                if(this->isTokenOneOf(s_whitespacechars)) {
+                if(this->isTokenWS()) {
                     this->cpos++;
                 }
                 else {
@@ -128,6 +122,47 @@ namespace brex
             while(!this->isEOS() && !this->isToken(tk)) {
                 if(this->isToken('\n')) {
                     this->cline++;
+                }
+
+                this->cpos++;
+            }
+
+            //eat the sync token
+            if(!this->isEOS() && andeat) {
+                this->cpos++;
+            }
+        }
+
+        void scanToSyncTokenAtomic()
+        {
+            bool exit = false;
+            bool andeat = false;
+            while(!this->isEOS() && !exit) {
+                switch(*this->cpos) {
+                    case '(':
+                    case '[':
+                    case '{': 
+                    case '|': 
+                    case '&': 
+                    case '*':
+                    case '+':
+                    case '?':
+                    case '.': {
+                        exit = true;
+                        break;
+                    }
+                    case '\'':
+                    case '"':
+                    case ')':
+                    case ']':
+                    case '}': {
+                        andeat = true;
+                        exit = true;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
 
                 this->cpos++;
@@ -221,12 +256,18 @@ namespace brex
 
             if(curr == this->epos) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Unterminated regex literal"));
+                this->cpos = const_cast<uint8_t*>(this->epos);
+
                 return new LiteralOpt({ }, true);
             }
+
+            xxxx;
 
             auto bytechecks = parserValidateUTF8ByteEncoding(this->cpos + 1, this->cpos + 1 + length);
             if(bytechecks.has_value()) {
                 this->errors.push_back(RegexParserError(this->cline, bytechecks.value()));
+                this->cpos = curr + 1;
+
                 return new LiteralOpt({ }, true);
             }
             else {
@@ -266,12 +307,18 @@ namespace brex
 
             if(curr == this->epos) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Unterminated regex literal"));
+                this->cpos = const_cast<uint8_t*>(this->epos);
+
                 return new LiteralOpt({ }, false);
             }
+
+            xxxx;
 
             auto bytechecks = parserValidateAllASCIIEncoding(this->cpos + 1, this->cpos + 1 + length);
             if(bytechecks.has_value()) {
                 this->errors.push_back(RegexParserError(this->cline, bytechecks.value()));
+                this->cpos = curr + 1;
+
                 return new LiteralOpt({ }, false);
             }
             else {
@@ -425,14 +472,14 @@ namespace brex
             else if(this->isToken('{')) {
                 res = this->parseNamedRegex();
             }
-            else if(this->isTokenPrefix(s_envpfx)) {
+            else if(this->isTokenEnvPfx()) {
                 res = this->parseEnvRegex();
             }
             else {
                 std::u8string slice(this->cpos, this->cpos + charCodeByteCount(this->cpos));
-                this->advance(charCodeByteCount(this->cpos));
+                this->scanToSyncTokenAtomic();
 
-                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found " + slice));
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex component -- expected (, [, ', \", {, or . but found \"" + slice + u8"\""));
                 res = new LiteralOpt({}, false);
             }
 

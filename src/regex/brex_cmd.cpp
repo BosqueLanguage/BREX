@@ -67,7 +67,11 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
             flags.insert(Flags::InputLiteral);
         }
         else {
-            if(*re == nullptr) {
+            if(arg.starts_with("-")) {
+                helpmsg = "Unknown argument: " + arg;
+                return false;
+            }
+            else if(*re == nullptr) {
                 *re = argv[i];
             }
             else if(*file == nullptr) {
@@ -112,18 +116,33 @@ bool processCmdLine(int argc, char** argv, char** re, char** file, std::set<Flag
     return true;
 }
 
-std::string loadText(const char* file, bool isliteralin)
+std::u8string stdInWSTrim(const std::u8string& str)
+{
+    auto iter = str.begin();
+    while(iter != str.end() && std::isspace(*iter)) {
+        ++iter;
+    }
+
+    auto riter = str.rbegin();
+    while(riter != str.rend() && std::isspace(*riter)) {
+        ++riter;
+    }
+
+    return std::u8string(iter, riter.base());
+}
+
+std::u8string loadText(const char* file, bool isliteralin)
 {
     try {
         if(file == nullptr) {
             std::cin >> std::noskipws;
-            std::string str((std::istream_iterator<char>(std::cin)), std::istream_iterator<char>());
-            return str;
+            std::u8string str((std::istream_iterator<char>(std::cin)), std::istream_iterator<char>());
+            return stdInWSTrim(str);
         }
         else if(isliteralin) {
             std::string ff(file);
             if(ff.starts_with('"') && ff.ends_with('"')) {
-                return ff.substr(1, ff.size() - 2);
+                return std::u8string(ff.cbegin() + 1, ff.cend() - 1);
             }
             else {
                 std::cout << "Error: input literal must be enclosed in double quotes but got: " << ff << std::endl;
@@ -132,7 +151,7 @@ std::string loadText(const char* file, bool isliteralin)
         }
         else {
             std::ifstream istr(file);
-            std::string str((std::istreambuf_iterator<char>(istr)), std::istreambuf_iterator<char>());
+            std::u8string str((std::istreambuf_iterator<char>(istr)), std::istreambuf_iterator<char>());
             return str;
         }
     }
@@ -179,6 +198,8 @@ int main(int argc, char** argv)
 
     auto text = loadText(file, flags.contains(Flags::InputLiteral));
     auto uustr = brex::UnicodeString(text.cbegin(), text.cend());
+
+    std::cout << std::string(uustr.cbegin(), uustr.cend()) << std::endl;
 
     if(flags.contains(Flags::Accepts)) {
         auto accepts = executor->test(&uustr);

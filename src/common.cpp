@@ -633,7 +633,7 @@ namespace brex
         std::vector<std::u8string> errors;
         for(auto curr = s; s != e; curr++) {
             uint8_t c = *curr;
-
+            
             if(c == '%') {
                 auto sc = std::find(curr, e, ';');
                 if(sc == e) {
@@ -670,6 +670,7 @@ namespace brex
     //Scan the string and ensure that there are no multibyte chars that have messed up encodings
     std::optional<std::u8string> parserValidateUTF8ByteEncoding(const uint8_t* s, const uint8_t* e)
     {
+        xxxx;
         if((*s & 0x40) == 0) {
             return std::make_optional(std::u8string(u8"Invalid UTF8 encoding -- string contains a truncated character at the beginning"));
         }
