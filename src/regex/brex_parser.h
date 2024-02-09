@@ -261,7 +261,10 @@ namespace brex
                 return new LiteralOpt({ }, true);
             }
 
-            xxxx;
+            if(length == 0) {
+                this->cpos = curr + 1;
+                return new LiteralOpt({ }, true);
+            }
 
             auto bytechecks = parserValidateUTF8ByteEncoding(this->cpos + 1, this->cpos + 1 + length);
             if(bytechecks.has_value()) {
@@ -312,7 +315,10 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
 
-            xxxx;
+            if(length == 0) {
+                this->cpos = curr + 1;
+                return new LiteralOpt({ }, true);
+            }
 
             auto bytechecks = parserValidateAllASCIIEncoding(this->cpos + 1, this->cpos + 1 + length);
             if(bytechecks.has_value()) {
