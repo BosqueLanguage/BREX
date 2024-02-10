@@ -1,8 +1,8 @@
 MAKE_PATH=$(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR=$(MAKE_PATH)/../../build/
+BUILD_DIR=$(MAKE_PATH)/../
 BIN_DIR=$(MAKE_PATH)/../../bin/
-RE_DIR=$(MAKE_PATH)/
-SRC_DIR=$(MAKE_PATH)/../
+SRC_DIR=$(MAKE_PATH)/../../src/
+RE_DIR=$(SRC_DIR)regex/
 
 REGEX_TEST_SRC_DIR=$(MAKE_PATH)/../../test/regex/
 
@@ -66,7 +66,7 @@ $(OUT_OBJ)common.o: $(COMMON_HEADERS) $(COMMON_SOURCES)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(COMMON_SOURCES)
 
 testfiles: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(REGEX_TEST_SOURCES)
-	@mkdir -p $(OUT_EXE)
+	@mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS_TEST) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)regex_test $(REGEX_TEST_SOURCES) $(OUT_EXE)brexlib.a -lboost_unit_test_framework
 
 test: testfiles
