@@ -317,7 +317,7 @@ namespace brex
 
             if(length == 0) {
                 this->cpos = curr + 1;
-                return new LiteralOpt({ }, true);
+                return new LiteralOpt({ }, false);
             }
 
             auto bytechecks = parserValidateAllASCIIEncoding(this->cpos + 1, this->cpos + 1 + length);

@@ -17,9 +17,13 @@ std::optional<brex::RegexParserError> tryParseForTest_Fail(const std::u8string& 
 
 BOOST_AUTO_TEST_SUITE(ParsingErr)
 
-BOOST_AUTO_TEST_CASE(literalXerrabc) {
+////
+//Literal
+BOOST_AUTO_TEST_SUITE(Literal)
+BOOST_AUTO_TEST_CASE(abc) {
     PARSE_TEST(u8"/\"abc/", u8"Unterminated regex literal");
     PARSE_TEST(u8"/abc\"/", u8"Invalid regex component -- expected (, [, ', \", {, or . but found \"a\"");
 }
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

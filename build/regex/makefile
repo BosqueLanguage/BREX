@@ -70,7 +70,7 @@ testfiles: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(REGEX_TEST_S
 	$(CPP) $(CPPFLAGS_TEST) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)regex_test $(REGEX_TEST_SOURCES) $(OUT_EXE)brexlib.a -lboost_unit_test_framework
 
 test: testfiles
-	$(BIN_DIR)regex_test 
+	$(BIN_DIR)regex_test --report_level=short --color_output
 
 clean:
 	rm -rf $(OUT_EXE)* $(OUT_OBJ)*.o $(BIN_DIR)*

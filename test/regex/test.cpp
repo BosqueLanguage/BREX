@@ -24,7 +24,8 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForTest(const std::u8string& 
 
 BOOST_AUTO_TEST_SUITE(Test)
 
-BOOST_AUTO_TEST_CASE(literalXabc) {
+BOOST_AUTO_TEST_SUITE(Literal)
+BOOST_AUTO_TEST_CASE(abc) {
     auto texecutor = tryParseForTest(u8"/\"abc\"/");
     BOOST_CHECK(texecutor.has_value());
 
@@ -34,7 +35,7 @@ BOOST_AUTO_TEST_CASE(literalXabc) {
     ACCEPTS_TEST(executor, u8"", false);
 }
 
-BOOST_AUTO_TEST_CASE(literalXeps) {
+BOOST_AUTO_TEST_CASE(eps) {
     auto texecutor = tryParseForTest(u8"/\"\"/");
     BOOST_CHECK(texecutor.has_value());
 
@@ -42,5 +43,6 @@ BOOST_AUTO_TEST_CASE(literalXeps) {
     ACCEPTS_TEST(executor, u8"abc", false);
     ACCEPTS_TEST(executor, u8"", true);
 }
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
