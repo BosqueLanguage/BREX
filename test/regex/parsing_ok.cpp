@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(eps) {
     PARSE_TEST_ASCII("/''/", u8"/''/a");
 }
 
-BOOST_AUTO_TEST_CASE(asciiescape) {
+BOOST_AUTO_TEST_CASE(escape) {
     PARSE_TEST_ASCII("/'%x59;'/", u8"/'Y'/a");
 
     PARSE_TEST_ASCII("/'%;'/", u8"/'%;'/a");
@@ -92,7 +92,6 @@ BOOST_AUTO_TEST_CASE(asciiescape) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
-
 
 ////
 //Range
@@ -109,10 +108,32 @@ BOOST_AUTO_TEST_CASE(combos) {
 BOOST_AUTO_TEST_CASE(compliment) {
     PARSE_TEST_UNICODE(u8"/[^A-Z]/", u8"/[^A-Z]/");
 }
+BOOST_AUTO_TEST_CASE(emoji) {
+    PARSE_TEST_UNICODE(u8"/[🌵-%x1f336;]/", u8"/[🌵-🌶]/");
+}
+BOOST_AUTO_TEST_CASE(escape) {
+    PARSE_TEST_UNICODE(u8"/[%x32;-%tick;]/", u8"/['-2]/");
+    PARSE_TEST_UNICODE(u8"/[^%x32; %underscore;]/", u8"/[^2 _]/");
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_ASCII("/[06a]/", u8"/[06a]/a");
+    PARSE_TEST_ASCII("/[0-9]/", u8"/[0-9]/a");
+    PARSE_TEST_ASCII("/[0^]/", u8"/[0^]/a");
+}
+BOOST_AUTO_TEST_CASE(combos) {
+    PARSE_TEST_ASCII("/[0-9 +]/", u8"/[0-9 +]/a");
+}
+BOOST_AUTO_TEST_CASE(compliment) {
+    PARSE_TEST_ASCII("/[^A-Z]/", u8"/[^A-Z]/a");
+}
+BOOST_AUTO_TEST_CASE(escape) {
+    PARSE_TEST_ASCII("/[%x32;-%tick;]/", u8"/[%;-2]/a");
+    PARSE_TEST_ASCII("/[^%x32; %underscore;]/", u8"/[^2 _]/a");
+}
+BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()

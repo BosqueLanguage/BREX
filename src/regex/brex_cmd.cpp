@@ -172,6 +172,43 @@ int main(int argc, char** argv)
         useage(!helpmsg.empty() ? std::optional<std::string>(helpmsg) : std::nullopt);
     }
 
+
+    ////////////
+    /*
+    auto apr = brex::RegexParser::parseASCIIRegex("/'abc'/");
+
+    std::map<std::string, const brex::RegexOpt*> aemptymap;
+    std::vector<brex::RegexCompileError> acompileerror;
+    auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), aemptymap, nullptr, nullptr, acompileerror);
+
+    auto aastr = brex::ASCIIString("abc");
+    auto aaccepts = aexecutor->test(&aastr);
+    if(aaccepts) {
+        std::cout << "Accepted ASCII" << std::endl;
+    }
+    else {
+        std::cout << "Rejected ASCII" << std::endl;
+    }
+    */
+    /*
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/[🌵-🌶]/");
+
+    std::map<std::string, const brex::RegexOpt*> uemptymap;
+    std::vector<brex::RegexCompileError> ucompileerror;
+    auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), uemptymap, nullptr, nullptr, ucompileerror);
+
+    auto ustr = brex::UnicodeString(u8"🌵");
+    auto uaccepts = uexecutor->test(&ustr);
+    if(uaccepts) {
+        std::cout << "Accepted Unicode" << std::endl;
+    }
+    else {
+        std::cout << "Rejected Unicode" << std::endl;
+    }
+    */
+    ////////////
+
+
     std::u8string ure(re, re + strlen(re));
     auto pr = brex::RegexParser::parseUnicodeRegex(ure);
     if(!pr.first.has_value() || !pr.second.empty()) {

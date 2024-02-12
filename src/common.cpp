@@ -99,7 +99,7 @@ namespace brex
         {11, "%v;"},
         {12, "%f;"},
         {13, "%r;"},
-        
+
         {32, "%space;"},
         {33, "%bang;"},
         {34, "%quote;"},
@@ -155,7 +155,7 @@ namespace brex
     RegexChar UnicodeRegexIterator::toRegexCharCodeFromBytes() const
     {
         int64_t bytecount = UTF8_ENCODING_BYTE_COUNT(this->sstr->at(this->curr));
-        if(this->curr + bytecount > this->epos) {
+        if(this->curr + (bytecount - 1) > this->epos) {
             return 0;
         }
 
@@ -587,7 +587,7 @@ namespace brex
     {
         std::vector<uint8_t> acc = {};
 
-        if(c == U'%' || c == U'"' || c == U'\'' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+        if(c == U'%' || c == U'"' || c == '[' || c == ']' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
             auto escc = resolveEscapeUnicodeFromCode(c);
             while(*escc != '\0') {
                 acc.push_back(*escc++);
@@ -607,7 +607,7 @@ namespace brex
         for(auto ii = sv.cbegin(); ii != sv.cend(); ++ii) {
             RegexChar c = *ii;
 
-            if(c == U'%' || c == U'"' || c == U'\'' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+            if(c == U'%' || c == U'"' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
                 auto escc = resolveEscapeUnicodeFromCode(c);
                 while(*escc != '\0') {
                     acc.push_back(*escc++);
@@ -627,7 +627,7 @@ namespace brex
     {
         std::vector<uint8_t> acc = {};
 
-        if(c == U'%' || c == U'"' || c == U'\'' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+        if(c == U'%' || c == U'\'' || c == '[' || c == ']' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
             auto escc = resolveEscapeASCIIFromCode(c);
             while(*escc != '\0') {
                 acc.push_back(*escc++);
@@ -647,7 +647,7 @@ namespace brex
         for(auto ii = sv.cbegin(); ii != sv.cend(); ++ii) {
             RegexChar c = *ii;
 
-            if(c == U'%' || c == U'"' || c == U'\'' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+            if(c == U'%' || c == U'\'' || c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
                 auto escc = resolveEscapeASCIIFromCode(c);
                 while(*escc != '\0') {
                     acc.push_back(*escc++);

@@ -209,10 +209,10 @@ namespace brex
 
                 std::optional<RegexChar> ccode = std::nullopt;
                 if(unicodeok) {
-                    ccode = unescapeSingleUnicodeRegexChar(this->cpos, tpos);
+                    ccode = unescapeSingleUnicodeRegexChar(this->cpos, tpos + 1);
                 }
                 else {
-                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos);
+                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos + 1);
                 }
 
                 if(ccode.has_value()) {

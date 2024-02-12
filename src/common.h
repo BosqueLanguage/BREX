@@ -132,7 +132,7 @@ namespace brex
         
         inline bool valid() const
         {
-            return (this->curr <= this->spos) & (this->curr <= this->epos);
+            return (this->spos <= this->curr) & (this->curr <= this->epos);
         }
 
         inline void inc()
