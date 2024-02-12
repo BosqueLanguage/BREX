@@ -154,29 +154,34 @@ namespace brex
     size_t charCodeByteCount(const uint8_t* buff);
     RegexChar toRegexCharCodeFromBytes(const uint8_t* buff, size_t length);
 
+    bool isHexEscapePrefix(const uint8_t* s, const uint8_t* e);
     std::optional<RegexChar> decodeHexEscapeAsRegex(const uint8_t* s, const uint8_t* e);
     std::optional<UnicodeString> decodeHexEscapeAsUnicode(const uint8_t* s, const uint8_t* e);
     std::optional<ASCIIString> decodeHexEscapeAsASCII(const uint8_t* s, const uint8_t* e);
     std::vector<uint8_t> extractRegexCharToBytes(RegexChar rc); //utf8 encoded but no escaping
 
     //Take a bytebuffer (of utf8 bytes) with escapes and convert to/from a UnicodeString
-    std::optional<UnicodeString> unescapeString(const uint8_t* bytes, size_t length);
-    std::vector<uint8_t> escapeString(const UnicodeString& sv);
+    std::optional<UnicodeString> unescapeUnicodeString(const uint8_t* bytes, size_t length);
+    std::vector<uint8_t> escapeUnicodeString(const UnicodeString& sv);
 
     //Take a bytebuffer (of ascii bytes) with escapes and convert to/from an ASCIIString
     std::optional<ASCIIString> unescapeASCIIString(const uint8_t* bytes, size_t length);
     std::vector<uint8_t> escapeASCIIString(const ASCIIString& sv);
 
     //Take a bytebuffer regex literal (of utf8 bytes or ascii bytes) with escapes and convert to/from a vector of RegexChars
-    std::optional<std::vector<RegexChar>> unescapeRegexLiteral(const uint8_t* bytes, size_t length);
+    std::optional<std::vector<RegexChar>> unescapeUnicodeRegexLiteral(const uint8_t* bytes, size_t length);
     std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const uint8_t* bytes, size_t length);
 
     //Take a bytebuffer regex char range element (of utf8 bytes or ascii bytes) with escapes and convert to a RegexChar
-    std::optional<RegexChar> unescapeSingleRegexChar(const uint8_t* s, const uint8_t* e);
+    std::optional<RegexChar> unescapeSingleUnicodeRegexChar(const uint8_t* s, const uint8_t* e);
     std::optional<RegexChar> unescapeSingleASCIIRegexChar(const uint8_t* s, const uint8_t* e);
 
-    std::vector<uint8_t> escapeSingleRegexChar(RegexChar c);
-    std::vector<uint8_t> escapeRegexLiteralCharBuffer(const std::vector<RegexChar>& sv);
+    std::vector<uint8_t> escapeSingleUnicodeRegexChar(RegexChar c);
+    std::vector<uint8_t> escapeRegexUnicodeLiteralCharBuffer(const std::vector<RegexChar>& sv);
+
+    std::vector<uint8_t> escapeSingleASCIIRegexChar(RegexChar c);
+    std::vector<uint8_t> escapeRegexASCIILiteralCharBuffer(const std::vector<RegexChar>& sv);
+
 
     //In the parser if we find an invalid literal character or code then generate the right way to escape it for a nice error msg
     std::u8string parserGenerateDiagnosticUnicodeEscapeName(uint8_t c);

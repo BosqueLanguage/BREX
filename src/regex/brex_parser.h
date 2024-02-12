@@ -209,7 +209,7 @@ namespace brex
 
                 std::optional<RegexChar> ccode = std::nullopt;
                 if(unicodeok) {
-                    ccode = unescapeSingleRegexChar(this->cpos, tpos);
+                    ccode = unescapeSingleUnicodeRegexChar(this->cpos, tpos);
                 }
                 else {
                     ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos);
@@ -274,7 +274,7 @@ namespace brex
                 return new LiteralOpt({ }, true);
             }
             else {
-                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
+                auto codes = unescapeUnicodeRegexLiteral(this->cpos + 1, length);
                 this->cpos = curr + 1;
 
                 if(!codes.has_value()) {
@@ -328,7 +328,7 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
             else {
-                auto codes = unescapeRegexLiteral(this->cpos + 1, length);
+                auto codes = unescapeASCIIRegexLiteral(this->cpos + 1, length);
                 this->cpos = curr + 1;
 
                 if(!codes.has_value()) {
@@ -377,7 +377,7 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing ] in char range regex"));
             }
 
-            return new CharRangeOpt(compliment, range);
+            return new CharRangeOpt(compliment, range, unicodeok);
         }
 
         const RegexOpt* parseNamedRegex()

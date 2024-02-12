@@ -45,11 +45,12 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            auto bbytes = escapeRegexLiteralCharBuffer(this->codes);
             if(this->isunicode) {
+                auto bbytes = escapeRegexUnicodeLiteralCharBuffer(this->codes);
                 return std::u8string{'"'} + std::u8string(bbytes.cbegin(), bbytes.cend()) + std::u8string{'"'};
             }
             else {
+                auto bbytes = escapeRegexASCIILiteralCharBuffer(this->codes);
                 return std::u8string{'\''} + std::u8string(bbytes.cbegin(), bbytes.cend()) + std::u8string{'\''};
             }
         }
@@ -73,8 +74,9 @@ namespace brex
     public:
         const bool compliment;
         const std::vector<SingleCharRange> ranges;
+        const bool isunicode;
 
-        CharRangeOpt(bool compliment, std::vector<SingleCharRange> ranges) : RegexOpt(RegexOptTag::CharRange), compliment(compliment), ranges(ranges) {;}
+        CharRangeOpt(bool compliment, std::vector<SingleCharRange> ranges, bool isunicode) : RegexOpt(RegexOptTag::CharRange), compliment(compliment), ranges(ranges), isunicode(isunicode) {;}
         virtual ~CharRangeOpt() = default;
 
         virtual std::u8string toBSQONFormat() const override final
@@ -87,13 +89,13 @@ namespace brex
             for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
                 auto cr = *ii;
 
-                auto lowbytes = escapeSingleRegexChar(cr.low);
+                auto lowbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.low) : escapeSingleASCIIRegexChar(cr.low);
                 rngs.append(lowbytes.cbegin(), lowbytes.cend());
 
                 if(cr.low != cr.high) {
                     rngs.push_back('-');
                     
-                    auto highbytes = escapeSingleRegexChar(cr.high);
+                    auto highbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.high) : escapeSingleASCIIRegexChar(cr.high);
                     rngs.append(highbytes.cbegin(), highbytes.cend());
                 }
             }
@@ -115,7 +117,9 @@ namespace brex
                 return SingleCharRange{lb, ub};
             });
 
-            return new CharRangeOpt(compliment, ranges);
+            const bool isunicode = j["isunicode"].get<bool>();
+
+            return new CharRangeOpt(compliment, ranges, isunicode);
         }
     };
 

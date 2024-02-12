@@ -60,11 +60,17 @@ BOOST_AUTO_TEST_CASE(eps) {
 }
 
 BOOST_AUTO_TEST_CASE(literal) {
-    BOOST_ASSERT(false);
+    PARSE_TEST_UNICODE(u8"/\"a🌵c\"/", u8"/\"a🌵c\"/");
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    BOOST_ASSERT(false);
+    PARSE_TEST_UNICODE(u8"/\"%x0;\"/", u8"/\"%NUL;\"/");
+    PARSE_TEST_UNICODE(u8"/\"%x59;\"/", u8"/\"Y\"/");
+    PARSE_TEST_UNICODE(u8"/\"%x1f335;\"/", u8"/\"🌵\"/");
+
+    PARSE_TEST_UNICODE(u8"/\"%;\"/", u8"/\"%;\"/");
+    PARSE_TEST_UNICODE(u8"/\"%%;\"/", u8"/\"%%;\"/");
+    PARSE_TEST_UNICODE(u8"/\"%n;\"/", u8"/\"%n;\"/");
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -78,7 +84,11 @@ BOOST_AUTO_TEST_CASE(eps) {
 }
 
 BOOST_AUTO_TEST_CASE(asciiescape) {
-    BOOST_ASSERT(false);
+    PARSE_TEST_ASCII("/'%x59;'/", u8"/'Y'/a");
+
+    PARSE_TEST_ASCII("/'%;'/", u8"/'%;'/a");
+    PARSE_TEST_ASCII("/'%%;'/", u8"/'%%;'/a");
+    PARSE_TEST_ASCII("/'%n;'/", u8"/'%n;'/a");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
