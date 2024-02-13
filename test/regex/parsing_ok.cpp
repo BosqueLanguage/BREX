@@ -136,4 +136,30 @@ BOOST_AUTO_TEST_CASE(escape) {
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Dot
+BOOST_AUTO_TEST_SUITE(Dot)
+BOOST_AUTO_TEST_SUITE(Unicode)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/./", u8"/./");
+    PARSE_TEST_UNICODE(u8"/[.]/", u8"/[.]/");
+}
+BOOST_AUTO_TEST_CASE(combos) {
+    PARSE_TEST_UNICODE(u8"/.\"a\"./", u8"/(.\"a\".)/");
+    PARSE_TEST_UNICODE(u8"/[0-9]./", u8"/([0-9].)/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_ASCII("/./", u8"/./a");
+    PARSE_TEST_ASCII("/[.]/", u8"/[.]/a");
+}
+BOOST_AUTO_TEST_CASE(combos) {
+    PARSE_TEST_ASCII("/.'a'./", u8"/(.'a'.)/a");
+    PARSE_TEST_ASCII("/[0-9]./", u8"/([0-9].)/a");
+}
+BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

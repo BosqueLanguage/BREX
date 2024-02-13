@@ -478,6 +478,7 @@ namespace brex
                 res = this->parseCharRange(this->isUnicode);
             }
             else if(this->isToken('.')) {
+                this->cpos++;
                 res = new CharClassDotOpt();
             }
             else if(this->isToken('{')) {

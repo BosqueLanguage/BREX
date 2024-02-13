@@ -220,4 +220,59 @@ xxxx;
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Dot
+BOOST_AUTO_TEST_SUITE(Dot)
+BOOST_AUTO_TEST_SUITE(Unicode)
+BOOST_AUTO_TEST_CASE(simple) {
+    auto texecutor = tryParseForUnicodeTest(u8"/./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8".", true);
+    ACCEPTS_TEST_UNICODE(executor, u8" ", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"🌶", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+}
+BOOST_AUTO_TEST_CASE(dotrng) {
+    auto texecutor = tryParseForUnicodeTest(u8"/[.b]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"a", false);
+    ACCEPTS_TEST_UNICODE(executor, u8".", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"🌶", false);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+}
+BOOST_AUTO_TEST_CASE(combobe) {
+    auto texecutor = tryParseForUnicodeTest(u8"/.\"b\"./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8".b.", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbx", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", false);
+}
+BOOST_AUTO_TEST_CASE(comborng) {
+    auto texecutor = tryParseForUnicodeTest(u8"/[0-9]./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"9b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"4🌶", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(ASCII)
+/*
+xxxx;
+*/
+BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()
