@@ -174,8 +174,8 @@ int main(int argc, char** argv)
 
 
     ////////////
-    /*
-    auto apr = brex::RegexParser::parseASCIIRegex("/'abc'/");
+    
+    auto apr = brex::RegexParser::parseASCIIRegex("/'%x100;'/");
 
     std::map<std::string, const brex::RegexOpt*> aemptymap;
     std::vector<brex::RegexCompileError> acompileerror;
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
     else {
         std::cout << "Rejected ASCII" << std::endl;
     }
-    */
+    
    /*
     auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"%x1f3335;\"/");
     if(!upr.first.has_value() || !upr.second.empty()) {

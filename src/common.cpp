@@ -94,11 +94,39 @@ namespace brex
     };
 
     std::vector<std::pair<uint8_t, const char*>> s_escape_names_ascii = {
+        {0, "%NUL;"},
+        {1, "%SOH;"},
+        {2, "%STX;"},
+        {3, "%ETX;"},
+        {4, "%EOT;"},
+        {5, "%ENQ;"},
+        {6, "%ACK;"},
+        {7, "%a;"},
+        {8, "%b;"},
         {9, "%t;"},
         {10, "%n;"},
         {11, "%v;"},
         {12, "%f;"},
         {13, "%r;"},
+        {14, "%SO;"},
+        {15, "%SI;"},
+        {16, "%DLE;"},
+        {17, "%DC1;"},
+        {18, "%DC2;"},
+        {19, "%DC3;"},
+        {20, "%DC4;"},
+        {21, "%NAK;"},
+        {22, "%SYN;"},
+        {23, "%ETB;"},
+        {24, "%CAN;"},
+        {25, "%EM;"},
+        {26, "%SUB;"},
+        {27, "%e;"},
+        {28, "%FS;"},
+        {29, "%GS;"},
+        {30, "%RS;"},
+        {31, "%US;"},
+        {127, "%DEL;"},
 
         {32, "%space;"},
         {33, "%bang;"},
@@ -204,7 +232,7 @@ namespace brex
         return std::distance(s, e) > 3 && *s == '%' && *(s + 1) == 'x' && std::isxdigit(*(s + 2));
     }
 
-    std::optional<RegexChar> decodeHexEscapeAsRegex(const uint8_t* s, const uint8_t* e, bool isascii)
+    std::optional<RegexChar> decodeHexEscapeAsRegex(const uint8_t* s, const uint8_t* e, bool isascii, bool strictascii)
     {
         size_t ccount = std::distance(s, e);
 
@@ -232,10 +260,14 @@ namespace brex
 
         uint32_t cval = 0;
         auto sct = sscanf((char*)s, "%%x%x;", &cval);
-        if(sct != 1 || cval > 0x10FFFF) {
+        if(sct != 1 || cval > (isascii ? 0x7E : 0x10FFFF)) {
             return std::nullopt;
         }
         else {
+            if(strictascii && cval <= 127 && !std::isprint(cval) && !std::isspace(cval)) {
+                return std::nullopt;
+            }
+
             return std::make_optional(cval);
         }
     }
@@ -270,7 +302,7 @@ namespace brex
         }
     }
 
-    std::optional<ASCIIString> decodeHexEscapeAsASCII(const uint8_t* s, const uint8_t* e)
+    std::optional<ASCIIString> decodeHexEscapeAsASCII(const uint8_t* s, const uint8_t* e, bool strict)
     {
         size_t ccount = std::distance(s, e);
 
@@ -285,6 +317,10 @@ namespace brex
             return std::nullopt;
         }
         else {
+            if(strict && cval <= 127 && !std::isprint(cval) && !std::isspace(cval)) {
+                return std::nullopt;
+            }
+
             return std::make_optional<ASCIIString>({ (ASCIIStringChar)cval });
         }
     }
@@ -334,7 +370,7 @@ namespace brex
         return ii->second;
     }
 
-    std::optional<uint8_t> resolveEscapeASCIIFromName(const uint8_t* s, const uint8_t* e)
+    std::optional<uint8_t> resolveEscapeASCIIFromName(const uint8_t* s, const uint8_t* e, bool strict)
     {
         auto ii = std::find_if(s_escape_names_ascii.cbegin(), s_escape_names_ascii.cend(), [s, e](const std::pair<uint8_t, const char*>& p) { 
             return std::equal(p.second, p.second + strlen(p.second), s, e); 
@@ -343,6 +379,10 @@ namespace brex
             return std::nullopt;
         }
         else {
+            if(strict && ii->first <= 127 && !std::isprint(ii->first) && !std::isspace(ii->first)) {
+                return std::nullopt;
+            }
+
             return std::make_optional(ii->first);
         }
     }
@@ -353,7 +393,7 @@ namespace brex
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
 
-            if(c <= 127 && !std::isprint(c) && !std::iswspace(c)) {
+            if(c <= 127 && !std::isprint(c) && !std::isspace(c)) {
                 return std::nullopt;
             }
 
@@ -397,7 +437,7 @@ namespace brex
         for(auto ii = sv.cbegin(); ii != sv.cend(); ++ii) {
             char8_t c = *ii;
 
-            if(c == U'%' || c == U'"' || (c <= 127 && !std::isprint(c))) {
+            if(c == '%' || c == '"' || (c <= 127 && !std::isprint(c))) {
                 auto escc = resolveEscapeUnicodeFromCode(c);
                 while(*escc != '\0') {
                     acc.push_back(*escc++);
@@ -411,13 +451,13 @@ namespace brex
         return acc;
     }
 
-    std::optional<ASCIIString> unescapeASCIIString(const uint8_t* bytes, size_t length)
+    std::optional<ASCIIString> unescapeASCIIString(const uint8_t* bytes, size_t length, bool strict)
     {
         std::vector<ASCIIStringChar> acc;
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
 
-            if(!std::isprint(c) && !std::iswspace(c)) {
+            if(!std::isprint(c) && !std::isspace(c)) {
                 return std::nullopt;
             }
 
@@ -428,7 +468,7 @@ namespace brex
                 }
 
                 if(isHexEscapePrefix(bytes + i, sc + 1)) {
-                    auto esc = decodeHexEscapeAsASCII(bytes + i, sc + 1);
+                    auto esc = decodeHexEscapeAsASCII(bytes + i, sc + 1, strict);
                     if(!esc.has_value()) {
                         return std::nullopt;
                     }
@@ -436,7 +476,7 @@ namespace brex
                     std::copy(esc.value().cbegin(), esc.value().cend(), std::back_inserter(acc));
                 }
                 else {
-                    auto esc = resolveEscapeASCIIFromName(bytes + i, sc + 1);
+                    auto esc = resolveEscapeASCIIFromName(bytes + i, sc + 1, strict);
                     if(!esc.has_value()) {
                         return std::nullopt;
                     }
@@ -492,7 +532,7 @@ namespace brex
 
                 if(isHexEscapePrefix(bytes + i, sc + 1)) {
                     //it should be a hex number
-                    auto esc = decodeHexEscapeAsRegex(bytes + i, sc + 1, false);
+                    auto esc = decodeHexEscapeAsRegex(bytes + i, sc + 1, false, false);
                     if(!esc.has_value()) {
                         return std::nullopt;
                     }
@@ -520,7 +560,7 @@ namespace brex
         return std::make_optional<std::vector<RegexChar>>(acc.cbegin(), acc.cend());
     }
 
-    std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const uint8_t* bytes, size_t length)
+    std::optional<std::vector<RegexChar>> unescapeASCIIRegexLiteral(const uint8_t* bytes, size_t length, bool strict)
     {
         std::vector<RegexChar> acc;
         for(size_t i = 0; i < length; ++i) {
@@ -537,7 +577,7 @@ namespace brex
                 }
 
                 if(isHexEscapePrefix(bytes + i, sc + 1)) {
-                    auto esc = decodeHexEscapeAsRegex(bytes + i, sc + 1, true);
+                    auto esc = decodeHexEscapeAsRegex(bytes + i, sc + 1, true, strict);
                     if(!esc.has_value()) {
                         return std::nullopt;
                     }
@@ -545,7 +585,7 @@ namespace brex
                     acc.push_back(esc.value());
                 }
                 else {
-                    auto esc = resolveEscapeASCIIFromName(bytes + i, sc + 1);
+                    auto esc = resolveEscapeASCIIFromName(bytes + i, sc + 1, strict);
                     if(!esc.has_value()) {
                         return std::nullopt;
                     }
@@ -566,20 +606,20 @@ namespace brex
     std::optional<RegexChar> unescapeSingleUnicodeRegexChar(const uint8_t* s, const uint8_t* e)
     {
         if(isHexEscapePrefix(s, e)) {
-            return decodeHexEscapeAsRegex(s, e, false);
+            return decodeHexEscapeAsRegex(s, e, false, false);
         }
         else {
             return resolveEscapeUnicodeFromName(s, e);
         }
     }
 
-    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const uint8_t* s, const uint8_t* e)
+    std::optional<RegexChar> unescapeSingleASCIIRegexChar(const uint8_t* s, const uint8_t* e, bool strict)
     {
         if(isHexEscapePrefix(s, e)) {
-            return decodeHexEscapeAsRegex(s, e, true);
+            return decodeHexEscapeAsRegex(s, e, true, strict);
         }
         else {
-            return resolveEscapeASCIIFromName(s, e);
+            return resolveEscapeASCIIFromName(s, e, strict);
         }
     }
 
@@ -687,7 +727,7 @@ namespace brex
     }
 
     //If we have decode failures then go through and generate nice messages for them
-    std::vector<std::u8string> parserValidateEscapeSequences(bool isascii, const uint8_t* s, const uint8_t* e)
+    std::vector<std::u8string> parserValidateEscapeSequences(bool isascii, bool strict, const uint8_t* s, const uint8_t* e)
     {
         std::vector<std::u8string> errors;
         for(auto curr = s; curr != e; curr++) {
@@ -705,13 +745,13 @@ namespace brex
                         errors.push_back(std::u8string(u8"Hex escape sequence contains non-hex characters"));
                     }
 
-                    auto esc = decodeHexEscapeAsUnicode(curr, sc + 1);
-                    if(!esc.has_value()) {
+                    auto esc = isascii ? decodeHexEscapeAsASCII(curr, sc + 1, strict).has_value() : decodeHexEscapeAsUnicode(curr, sc + 1).has_value();
+                    if(!esc) {
                         errors.push_back(std::u8string(u8"Invalid hex escape sequence"));
                     }
                 }
                 else {
-                    auto esc = isascii ? resolveEscapeASCIIFromName(curr, sc + 1).has_value() : resolveEscapeUnicodeFromName(curr, sc + 1).has_value();
+                    auto esc = isascii ? resolveEscapeASCIIFromName(curr, sc + 1, strict).has_value() : resolveEscapeUnicodeFromName(curr, sc + 1).has_value();
                     if(!esc) {
                         errors.push_back(std::u8string(u8"Invalid escape sequence -- unknown escape name '" + std::u8string(curr + 1, sc) + u8"'"));
                     }
@@ -797,7 +837,7 @@ namespace brex
                         return std::make_optional(std::u8string(u8"Hex escape sequence contains non-hex characters -- ") + std::u8string(s + 1, sc));
                     }
 
-                    auto esc = decodeHexEscapeAsRegex(s, sc + 1, false);
+                    auto esc = decodeHexEscapeAsRegex(s, sc + 1, false, false);
                     if(esc.has_value() && esc.value() > 0x10FFFF) {
                         return std::make_optional(std::u8string(u8"Hex escape sequence is not a valid Unicode character -- ") + std::u8string(s + 1, sc));
                     }
@@ -834,7 +874,7 @@ namespace brex
         return std::nullopt;
     }
 
-    std::optional<std::u8string> parserValidateAllASCIIEncoding_SingleChar(const uint8_t* s, const uint8_t* epos)
+    std::optional<std::u8string> parserValidateAllASCIIEncoding_SingleChar(const uint8_t* s, const uint8_t* epos, bool strict)
     {
         if((*s & 0x80) != 0) {
             return std::make_optional(std::u8string(u8"Invalid ASCII encoding -- string contains a non-ASCII character"));
@@ -852,7 +892,7 @@ namespace brex
                         return std::make_optional(std::u8string(u8"Hex escape sequence contains non-hex characters -- ") + std::u8string(s + 1, sc));
                     }
 
-                    auto esc = decodeHexEscapeAsRegex(s, sc + 1, true);
+                    auto esc = decodeHexEscapeAsRegex(s, sc + 1, true, strict);
                     if(!esc.has_value() || esc.value() > 127) {
                         return std::make_optional(std::u8string(u8"Hex escape sequence is not a valid ASCII character -- ") + std::u8string(s + 1, sc));
                     }

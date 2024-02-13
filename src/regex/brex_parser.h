@@ -33,12 +33,13 @@ namespace brex
         const uint8_t* epos;
 
         const bool isUnicode;
+        const bool isStrictASCII;
         bool envAllowed;
 
         size_t cline;
         std::vector<RegexParserError> errors;
 
-        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), envAllowed(envAllowed), cline(0), errors() {;}
+        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), isStrictASCII(isStrictASCII), envAllowed(envAllowed), cline(0), errors() {;}
         ~RegexParser() = default;
 
         inline bool isEOS() const
@@ -177,10 +178,10 @@ namespace brex
         RegexChar parseRegexChar(bool unicodeok)
         {
             auto c = this->token();
-            if(c == '/' || c == '\\' || (c <= 127 && !std::isprint(c))) {
+            if(c <= 127 && !std::isprint(c) && !std::isblank(c)) {
                 auto esccname = parserGenerateDiagnosticUnicodeEscapeName(c);
                 auto esccode = parserGenerateDiagnosticEscapeCode(c);
-                this->errors.push_back(RegexParserError(this->cline, u8"Newlines, slash chars, and non-printable chars are not allowed in regexes -- escape them with " + esccname + u8" or " + esccode));
+                this->errors.push_back(RegexParserError(this->cline, u8"Newlines and non-printable chars are not allowed in regexes -- escape them with " + esccname + u8" or " + esccode));
                 this->cpos++;
                 return 0;
             }
@@ -194,7 +195,7 @@ namespace brex
                 }
             }
             else {
-                auto encerr = parserValidateAllASCIIEncoding_SingleChar(this->cpos, this->epos);
+                auto encerr = parserValidateAllASCIIEncoding_SingleChar(this->cpos, this->epos, this->isStrictASCII);
                 if(encerr.has_value()) {
                     this->errors.push_back(RegexParserError(this->cline, encerr.value()));
                     this->scanToSyncToken(']', false);
@@ -212,14 +213,14 @@ namespace brex
                     ccode = unescapeSingleUnicodeRegexChar(this->cpos, tpos + 1);
                 }
                 else {
-                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos + 1);
+                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos + 1, this->isStrictASCII);
                 }
 
                 if(ccode.has_value()) {
                     code = ccode.value();
                 }
                 else {
-                    auto errors = parserValidateEscapeSequences(false, this->cpos, tpos + 1);
+                    auto errors = parserValidateEscapeSequences(false, this->isStrictASCII, this->cpos, tpos + 1);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -277,7 +278,7 @@ namespace brex
                 auto codes = unescapeUnicodeRegexLiteral(this->cpos + 1, length);
 
                 if(!codes.has_value()) {
-                    auto errors = parserValidateEscapeSequences(false, this->cpos + 1, this->cpos + 1 + length);
+                    auto errors = parserValidateEscapeSequences(false, this->isStrictASCII, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -330,10 +331,10 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
             else {
-                auto codes = unescapeASCIIRegexLiteral(this->cpos + 1, length);
+                auto codes = unescapeASCIIRegexLiteral(this->cpos + 1, length, this->isStrictASCII);
 
                 if(!codes.has_value()) {
-                    auto errors = parserValidateEscapeSequences(true, this->cpos + 1, this->cpos + 1 + length);
+                    auto errors = parserValidateEscapeSequences(true, this->isStrictASCII, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -749,7 +750,7 @@ namespace brex
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool isResource)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool isPath, bool isResource)
         {
             if(len < 1) {
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Empty string is not a valid regex -- must be of form /.../")});
@@ -762,7 +763,7 @@ namespace brex
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
             }
 
-            auto parser = RegexParser(data + 1, len - 2, isUnicode, isResource);
+            auto parser = RegexParser(data + 1, len - 2, isUnicode, isStrictASCII, isResource);
 
             auto rr = parser.parseToplevelRegexComponent();
 
@@ -800,12 +801,12 @@ namespace brex
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false, false);
         }
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), false, false, false);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, false, false);
         }
     };
 }
