@@ -175,7 +175,7 @@ int main(int argc, char** argv)
 
     ////////////
     
-    auto apr = brex::RegexParser::parseASCIIRegex("/'%x100;'/");
+    auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
 
     std::map<std::string, const brex::RegexOpt*> aemptymap;
     std::vector<brex::RegexCompileError> acompileerror;

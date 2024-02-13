@@ -91,4 +91,39 @@ BOOST_AUTO_TEST_CASE(escape) {
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Range
+BOOST_AUTO_TEST_SUITE(Range)
+BOOST_AUTO_TEST_SUITE(Unicode)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/[06a/", u8"Missing ] in char range regex");
+    PARSE_TEST_UNICODE(u8"/[0-9/", u8"Missing ] in char range regex");
+    PARSE_TEST_UNICODE(u8"/0]/", u8"Invalid regex component");
+}
+BOOST_AUTO_TEST_CASE(escape) {
+    PARSE_TEST_UNICODE(u8"/[%x32;-%tick]/", u8"Escape sequence is missing terminal ';'");
+    PARSE_TEST_UNICODE(u8"/[^%x32; %undescore;]/", u8"Invalid escape sequence -- unknown escape name 'undescore'");
+    PARSE_TEST_UNICODE(u8"/[^%x32-%undescore;]/", u8"Hex escape sequence contains non-hex characters -- x32-%undescore");
+    PARSE_TEST_UNICODE(u8"/[^%32-%undescore;]/", u8"Invalid escape sequence -- unknown escape name '32-%undescore'");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_ASCII("/[06a/", u8"Missing ] in char range regex");
+    PARSE_TEST_ASCII("/[0-9/", u8"Missing ] in char range regex");
+    PARSE_TEST_ASCII("/0]/", u8"Invalid regex component");
+}
+BOOST_AUTO_TEST_CASE(escape) {
+    PARSE_TEST_ASCII("/[%x32;-%tick]/", u8"Escape sequence is missing terminal ';'");
+    PARSE_TEST_ASCII("/[^%x32; %undescore;]/", u8"Invalid escape sequence -- unknown escape name 'undescore'");
+    PARSE_TEST_ASCII("/[^%x32-%undescore;]/", u8"Hex escape sequence contains non-hex characters -- x32-%undescore");
+    PARSE_TEST_ASCII("/[^%32-%undescore;]/", u8"Invalid escape sequence -- unknown escape name '32-%undescore'");
+
+    PARSE_TEST_ASCII("/[%a;]/", u8"Invalid escape sequence -- unknown escape name 'a'");
+    PARSE_TEST_ASCII("/[^%x127;]/", u8"Hex escape sequence is not a valid ASCII character -- x127");
+}
+BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

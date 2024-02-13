@@ -220,7 +220,7 @@ namespace brex
                     code = ccode.value();
                 }
                 else {
-                    auto errors = parserValidateEscapeSequences(false, this->isStrictASCII, this->cpos, tpos + 1);
+                    auto errors = parserValidateEscapeSequences(!unicodeok, this->isStrictASCII, this->cpos, tpos + 1);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
