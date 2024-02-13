@@ -177,7 +177,7 @@ namespace brex
         RegexChar parseRegexChar(bool unicodeok)
         {
             auto c = this->token();
-            if(c == U'/' || c == U'\\' || (c <= 127 && !std::isprint(c))) {
+            if(c == '/' || c == '\\' || (c <= 127 && !std::isprint(c))) {
                 auto esccname = parserGenerateDiagnosticUnicodeEscapeName(c);
                 auto esccode = parserGenerateDiagnosticEscapeCode(c);
                 this->errors.push_back(RegexParserError(this->cline, u8"Newlines, slash chars, and non-printable chars are not allowed in regexes -- escape them with " + esccname + u8" or " + esccode));
@@ -219,7 +219,7 @@ namespace brex
                     code = ccode.value();
                 }
                 else {
-                    auto errors = parserValidateEscapeSequences(false, this->cpos, this->cpos + bytecount);
+                    auto errors = parserValidateEscapeSequences(false, this->cpos, tpos + 1);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -275,17 +275,19 @@ namespace brex
             }
             else {
                 auto codes = unescapeUnicodeRegexLiteral(this->cpos + 1, length);
-                this->cpos = curr + 1;
 
                 if(!codes.has_value()) {
                     auto errors = parserValidateEscapeSequences(false, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
+                    this->cpos = curr + 1;
 
                     return new LiteralOpt({ }, true);
                 }
                 else {
+                    this->cpos = curr + 1;
+
                     return new LiteralOpt(codes.value(), true);
                 }
             }
@@ -329,17 +331,19 @@ namespace brex
             }
             else {
                 auto codes = unescapeASCIIRegexLiteral(this->cpos + 1, length);
-                this->cpos = curr + 1;
 
                 if(!codes.has_value()) {
                     auto errors = parserValidateEscapeSequences(true, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
+                    this->cpos = curr + 1;
 
                     return new LiteralOpt({ }, false);
                 }
                 else {
+                    this->cpos = curr + 1;
+
                     return new LiteralOpt(codes.value(), false);
                 }
             }
@@ -359,7 +363,7 @@ namespace brex
             while(!this->isEOS() && !this->isToken(']')) {
                 auto lb = this->parseRegexChar(unicodeok);
 
-                if (!this->isToken(U'-')) {
+                if (!this->isToken('-')) {
                     range.push_back({ lb, lb });
                 }
                 else {
@@ -638,7 +642,7 @@ namespace brex
         {
             std::vector<const RegexOpt*> sre;
 
-            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(U')')) {
+            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(')')) {
                 sre.push_back(this->parseRepeatComponent());
             }
 

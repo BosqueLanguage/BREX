@@ -3,7 +3,7 @@
 #include "../../src/regex/brex.h"
 #include "../../src/regex/brex_parser.h"
 
-std::optional<std::u8string> tryParseForTest_Unicode(const std::u8string& str) {
+std::optional<std::u8string> tryParseForTestOk_Unicode(const std::u8string& str) {
     auto pr = brex::RegexParser::parseUnicodeRegex(str);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
@@ -13,7 +13,7 @@ std::optional<std::u8string> tryParseForTest_Unicode(const std::u8string& str) {
     }
 }
 
-void checkAndReportUnicodeResult(const std::u8string& str, const std::u8string& expected) {
+void checkAndReportOkUnicodeResult(const std::u8string& str, const std::u8string& expected) {
     if(str != expected) {
         std::cout << "Expected: " << std::string(expected.cbegin(), expected.cend()) << std::endl;
         std::cout << "Got: " << std::string(str.cbegin(), str.cend()) << std::endl;
@@ -22,9 +22,9 @@ void checkAndReportUnicodeResult(const std::u8string& str, const std::u8string& 
     BOOST_ASSERT(str == expected);
 }
 
-#define PARSE_TEST_UNICODE(RE, EX) { auto res = tryParseForTest_Unicode(RE); BOOST_CHECK(res.has_value()); checkAndReportUnicodeResult(res.value(), EX); }
+#define PARSE_TEST_UNICODE(RE, EX) { auto res = tryParseForTestOk_Unicode(RE); BOOST_CHECK(res.has_value()); checkAndReportOkUnicodeResult(res.value(), EX); }
 
-std::optional<std::u8string> tryParseForTest_ASCII(const std::string& str) {
+std::optional<std::u8string> tryParseForTestOk_ASCII(const std::string& str) {
     auto pr = brex::RegexParser::parseASCIIRegex(str);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
@@ -34,7 +34,7 @@ std::optional<std::u8string> tryParseForTest_ASCII(const std::string& str) {
     }
 }
 
-void checkAndReportASCIIResult(const std::u8string& str, const std::u8string& expected) {
+void checkAndReportOkASCIIResult(const std::u8string& str, const std::u8string& expected) {
     if(str != expected) {
         std::cout << "Expected: " << std::string(expected.cbegin(), expected.cend()) << std::endl;
         std::cout << "Got: " << std::string(str.cbegin(), str.cend()) << std::endl;
@@ -43,7 +43,7 @@ void checkAndReportASCIIResult(const std::u8string& str, const std::u8string& ex
     BOOST_ASSERT(str == expected);
 }
 
-#define PARSE_TEST_ASCII(RE, EX) { auto res = tryParseForTest_ASCII(RE); BOOST_CHECK(res.has_value()); checkAndReportASCIIResult(res.value(), EX); }
+#define PARSE_TEST_ASCII(RE, EX) { auto res = tryParseForTestOk_ASCII(RE); BOOST_CHECK(res.has_value()); checkAndReportOkASCIIResult(res.value(), EX); }
 
 BOOST_AUTO_TEST_SUITE(ParsingOk)
 

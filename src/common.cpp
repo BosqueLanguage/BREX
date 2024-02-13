@@ -232,7 +232,7 @@ namespace brex
 
         uint32_t cval = 0;
         auto sct = sscanf((char*)s, "%%x%x;", &cval);
-        if(sct != 1 || sct > 0x10FFFF) {
+        if(sct != 1 || cval > 0x10FFFF) {
             return std::nullopt;
         }
         else {
@@ -690,7 +690,7 @@ namespace brex
     std::vector<std::u8string> parserValidateEscapeSequences(bool isascii, const uint8_t* s, const uint8_t* e)
     {
         std::vector<std::u8string> errors;
-        for(auto curr = s; s != e; curr++) {
+        for(auto curr = s; curr != e; curr++) {
             uint8_t c = *curr;
             
             if(c == '%') {
@@ -701,6 +701,10 @@ namespace brex
                 }
 
                 if(isHexEscapePrefix(curr, sc + 1)) {
+                    if(!std::all_of(curr + 2, sc, [](uint8_t c) { return std::isxdigit(c); })) {
+                        errors.push_back(std::u8string(u8"Hex escape sequence contains non-hex characters"));
+                    }
+
                     auto esc = decodeHexEscapeAsUnicode(curr, sc + 1);
                     if(!esc.has_value()) {
                         errors.push_back(std::u8string(u8"Invalid hex escape sequence"));
@@ -709,7 +713,7 @@ namespace brex
                 else {
                     auto esc = isascii ? resolveEscapeASCIIFromName(curr, sc + 1).has_value() : resolveEscapeUnicodeFromName(curr, sc + 1).has_value();
                     if(!esc) {
-                        errors.push_back(std::u8string(u8"Invalid escape sequence -- unknown escape name '" + std::u8string(curr + 1, sc - 1) + u8"'"));
+                        errors.push_back(std::u8string(u8"Invalid escape sequence -- unknown escape name '" + std::u8string(curr + 1, sc) + u8"'"));
                     }
                 }
 

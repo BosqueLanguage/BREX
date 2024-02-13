@@ -190,14 +190,21 @@ int main(int argc, char** argv)
         std::cout << "Rejected ASCII" << std::endl;
     }
     */
-    /*
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/[🌵-🌶]/");
+   /*
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"%x1f3335;\"/");
+    if(!upr.first.has_value() || !upr.second.empty()) {
+        for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
+            std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
+        }
+        std::cout << std::endl;
+        return 1;
+    }
 
     std::map<std::string, const brex::RegexOpt*> uemptymap;
     std::vector<brex::RegexCompileError> ucompileerror;
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), uemptymap, nullptr, nullptr, ucompileerror);
 
-    auto ustr = brex::UnicodeString(u8"🌵");
+    auto ustr = brex::UnicodeString(u8"");
     auto uaccepts = uexecutor->test(&ustr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;
@@ -205,6 +212,7 @@ int main(int argc, char** argv)
     else {
         std::cout << "Rejected Unicode" << std::endl;
     }
+    return 1;
     */
     ////////////
 
@@ -212,12 +220,11 @@ int main(int argc, char** argv)
     std::u8string ure(re, re + strlen(re));
     auto pr = brex::RegexParser::parseUnicodeRegex(ure);
     if(!pr.first.has_value() || !pr.second.empty()) {
-        std::cout << "Invalid regex ";
+        std::cout << "Parse errors in regex:" << std::endl;
         for(auto iter = pr.second.begin(); iter != pr.second.end(); ++iter) {
-            std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
+            std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << std::endl;
         }
         std::cout << std::endl;
-
         std::cout << "See the BREX documentation for more information -- https://github.com/BosqueLanguage/BREX" << std::endl;
         return 1;
     }
@@ -226,10 +233,11 @@ int main(int argc, char** argv)
     std::vector<brex::RegexCompileError> compileerror;
     auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), emptymap, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
-        std::cout << "Error compiling regex" << std::endl;
+        std::cout << "Errors compiling regex:" << std::endl;
         for(auto iter = compileerror.begin(); iter != compileerror.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << std::endl;
         }
+        std::cout << std::endl;
         return 1;
     }
 

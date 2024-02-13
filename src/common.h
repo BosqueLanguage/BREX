@@ -182,7 +182,6 @@ namespace brex
     std::vector<uint8_t> escapeSingleASCIIRegexChar(RegexChar c);
     std::vector<uint8_t> escapeRegexASCIILiteralCharBuffer(const std::vector<RegexChar>& sv);
 
-
     //In the parser if we find an invalid literal character or code then generate the right way to escape it for a nice error msg
     std::u8string parserGenerateDiagnosticUnicodeEscapeName(uint8_t c);
     std::u8string parserGenerateDiagnosticASCIIEscapeName(uint8_t c);
