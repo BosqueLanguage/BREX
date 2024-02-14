@@ -390,6 +390,79 @@ BOOST_AUTO_TEST_CASE(a) {
 
     //PARSE_TEST_UNICODE(u8"/\"a\"   */", u8"/\"a\"*/");
 }
+BOOST_AUTO_TEST_CASE(ab) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"ab\"*/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aba", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"a", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+}
+BOOST_AUTO_TEST_CASE(absplit) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"\"b\")*/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aba", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"a", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+}
+BOOST_AUTO_TEST_CASE(abs) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"\"b\"*/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aba", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abb", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+}
+BOOST_AUTO_TEST_CASE(nested) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"ab\"**/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+    
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aba", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abb", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"a", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+}
+BOOST_AUTO_TEST_CASE(stacked) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"ab\"*\"a\"*/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+    
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aba", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab", true);
+
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

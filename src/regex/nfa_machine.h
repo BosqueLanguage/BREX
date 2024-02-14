@@ -300,6 +300,9 @@ namespace brex
         bool advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const;
         bool advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const;
 
+        static void mergeStatesFrom(const NFAState& ostates, NFAState& nstates);
+        static bool isNewState(const NFAState& ostates, const NFAState& nstates);
+
     public:
         const StateID startstate;
         const StateID acceptstate;
@@ -323,11 +326,20 @@ namespace brex
 
         bool advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
         {
+            //simulate the epsilon not taken option
+            NFAMachine::mergeStatesFrom(ostates, nstates);
+
+            //take the epsilon transitions for each token kind
             bool advsimple = this->advanceEpsilonForSimpleStates(ostates, nstates);
             bool advsingle = this->advanceEpsilonForSingleStates(ostates, nstates);
             bool advfull = this->advanceEpsilonForFullStates(ostates, nstates);
 
-            return advsimple | advsingle | advfull;
+            if(!advsimple && !advsingle && !advfull) {
+                return false;
+            }
+            else {
+                return NFAMachine::isNewState(ostates, nstates);
+            }
         }
     };
 }

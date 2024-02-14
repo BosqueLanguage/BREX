@@ -254,4 +254,20 @@ namespace brex
 
         return advanced;
     }
+
+    void NFAMachine::mergeStatesFrom(const NFAState& ostates, NFAState& nstates)
+    {
+        std::copy(ostates.simplestates.cbegin(), ostates.simplestates.cend(), std::inserter(nstates.simplestates, nstates.simplestates.begin()));
+        std::copy(ostates.singlestates.cbegin(), ostates.singlestates.cend(), std::inserter(nstates.singlestates, nstates.singlestates.begin()));
+        std::copy(ostates.fullstates.cbegin(), ostates.fullstates.cend(), std::inserter(nstates.fullstates, nstates.fullstates.begin()));
+    }
+
+    bool NFAMachine::isNewState(const NFAState& ostates, const NFAState& nstates)
+    {
+        if(ostates.simplestates.size() != nstates.simplestates.size() || ostates.singlestates.size() != nstates.singlestates.size() || ostates.fullstates.size() != nstates.fullstates.size()) {
+            return true;
+        }
+
+        return !std::equal(ostates.simplestates.cbegin(), ostates.simplestates.cend(), nstates.simplestates.cbegin()) || !std::equal(ostates.singlestates.cbegin(), ostates.singlestates.cend(), nstates.singlestates.cbegin()) || !std::equal(ostates.fullstates.cbegin(), ostates.fullstates.cend(), nstates.fullstates.cbegin());
+    }
 }
