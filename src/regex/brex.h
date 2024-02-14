@@ -422,7 +422,7 @@ namespace brex
                 optstr += std::u8string{'$'};
             }
 
-            if(!this->opt->needsParens()) {
+            if(optstr == u8"" || !this->opt->needsParens()) {
                 optstr += this->opt->toBSQONFormat();
             }
             else {

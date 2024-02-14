@@ -214,9 +214,69 @@ BOOST_AUTO_TEST_CASE(complimentemoji) {
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(ASCII)
-/*
-xxxx;
-*/
+BOOST_AUTO_TEST_CASE(opts3) {
+    auto texecutor = tryParseForASCIITest("/[06a]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "0", true);
+    ACCEPTS_TEST_ASCII(executor, "a", true);
+    ACCEPTS_TEST_ASCII(executor, "6", true);
+    ACCEPTS_TEST_ASCII(executor, "1", false);
+    ACCEPTS_TEST_ASCII(executor, "", false);
+}
+BOOST_AUTO_TEST_CASE(optsrng) {
+    auto texecutor = tryParseForASCIITest("/[0-9]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "0", true);
+    ACCEPTS_TEST_ASCII(executor, "3", true);
+    ACCEPTS_TEST_ASCII(executor, "9", true);
+    ACCEPTS_TEST_ASCII(executor, "a", false);
+    ACCEPTS_TEST_ASCII(executor, "", false);
+}
+BOOST_AUTO_TEST_CASE(optshat) {
+    auto texecutor = tryParseForASCIITest("/[0^]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "0", true);
+    ACCEPTS_TEST_ASCII(executor, "^", true);
+    ACCEPTS_TEST_ASCII(executor, "1", false);
+    ACCEPTS_TEST_ASCII(executor, "", false);
+}
+BOOST_AUTO_TEST_CASE(combos) {
+    auto texecutor = tryParseForASCIITest("/[0-9 +]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "0", true);
+    ACCEPTS_TEST_ASCII(executor, "5", true);
+    ACCEPTS_TEST_ASCII(executor, " ", true);
+    ACCEPTS_TEST_ASCII(executor, "+", true);
+    ACCEPTS_TEST_ASCII(executor, "a", false);
+}
+BOOST_AUTO_TEST_CASE(compliment) {
+    auto texecutor = tryParseForASCIITest("/[^A-Z]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "0", true);
+    ACCEPTS_TEST_ASCII(executor, "A", false);
+    ACCEPTS_TEST_ASCII(executor, "Q", false);
+}
+BOOST_AUTO_TEST_CASE(complimet2) {
+    auto texecutor = tryParseForASCIITest("/[^A-Z0a-c]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "5", true);
+    ACCEPTS_TEST_ASCII(executor, " ", true);
+    ACCEPTS_TEST_ASCII(executor, "^", true);
+    ACCEPTS_TEST_ASCII(executor, "0", false);
+    ACCEPTS_TEST_ASCII(executor, "b", false);
+}
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -269,10 +329,67 @@ BOOST_AUTO_TEST_CASE(comborng) {
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(ASCII)
-/*
-xxxx;
-*/
+BOOST_AUTO_TEST_CASE(simple) {
+    auto texecutor = tryParseForASCIITest("/./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "a", true);
+    ACCEPTS_TEST_ASCII(executor, ".", true);
+    ACCEPTS_TEST_ASCII(executor, " ", true);
+
+    ACCEPTS_TEST_ASCII(executor, "", false);
+}
+BOOST_AUTO_TEST_CASE(dotrng) {
+    auto texecutor = tryParseForASCIITest("/[.b]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "a", false);
+    ACCEPTS_TEST_ASCII(executor, ".", true);
+    ACCEPTS_TEST_ASCII(executor, "b", true);
+
+    ACCEPTS_TEST_ASCII(executor, "", false);
+}
+BOOST_AUTO_TEST_CASE(combobe) {
+    auto texecutor = tryParseForASCIITest("/.'b'./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, ".b.", true);
+    ACCEPTS_TEST_ASCII(executor, "bbx", true);
+    ACCEPTS_TEST_ASCII(executor, "ab", false);
+}
+BOOST_AUTO_TEST_CASE(comborng) {
+    auto texecutor = tryParseForASCIITest("/[0-9]./");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII(executor, "9b", true);
+    ACCEPTS_TEST_ASCII(executor, "ab", false);
+}
 BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Star
+BOOST_AUTO_TEST_SUITE(Star)
+BOOST_AUTO_TEST_CASE(a) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"*/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aab", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+
+    //PARSE_TEST_UNICODE(u8"/\"a\"*/", u8"/\"a\"*/");
+    //PARSE_TEST_UNICODE(u8"/\"ab\"*/", u8"/\"ab\"*/");
+    //PARSE_TEST_UNICODE(u8"/\"a\"\"b\"*/", u8"/\"a\"\"b\"*/");
+
+    //PARSE_TEST_UNICODE(u8"/\"a\"   */", u8"/\"a\"*/");
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

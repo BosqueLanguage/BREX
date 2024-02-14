@@ -145,8 +145,8 @@ BOOST_AUTO_TEST_CASE(simple) {
     PARSE_TEST_UNICODE(u8"/[.]/", u8"/[.]/");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_UNICODE(u8"/.\"a\"./", u8"/(.\"a\".)/");
-    PARSE_TEST_UNICODE(u8"/[0-9]./", u8"/([0-9].)/");
+    PARSE_TEST_UNICODE(u8"/.\"a\"./", u8"/.\"a\"./");
+    PARSE_TEST_UNICODE(u8"/[0-9]./", u8"/[0-9]./");
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -156,10 +156,98 @@ BOOST_AUTO_TEST_CASE(simple) {
     PARSE_TEST_ASCII("/[.]/", u8"/[.]/a");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_ASCII("/.'a'./", u8"/(.'a'.)/a");
-    PARSE_TEST_ASCII("/[0-9]./", u8"/([0-9].)/a");
+    PARSE_TEST_ASCII("/.'a'./", u8"/.'a'./a");
+    PARSE_TEST_ASCII("/[0-9]./", u8"/[0-9]./a");
 }
 BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Parens
+BOOST_AUTO_TEST_SUITE(Parens)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/(\"a\")/", u8"/\"a\"/");
+    PARSE_TEST_UNICODE(u8"/((\"a\"))/", u8"/\"a\"/");
+
+    PARSE_TEST_UNICODE(u8"/(\"a\")(\"b\")*/", u8"/\"a\"\"b\"*/");
+    PARSE_TEST_UNICODE(u8"/(\"a\"\"b\")*/", u8"/(\"a\"\"b\")*/");
+    PARSE_TEST_UNICODE(u8"/(\"ab\")*/", u8"/\"ab\"*/");
+
+    PARSE_TEST_UNICODE(u8"/((\"a\")+)?/", u8"/(\"a\"+)?/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Star
+BOOST_AUTO_TEST_SUITE(Star)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"*/", u8"/\"a\"*/");
+    PARSE_TEST_UNICODE(u8"/\"ab\"*/", u8"/\"ab\"*/");
+    PARSE_TEST_UNICODE(u8"/\"a\"\"b\"*/", u8"/\"a\"\"b\"*/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"   */", u8"/\"a\"*/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Plus
+BOOST_AUTO_TEST_SUITE(Plus)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"+/", u8"/\"a\"+/");
+    PARSE_TEST_UNICODE(u8"/\"ab\"+/", u8"/\"ab\"+/");
+    PARSE_TEST_UNICODE(u8"/\"a\"\"b\"+/", u8"/\"a\"\"b\"+/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\" +/", u8"/\"a\"+/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Plus
+BOOST_AUTO_TEST_SUITE(Question)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"?/", u8"/\"a\"?/");
+    PARSE_TEST_UNICODE(u8"/\"ab\"?/", u8"/\"ab\"?/");
+    PARSE_TEST_UNICODE(u8"/\"a\"\"b\"?/", u8"/\"a\"\"b\"?/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"    ?/", u8"/\"a\"?/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Plus
+BOOST_AUTO_TEST_SUITE(Range)
+BOOST_AUTO_TEST_CASE(single) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{5}/", u8"/\"a\"{5}/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{5 }/", u8"/\"a\"{5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{ 5}/", u8"/\"a\"{5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"    { 5 }/", u8"/\"a\"{5}/");
+}
+BOOST_AUTO_TEST_CASE(lower) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{5,}/", u8"/\"a\"{5,}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{0,}/", u8"/\"a\"*/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{1,}/", u8"/\"a\"+/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{5 ,}/", u8"/\"a\"{5,}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{5, }/", u8"/\"a\"{5,}/");
+}
+BOOST_AUTO_TEST_CASE(upper) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{,5}/", u8"/\"a\"{,5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{,1}/", u8"/\"a\"?/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{ ,5}/", u8"/\"a\"{,5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{, 5}/", u8"/\"a\"{,5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{  , 5}/", u8"/\"a\"{,5}/");
+}
+BOOST_AUTO_TEST_CASE(both) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{3,4}/", u8"/\"a\"{3,4}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{0,4}/", u8"/\"a\"{,4}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{4,4}/", u8"/\"a\"{4}/");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{3 , 4}/", u8"/\"a\"{3,4}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{3, 4}/", u8"/\"a\"{3,4}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{ 3,4 }/", u8"/\"a\"{3,4}/");
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

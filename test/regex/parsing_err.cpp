@@ -126,4 +126,18 @@ BOOST_AUTO_TEST_CASE(escape) {
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
+
+////
+//Parens
+BOOST_AUTO_TEST_SUITE(Parens)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/(\"a\"/", u8"Missing ) in regex");
+    PARSE_TEST_UNICODE(u8"/\"a\")/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/((\"a\")/", u8"Missing ) in regex");
+
+    PARSE_TEST_UNICODE(u8"/(\"a\")\"b\")*/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/(\"a\")+)?/", u8"Invalid regex -- trailing characters after end of regex");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -546,8 +546,12 @@ namespace brex
         bool isValidRepeatPrefix()
         {
             auto next = this->cpos + 1;
+            while(std::isspace(*next)) {
+                next++;
+            }
+
             if(next == this->epos) {
-                return true; //we will fail shortly but that is ok
+                return false;
             }
 
             if(*next == '}') {
