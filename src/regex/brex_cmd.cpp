@@ -190,7 +190,7 @@ int main(int argc, char** argv)
         std::cout << "Rejected ASCII" << std::endl;
     }
     */
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"ab\"**/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"a\"{3}/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
@@ -203,7 +203,7 @@ int main(int argc, char** argv)
     std::vector<brex::RegexCompileError> ucompileerror;
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), uemptymap, nullptr, nullptr, ucompileerror);
 
-    auto ustr = brex::UnicodeString(u8"ab");
+    auto ustr = brex::UnicodeString(u8"aaa");
     auto uaccepts = uexecutor->test(&ustr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;

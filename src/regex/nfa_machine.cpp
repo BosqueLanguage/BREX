@@ -31,7 +31,7 @@ namespace brex
                     }
                     break;
                 }
-                case NFAOptTag::Range: {
+                case NFAOptTag::CharRange: {
                     const NFAOptRange* range = static_cast<const NFAOptRange*>(opt);
                     auto inrng = std::find_if(range->ranges.cbegin(), range->ranges.cend(), [c](const SingleCharRange& rr) {
                         return (rr.low <= c && c <= rr.high);
@@ -70,7 +70,7 @@ namespace brex
                     }
                     break;
                 }
-                case NFAOptTag::Range: {
+                case NFAOptTag::CharRange: {
                     const NFAOptRange* range = static_cast<const NFAOptRange*>(opt);
                     auto inrng = std::find_if(range->ranges.cbegin(), range->ranges.cend(), [c](const SingleCharRange& rr) {
                         return (rr.low <= c && c <= rr.high);
@@ -109,7 +109,7 @@ namespace brex
                     }
                     break;
                 }
-                case NFAOptTag::Range: {
+                case NFAOptTag::CharRange: {
                     const NFAOptRange* range = static_cast<const NFAOptRange*>(opt);
                     auto inrng = std::find_if(range->ranges.cbegin(), range->ranges.cend(), [c](const SingleCharRange& rr) {
                         return (rr.low <= c && c <= rr.high);

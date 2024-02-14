@@ -126,7 +126,6 @@ BOOST_AUTO_TEST_CASE(escape) {
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
-
 ////
 //Parens
 BOOST_AUTO_TEST_SUITE(Parens)
@@ -137,6 +136,34 @@ BOOST_AUTO_TEST_CASE(simple) {
 
     PARSE_TEST_UNICODE(u8"/(\"a\")\"b\")*/", u8"Invalid regex -- trailing characters after end of regex");
     PARSE_TEST_UNICODE(u8"/(\"a\")+)?/", u8"Invalid regex -- trailing characters after end of regex");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Range
+BOOST_AUTO_TEST_SUITE(Range)
+BOOST_AUTO_TEST_CASE(single) {
+    PARSE_TEST_UNICODE(u8"/\"a\"5}/", u8"Invalid regex component -- expected");
+    PARSE_TEST_UNICODE(u8"/\"a\"{5/", u8"Missing comma (possibly) in range repeat");
+    PARSE_TEST_UNICODE(u8"/\"a\"{0}/", u8"Invalid range repeat bounds -- both min and max are 0 so the repeat is empty");
+    PARSE_TEST_UNICODE(u8"/\"a\"{1}/", u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{-1}/", u8"Invalid range repeat bound -- cannot have negative bound");
+    PARSE_TEST_UNICODE(u8"/\"a\"{x}/", u8"/\"a\"{5}/");
+}
+BOOST_AUTO_TEST_CASE(lower) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{5,a/", u8"Missing } in range repeat");
+}
+BOOST_AUTO_TEST_CASE(upper) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{,5b/", u8"Missing } in range repeat");
+    PARSE_TEST_UNICODE(u8"/\"a\"{,5b}/", u8"Missing } in range repeat");
+}
+BOOST_AUTO_TEST_CASE(both) {
+    PARSE_TEST_UNICODE(u8"/\"a\"{3 4}/", u8"Missing comma (possibly) in range repeat");
+    PARSE_TEST_UNICODE(u8"/\"a\"{4,0}/", u8"Invalid range repeat bounds -- max is less than min");
+
+    PARSE_TEST_UNICODE(u8"/\"a\"{0,0}/", u8"Invalid range repeat bounds -- both min and max are 0 so the repeat is empty");
+    PARSE_TEST_UNICODE(u8"/\"a\"{1,1}/", u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant");
 }
 BOOST_AUTO_TEST_SUITE_END()
 

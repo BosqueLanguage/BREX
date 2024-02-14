@@ -169,7 +169,7 @@ namespace brex
     {
         Accept,
         CharCode,
-        Range,
+        CharRange,
         Dot,
         AnyOf,
         Star,
@@ -210,7 +210,7 @@ namespace brex
         const std::vector<SingleCharRange> ranges;
         const StateID follow;
 
-        NFAOptRange(StateID stateid, bool compliment, std::vector<SingleCharRange> ranges, StateID follow) : NFAOpt(NFAOptTag::Range, stateid), compliment(compliment), ranges(ranges), follow(follow) {;}
+        NFAOptRange(StateID stateid, bool compliment, std::vector<SingleCharRange> ranges, StateID follow) : NFAOpt(NFAOptTag::CharRange, stateid), compliment(compliment), ranges(ranges), follow(follow) {;}
         virtual ~NFAOptRange() {;}
     };
 

@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE(simple) {
 BOOST_AUTO_TEST_SUITE_END()
 
 ////
-//Plus
+//Range
 BOOST_AUTO_TEST_SUITE(Range)
 BOOST_AUTO_TEST_CASE(single) {
     PARSE_TEST_UNICODE(u8"/\"a\"{5}/", u8"/\"a\"{5}/");

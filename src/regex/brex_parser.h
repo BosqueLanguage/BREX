@@ -594,8 +594,8 @@ namespace brex
                     auto hasmin = this->parseRangeRepeatBound(min);
 
                     this->advanceTriviaOnly();
-                    if(!hasmin && !this->isToken(',')) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Missing , in range repeat -- must have at a bound or a ,"));
+                    if(hasmin && !this->isToken(',') && !this->isToken('}')) {
+                        this->errors.push_back(RegexParserError(this->cline, u8"Missing comma (possibly) in range repeat"));
                     }
 
                     uint16_t max = min;
