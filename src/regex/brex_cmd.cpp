@@ -190,7 +190,7 @@ int main(int argc, char** argv)
         std::cout << "Rejected ASCII" << std::endl;
     }
     */
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"a\"{3}/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"a\"{5}/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";

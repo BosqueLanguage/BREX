@@ -20,22 +20,12 @@ namespace brex
 
         void runIntialStep()
         {
-            this->cstates.intitialize();
-            this->cstates.simplestates.insert(NFASimpleStateToken{this->m->startstate});
-
-            NFAState nstates;
-            this->m->advanceEpsilon(this->cstates, nstates);
-            this->cstates = std::move(nstates);
+            this->m->intitializeMachine(this->cstates);
         }
 
         void runStep(RegexChar c)
         {
-            NFAState ncstates;
-            this->m->advanceChar(c, this->cstates, ncstates);
-
-            NFAState nstates;
-            this->m->advanceEpsilon(ncstates, nstates);
-            this->cstates = std::move(nstates);
+            this->cstates = this->m->stepMachine(c, this->cstates);
         }
 
         inline bool accepted() const { return this->m->inAccepted(this->cstates); }

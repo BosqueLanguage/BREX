@@ -95,7 +95,7 @@ namespace brex
 
         inline NFASingleStateToken toNextStateWithIncrement(StateID next) const
         {
-            return NFASingleStateToken(next, std::make_pair(this->rangecount.first, saturateNFATokenIncrement(this->rangecount.second + 1)));
+            return NFASingleStateToken(next, std::make_pair(this->rangecount.first, saturateNFATokenIncrement(this->rangecount.second)));
         }
 
         inline NFASimpleStateToken toNextStateWithDoneRange(StateID next) const
@@ -185,9 +185,9 @@ namespace brex
         NFAOpt(NFAOptTag tag, StateID stateid) : tag(tag), stateid(stateid) {;}
         virtual ~NFAOpt() {;}
 
-        inline bool epsilonTransition() const
+        inline bool concreteTransition() const
         {
-            return this->tag >= NFAOptTag::AnyOf;
+            return this->tag <= NFAOptTag::Dot;
         }
     };
 
@@ -297,18 +297,162 @@ namespace brex
         }
     };
 
+    class NFAEpsilonWorkSet
+    {
+    public:
+        typedef std::set<NFASimpleStateToken, decltype(&NFASimpleStateToken::cmp)> TSimpleStates;
+        typedef std::set<NFASingleStateToken, decltype(&NFASingleStateToken::cmp)> TSingleStates;
+        typedef std::set<NFAFullStateToken, decltype(&NFAFullStateToken::cmp)> TFullStates;
+
+        TSimpleStates simplestates;
+        TSingleStates singlestates;
+        TFullStates fullstates;
+
+        NFAEpsilonWorkSet() : simplestates(&NFASimpleStateToken::cmp), singlestates(&NFASingleStateToken::cmp), fullstates(&NFAFullStateToken::cmp) {;}
+        ~NFAEpsilonWorkSet() {;}
+
+        bool done() const
+        {
+            return this->simplestates.empty() && this->singlestates.empty() && this->fullstates.empty();
+        }
+
+        bool hasSimpleStates() const 
+        { 
+            return !this->simplestates.empty(); 
+        }
+        NFASimpleStateToken getNextSimpleState() 
+        { 
+            auto it = this->simplestates.begin();
+            
+            NFASimpleStateToken t = *it;
+            this->simplestates.erase(it);
+
+            return t;
+        }
+
+        bool hasSingleStates() const 
+        { 
+            return !this->singlestates.empty(); 
+        }
+        NFASingleStateToken getNextSingleState() 
+        { 
+            auto it = this->singlestates.begin();
+            
+            NFASingleStateToken t = *it;
+            this->singlestates.erase(it);
+
+            return t;
+        }
+
+        bool hasFullStates() const 
+        { 
+            return !this->fullstates.empty(); 
+        }
+        NFAFullStateToken getNextFullState() 
+        { 
+            auto it = this->fullstates.begin();
+            
+            NFAFullStateToken t = *it;
+            this->fullstates.erase(it);
+
+            return t;
+        }
+    };
+
+    class NFAEpsilonFixpointSet
+    {
+    public:
+        typedef std::set<NFASimpleStateToken, decltype(&NFASimpleStateToken::cmp)> TSimpleStates;
+        typedef std::set<NFASingleStateToken, decltype(&NFASingleStateToken::cmp)> TSingleStates;
+        typedef std::set<NFAFullStateToken, decltype(&NFAFullStateToken::cmp)> TFullStates;
+
+        TSimpleStates simplestates;
+        TSingleStates singlestates;
+        TFullStates fullstates;
+
+        NFAEpsilonFixpointSet() : simplestates(&NFASimpleStateToken::cmp), singlestates(&NFASingleStateToken::cmp), fullstates(&NFAFullStateToken::cmp) {;}
+        ~NFAEpsilonFixpointSet() {;}
+
+        NFAEpsilonFixpointSet(const NFAEpsilonWorkSet& iworkset) : simplestates(iworkset.simplestates), singlestates(iworkset.singlestates), fullstates(iworkset.fullstates) {;}
+    };
+
     class NFAMachine
     {
     private:
+        void addNextSimpleState(NFAState& nstates, NFAEpsilonWorkSet& workset, const NFASimpleStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.simplestates.insert(t);
+            }
+            else {
+                workset.simplestates.insert(t);
+            }
+        }
+        void addNextSingleState(NFAState& nstates, NFAEpsilonWorkSet& workset, const NFASingleStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.singlestates.insert(t);
+            }
+            else {
+                workset.singlestates.insert(t);
+            }
+        }
+        void addNextFullState(NFAState& nstates, NFAEpsilonWorkSet& workset, const NFAFullStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.fullstates.insert(t);
+            }
+            else {
+                workset.fullstates.insert(t);
+            }
+        }
+
+        void processSimpleStateEpsilonTransition(NFAState& nstates, NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, const NFASimpleStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.simplestates.insert(t);
+            }
+            else {
+                if(!fixpoint.simplestates.contains(t)) {
+                    fixpoint.simplestates.insert(t);
+                    workset.simplestates.insert(t);
+                }
+            }
+        }
+        void processSingleStateEpsilonTransition(NFAState& nstates, NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, const NFASingleStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.singlestates.insert(t);
+            }
+            else {
+                if(!fixpoint.singlestates.contains(t)) {
+                    fixpoint.singlestates.insert(t);
+                    workset.singlestates.insert(t);
+                }
+            }
+        }
+        void processFullStateEpsilonTransition(NFAState& nstates, NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, const NFAFullStateToken& t) const
+        {
+            if(this->nfaopts[t.cstate]->concreteTransition()) {
+                nstates.fullstates.insert(t);
+            }
+            else {
+                if(!fixpoint.fullstates.contains(t)) {
+                    fixpoint.fullstates.insert(t);
+                    workset.fullstates.insert(t);
+                }
+            }
+        }
+
         //process a single char and compute the new state
-        void advanceCharForSimpleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
-        void advanceCharForSingleStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
-        void advanceCharForFullStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
+        void advanceCharForSimpleStates(RegexChar c, const NFAState& ostates, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
+        void advanceCharForSingleStates(RegexChar c, const NFAState& ostates, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
+        void advanceCharForFullStates(RegexChar c, const NFAState& ostates, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
 
         //process all the epsilon transitions and compute the new state
-        void advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const;
-        void advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const;
-        void advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const;
+        void advanceEpsilonForSimpleStates(NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
+        void advanceEpsilonForSingleStates(NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
+        void advanceEpsilonForFullStates(NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, NFAState& nstates) const;
 
     public:
         const StateID startstate;
@@ -324,39 +468,54 @@ namespace brex
         bool inAccepted(const NFAState& ostates) const;
         bool allRejected(const NFAState& ostates) const;
 
-        void advanceChar(RegexChar c, const NFAState& ostates, NFAState& nstates) const
+        void advanceChar(RegexChar c, const NFAState& ostates, NFAEpsilonWorkSet& workset, NFAState& nstates) const
         {
-            if(ostates.stateSize() != 0) {
-                this->advanceCharForSimpleStates(c, ostates, nstates);
-                this->advanceCharForSingleStates(c, ostates, nstates);
-                this->advanceCharForFullStates(c, ostates, nstates);
+            this->advanceCharForSimpleStates(c, ostates, workset, nstates);
+            this->advanceCharForSingleStates(c, ostates, workset, nstates);
+            this->advanceCharForFullStates(c, ostates, workset, nstates);
+        }
+
+        void advanceEpsilon(NFAEpsilonFixpointSet& fixpoint, NFAEpsilonWorkSet& workset, NFAState& nstates) const
+        {
+            while(!workset.done()) {
+                if(workset.hasSimpleStates()) {
+                    this->advanceEpsilonForSimpleStates(fixpoint, workset, nstates);
+                }
+
+                if(workset.hasSingleStates()) {
+                    this->advanceEpsilonForSingleStates(fixpoint, workset, nstates);
+                }
+
+                if(workset.hasFullStates()) {
+                    this->advanceEpsilonForFullStates(fixpoint, workset, nstates);
+                }
             }
         }
 
-        void advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
+        void intitializeMachine(NFAState& nstates) const
         {
-            if(ostates.stateSize() != 0) {
-                NFAState tstates;
-                size_t lastcount = ostates.stateSize();
+            nstates.intitialize();
+            NFAEpsilonWorkSet workset;
+            this->addNextSimpleState(nstates, workset, NFASimpleStateToken{this->startstate});
 
-                this->advanceEpsilonForSimpleStates(ostates, tstates);
-                this->advanceEpsilonForSingleStates(ostates, tstates);
-                this->advanceEpsilonForFullStates(ostates, tstates);
-                if(lastcount != tstates.stateSize()) {
-                    nstates = std::move(tstates);
-                }
-                else {
-                    while(lastcount != tstates.stateSize()) {
-                        nstates = std::move(tstates);
-                        lastcount = nstates.stateSize();
-
-                        tstates.intitialize();
-                        this->advanceEpsilonForSimpleStates(nstates, tstates);
-                        this->advanceEpsilonForSingleStates(nstates, tstates);
-                        this->advanceEpsilonForFullStates(nstates, tstates);
-                    }
-                }
+            NFAEpsilonFixpointSet fixpoint(workset);
+            while(!workset.done()) {
+                this->advanceEpsilon(fixpoint, workset, nstates);
             }
+        }
+
+        NFAState stepMachine(RegexChar c, const NFAState& ostates) const
+        {
+            NFAState nstates;
+            NFAEpsilonWorkSet workset;
+            this->advanceChar(c, ostates, workset, nstates);
+
+            NFAEpsilonFixpointSet fixpoint(workset);
+            while(!workset.done()) {
+                this->advanceEpsilon(fixpoint, workset, nstates);
+            }
+
+            return nstates;
         }
     };
 }

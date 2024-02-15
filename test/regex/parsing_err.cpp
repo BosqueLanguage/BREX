@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(single) {
     PARSE_TEST_UNICODE(u8"/\"a\"{1}/", u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant");
 
     PARSE_TEST_UNICODE(u8"/\"a\"{-1}/", u8"Invalid range repeat bound -- cannot have negative bound");
-    PARSE_TEST_UNICODE(u8"/\"a\"{x}/", u8"/\"a\"{5}/");
+    PARSE_TEST_UNICODE(u8"/\"a\"{x}/", u8"Missing } in range repeat");
 }
 BOOST_AUTO_TEST_CASE(lower) {
     PARSE_TEST_UNICODE(u8"/\"a\"{5,a/", u8"Missing } in range repeat");

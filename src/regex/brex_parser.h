@@ -62,6 +62,11 @@ namespace brex
             return (this->cpos + 1 < this->epos) && (*this->cpos == '%' && *(this->cpos + 1) == '%');
         }
 
+        inline bool isNamedPfx()
+        {
+            return (this->cpos + 2 < this->epos) && (*this->cpos == '$' && *(this->cpos + 1) == '{');
+        }
+
         inline bool isTokenEnvPfx() const
         {
             return (this->cpos + 3 < this->epos) && (*this->cpos == 'e' && *(this->cpos + 1) == 'n' && *(this->cpos + 2) == 'v' && *(this->cpos + 3) == '[');
@@ -388,7 +393,8 @@ namespace brex
         const RegexOpt* parseNamedRegex()
         {
             this->advance();
-            std::u8string name;
+            this->advance();
+            std::string name;
             while(!this->isEOS() && !this->isToken('}')) {
                 name.push_back(this->token());
                 this->cpos++;
@@ -401,12 +407,12 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing } in named regex"));
             }
 
-            std::basic_regex<char8_t> scopere(u8"^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
+            std::basic_regex scopere("^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
             if(!std::regex_match(name.cbegin(), name.cend(), scopere)) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid named regex name -- must be a valid scoped identifier"));
             }
 
-            return new NamedRegexOpt(std::string(name.cbegin(), name.cend()));
+            return new NamedRegexOpt(name);
         }
 
         const RegexOpt* parseEnvRegex()
@@ -416,7 +422,7 @@ namespace brex
             }
 
             this->cpos += 4;
-            std::u8string name;
+            std::string name;
             while(!this->isEOS() && !this->isToken(']')) {
                 name.push_back(this->token());
                 this->cpos++;
@@ -429,12 +435,12 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing ] in env regex"));
             }
 
-            std::basic_regex<char8_t> idre(u8"^[_a-z][_a-zA-Z0-9]*$");
+            std::basic_regex idre("^[_a-z][_a-zA-Z0-9]*$");
             if(!std::regex_match(name.cbegin(), name.cend(), idre)) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
             }
 
-            return new EnvRegexOpt(std::string(name.cbegin(), name.cend()));
+            return new EnvRegexOpt(name);
         }
 
         const RegexOpt* parseBaseComponent() 
@@ -481,7 +487,7 @@ namespace brex
                 this->cpos++;
                 res = new CharClassDotOpt();
             }
-            else if(this->isToken('{')) {
+            else if(this->isNamedPfx()) {
                 res = this->parseNamedRegex();
             }
             else if(this->isTokenEnvPfx()) {
@@ -543,39 +549,11 @@ namespace brex
             }
         }
 
-        bool isValidRepeatPrefix()
-        {
-            auto next = this->cpos + 1;
-            while(std::isspace(*next)) {
-                next++;
-            }
-
-            if(next == this->epos) {
-                return false;
-            }
-
-            if(*next == '}') {
-                return true;
-            }
-            else if(*next == ',') {
-                return true;
-            }
-            else if(*next == '-') {
-                return true;
-            }
-            else if(std::isdigit(*next)) {
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-
         const RegexOpt* parseRepeatComponent()
         {
             auto rcc = this->parseBaseComponent();
 
-            while(this->isToken('*') || this->isToken('+') || this->isToken('?') || (this->isToken('{') && this->isValidRepeatPrefix())) {
+            while(this->isToken('*') || this->isToken('+') || this->isToken('?') || this->isToken('{')) {
                 if(this->isToken('*')) {
                     rcc = new StarRepeatOpt(rcc);
                     this->advance();
