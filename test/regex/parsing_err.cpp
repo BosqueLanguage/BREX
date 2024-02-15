@@ -167,4 +167,13 @@ BOOST_AUTO_TEST_CASE(both) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Opt
+BOOST_AUTO_TEST_SUITE(Opt)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"|/", u8"Empty regex sequence");
+    PARSE_TEST_UNICODE(u8"/|\"b\"/", u8"Empty regex sequence");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

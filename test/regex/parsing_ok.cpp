@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(simple) {
 BOOST_AUTO_TEST_SUITE_END()
 
 ////
-//Plus
+//Question
 BOOST_AUTO_TEST_SUITE(Question)
 BOOST_AUTO_TEST_CASE(simple) {
     PARSE_TEST_UNICODE(u8"/\"a\"?/", u8"/\"a\"?/");
@@ -247,6 +247,26 @@ BOOST_AUTO_TEST_CASE(both) {
     PARSE_TEST_UNICODE(u8"/\"a\"{3 , 4}/", u8"/\"a\"{3,4}/");
     PARSE_TEST_UNICODE(u8"/\"a\"{3, 4}/", u8"/\"a\"{3,4}/");
     PARSE_TEST_UNICODE(u8"/\"a\"{ 3,4 }/", u8"/\"a\"{3,4}/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Opt
+BOOST_AUTO_TEST_SUITE(Opt)
+BOOST_AUTO_TEST_CASE(simple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"|\"b\"/", u8"/\"a\"|\"b\"/");
+    PARSE_TEST_UNICODE(u8"/\"a\" | \"b\"/", u8"/\"a\"|\"b\"/");
+    PARSE_TEST_UNICODE(u8"/[0-9]|\"b\"/", u8"/[0-9]|\"b\"/");
+}
+BOOST_AUTO_TEST_CASE(multiple) {
+    PARSE_TEST_UNICODE(u8"/\"a\"|\"b\"|\"c\"/", u8"/\"a\"|\"b\"|\"c\"/");
+}
+BOOST_AUTO_TEST_CASE(mixeddown) {
+    PARSE_TEST_UNICODE(u8"/\"a\"*|\"b\"?|\"c\"+/", u8"/(\"a\"*)|(\"b\"?)|(\"c\"+)/");
+    PARSE_TEST_UNICODE(u8"/\"a\"*|(\"b\"?|\"c\"+)/", u8"/(\"a\"*)|((\"b\"?)|(\"c\"+))/");
+}
+BOOST_AUTO_TEST_CASE(mixedup) {
+    PARSE_TEST_UNICODE(u8"/(\"a\"|\"b\")+|\"c\"/", u8"/((\"a\"|\"b\")+)|\"c\"/");
 }
 BOOST_AUTO_TEST_SUITE_END()
 

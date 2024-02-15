@@ -47,11 +47,11 @@ namespace brex
         {
             if(this->isunicode) {
                 auto bbytes = escapeRegexUnicodeLiteralCharBuffer(this->codes);
-                return std::u8string{'"'} + std::u8string(bbytes.cbegin(), bbytes.cend()) + std::u8string{'"'};
+                return u8'"' + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8'"';
             }
             else {
                 auto bbytes = escapeRegexASCIILiteralCharBuffer(this->codes);
-                return std::u8string{'\''} + std::u8string(bbytes.cbegin(), bbytes.cend()) + std::u8string{'\''};
+                return u8"'" + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8"'";
             }
         }
 
@@ -81,7 +81,7 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            std::u8string rngs = {'['};
+            std::u8string rngs = u8"[";
             if(this->compliment) {
                 rngs.push_back('^');
             }
@@ -131,7 +131,7 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            return std::u8string{'.'};
+            return std::u8string{u8'.'};
         }
 
         static CharClassDotOpt* jparse(json j)
@@ -151,7 +151,7 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            return std::u8string{'{'} + std::u8string(this->rname.cbegin(), this->rname.cend()) + std::u8string{'}'};
+            return u8'{' + std::u8string(this->rname.cbegin(), this->rname.cend()) + u8'}';
         }
 
         static NamedRegexOpt* jparse(json j)
@@ -172,7 +172,7 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const override final
         {
-            return std::u8string{'{'} + std::u8string(this->ename.cbegin(), this->ename.cend()) + std::u8string{'}'};
+            return u8'{' + std::u8string(this->ename.cbegin(), this->ename.cend()) + u8'}';
         }
 
         static EnvRegexOpt* jparse(json j)
@@ -195,10 +195,10 @@ namespace brex
         virtual std::u8string toBSQONFormat() const override final
         {
             if(!this->repeat->needsParens()) {
-                return this->repeat->toBSQONFormat() + std::u8string{'*'};
+                return this->repeat->toBSQONFormat() + u8'*';
             }
             else {
-                return std::u8string{'('} + this->repeat->toBSQONFormat() + std::u8string{')'} + std::u8string{'*'};
+                return u8'(' + this->repeat->toBSQONFormat() + u8")*";
             }
         }
 
@@ -221,10 +221,10 @@ namespace brex
         virtual std::u8string toBSQONFormat() const override final
         {
             if (!this->repeat->needsParens()) {
-                return this->repeat->toBSQONFormat() + std::u8string{'+'};
+                return this->repeat->toBSQONFormat() + u8'+';
             }
             else {
-                return std::u8string{'('} + this->repeat->toBSQONFormat() + std::u8string{')'} + std::u8string{'+'};
+                return u8'(' + this->repeat->toBSQONFormat() + u8")+";
             }
         }
 
@@ -253,7 +253,7 @@ namespace brex
                 repeatstr = this->repeat->toBSQONFormat();
             }
             else {
-                repeatstr = std::u8string{'('} + this->repeat->toBSQONFormat() + std::u8string{')'};
+                repeatstr = u8'(' + this->repeat->toBSQONFormat() + u8')';
             }
 
             std::string iterstr{'{'};
@@ -297,10 +297,10 @@ namespace brex
         virtual std::u8string toBSQONFormat() const override final
         {
             if (!this->opt->needsParens()) {
-                return this->opt->toBSQONFormat() + std::u8string{'?'};
+                return this->opt->toBSQONFormat() + u8'?';
             }
             else {
-                return std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'} + std::u8string{'?'};
+                return u8'(' + this->opt->toBSQONFormat() + u8")?";
             }
         }
 
@@ -326,17 +326,17 @@ namespace brex
             std::u8string optstr;
             for(auto ii = this->opts.cbegin(); ii != this->opts.cend(); ++ii) {
                 if(ii != this->opts.cbegin()) {
-                    optstr += std::u8string{' ', '|', ' '};
+                    optstr += u8'|';
                 }
 
                 if(!(*ii)->needsParens()) {
                     optstr += (*ii)->toBSQONFormat();
                 }
                 else {
-                    optstr += std::u8string{'('} + (*ii)->toBSQONFormat() + std::u8string{')'};
+                    optstr += u8'(' + (*ii)->toBSQONFormat() + u8')';
                 }
             }
-            
+        
             return optstr;
         }
 
@@ -369,7 +369,7 @@ namespace brex
                     regexstr += (*ii)->toBSQONFormat();
                 }
                 else {
-                    regexstr += std::u8string{'('} + (*ii)->toBSQONFormat() + std::u8string{')'};
+                    regexstr += u8'(' + (*ii)->toBSQONFormat() + u8')';
                 }
             }
             
@@ -411,22 +411,22 @@ namespace brex
         {
             std::u8string optstr;
             if(this->isNegated) {
-                optstr += std::u8string{'!'};
+                optstr += u8'!';
             }
 
             if(this->isFrontCheck) {
-                optstr += std::u8string{'^'};
+                optstr += u8'^';
             }
 
             if(this->isBackCheck) {
-                optstr += std::u8string{'$'};
+                optstr += u8'$';
             }
 
-            if(optstr == u8"" || !this->opt->needsParens()) {
+            if(optstr.empty() || !this->opt->needsParens()) {
                 optstr += this->opt->toBSQONFormat();
             }
             else {
-                optstr += std::u8string{'('} + this->opt->toBSQONFormat() + std::u8string{')'};
+                optstr += u8'(' + this->opt->toBSQONFormat() + u8')';
             }
 
             return optstr;
@@ -468,7 +468,7 @@ namespace brex
             std::u8string muststr;
             for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
                 if(ii != this->musts.cbegin()) {
-                    muststr += std::u8string{'&'};
+                    muststr += u8'&';
                 }
 
                 muststr += ii->toBSQONFormat();
@@ -560,7 +560,7 @@ namespace brex
                 }
             }
 
-            return std::u8string{'/'} + fstr + std::u8string{'/'} + fchar;
+            return u8'/' + fstr + u8'/' + fchar;
         }
     };
 }
