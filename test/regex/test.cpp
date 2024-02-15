@@ -719,4 +719,63 @@ BOOST_AUTO_TEST_CASE(both) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Opt
+BOOST_AUTO_TEST_SUITE(Opt)
+BOOST_AUTO_TEST_CASE(simpleab) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"|\"b\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+}
+BOOST_AUTO_TEST_CASE(simple09b) {
+    auto texecutor = tryParseForUnicodeTest(u8"[0-9]|\"b\"");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+}
+BOOST_AUTO_TEST_CASE(multiple) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"|\"b\"|\"c\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+}
+BOOST_AUTO_TEST_CASE(mixeddown1) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"*|\"b\"?|\"c\"+/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+}
+BOOST_AUTO_TEST_CASE(mixeddown1) {
+    auto texecutor = tryParseForUnicodeTest(u8"/\"a\"*|(\"b\"?|\"c\"+)/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+}
+BOOST_AUTO_TEST_CASE(mixedup) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")+|\"c\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    xxxx;
+    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()
