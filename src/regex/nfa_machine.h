@@ -167,7 +167,7 @@ namespace brex
 
     enum class NFAOptTag
     {
-        Accept,
+        Accept = 0x0,
         CharCode,
         CharRange,
         Dot,
@@ -184,6 +184,11 @@ namespace brex
 
         NFAOpt(NFAOptTag tag, StateID stateid) : tag(tag), stateid(stateid) {;}
         virtual ~NFAOpt() {;}
+
+        inline bool epsilonTransition() const
+        {
+            return this->tag >= NFAOptTag::AnyOf;
+        }
     };
 
     class NFAOptAccept : public NFAOpt
@@ -274,6 +279,11 @@ namespace brex
         NFAState& operator=(const NFAState& other) = default;
         NFAState& operator=(NFAState&& other) = default;
 
+        inline size_t stateSize() const
+        {
+            return this->simplestates.size() + this->singlestates.size() + this->fullstates.size();
+        }
+
         void intitialize() {
             this->simplestates.clear();
             this->singlestates.clear();
@@ -296,12 +306,9 @@ namespace brex
         void advanceCharForFullStates(RegexChar c, const NFAState& ostates, NFAState& nstates) const;
 
         //process all the epsilon transitions and compute the new state
-        bool advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const;
-        bool advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const;
-        bool advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const;
-
-        static void mergeStatesFrom(const NFAState& ostates, NFAState& nstates);
-        static bool isNewState(const NFAState& ostates, const NFAState& nstates);
+        void advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const;
+        void advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const;
+        void advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const;
 
     public:
         const StateID startstate;
@@ -319,26 +326,36 @@ namespace brex
 
         void advanceChar(RegexChar c, const NFAState& ostates, NFAState& nstates) const
         {
-            this->advanceCharForSimpleStates(c, ostates, nstates);
-            this->advanceCharForSingleStates(c, ostates, nstates);
-            this->advanceCharForFullStates(c, ostates, nstates);
+            if(ostates.stateSize() != 0) {
+                this->advanceCharForSimpleStates(c, ostates, nstates);
+                this->advanceCharForSingleStates(c, ostates, nstates);
+                this->advanceCharForFullStates(c, ostates, nstates);
+            }
         }
 
-        bool advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
+        void advanceEpsilon(const NFAState& ostates, NFAState& nstates) const
         {
-            //simulate the epsilon not taken option
-            NFAMachine::mergeStatesFrom(ostates, nstates);
+            if(ostates.stateSize() != 0) {
+                NFAState tstates;
+                size_t lastcount = ostates.stateSize();
 
-            //take the epsilon transitions for each token kind
-            bool advsimple = this->advanceEpsilonForSimpleStates(ostates, nstates);
-            bool advsingle = this->advanceEpsilonForSingleStates(ostates, nstates);
-            bool advfull = this->advanceEpsilonForFullStates(ostates, nstates);
+                this->advanceEpsilonForSimpleStates(ostates, tstates);
+                this->advanceEpsilonForSingleStates(ostates, tstates);
+                this->advanceEpsilonForFullStates(ostates, tstates);
+                if(lastcount != tstates.stateSize()) {
+                    nstates = std::move(tstates);
+                }
+                else {
+                    while(lastcount != tstates.stateSize()) {
+                        nstates = std::move(tstates);
+                        lastcount = nstates.stateSize();
 
-            if(!advsimple && !advsingle && !advfull) {
-                return false;
-            }
-            else {
-                return NFAMachine::isNewState(ostates, nstates);
+                        tstates.intitialize();
+                        this->advanceEpsilonForSimpleStates(nstates, tstates);
+                        this->advanceEpsilonForSingleStates(nstates, tstates);
+                        this->advanceEpsilonForFullStates(nstates, tstates);
+                    }
+                }
             }
         }
     };

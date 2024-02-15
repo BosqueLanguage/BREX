@@ -134,14 +134,13 @@ namespace brex
         }
     }
 
-    bool NFAMachine::advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const
+    void NFAMachine::advanceEpsilonForSimpleStates(const NFAState& ostates, NFAState& nstates) const
     {
-        bool advanced = false;
-
         for(auto iter = ostates.simplestates.cbegin(); iter != ostates.simplestates.cend(); ++iter) {
             const NFAOpt* opt = this->nfaopts[iter->cstate];
             const NFAOptTag tag = opt->tag;
 
+            nstates.simplestates.insert(*iter);
             switch(tag) {
                 case NFAOptTag::AnyOf: {
                     const NFAOptAnyOf* anyof = static_cast<const NFAOptAnyOf*>(opt);
@@ -149,7 +148,6 @@ namespace brex
                         return iter->toNextState(follow);
                     });
 
-                    advanced = true;
                     break;
                 }
                 case NFAOptTag::Star: {
@@ -157,7 +155,6 @@ namespace brex
                     nstates.simplestates.insert(iter->toNextState(star->matchfollow));
                     nstates.simplestates.insert(iter->toNextState(star->skipfollow));
 
-                    advanced = true;
                     break;
                 }
                 case NFAOptTag::RangeK: {
@@ -168,28 +165,23 @@ namespace brex
                         nstates.simplestates.insert(iter->toNextState(rngk->outfollow));
                     }
 
-                    advanced = true;
                     break;
                 }
                 default: {
-                    //No epsilon transitions for these so just keep token and no additonal states so no advanced = true
-                    nstates.simplestates.insert(*iter);
+                    //No epsilon transitions for these so just keep token
                     break;
                 }
             }
         }
-
-        return advanced;
     }
 
-    bool NFAMachine::advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const
+    void NFAMachine::advanceEpsilonForSingleStates(const NFAState& ostates, NFAState& nstates) const
     {
-        bool advanced = false;
-
         for(auto iter = ostates.singlestates.cbegin(); iter != ostates.singlestates.cend(); ++iter) {
             const NFAOpt* opt = this->nfaopts[iter->cstate];
             const NFAOptTag tag = opt->tag;
 
+            nstates.singlestates.insert(*iter);
             switch(tag) {
                 case NFAOptTag::AnyOf: {
                     const NFAOptAnyOf* anyof = static_cast<const NFAOptAnyOf*>(opt);
@@ -197,7 +189,6 @@ namespace brex
                         return iter->toNextState(follow);
                     });
 
-                    advanced = true;
                     break;
                 }
                 case NFAOptTag::Star: {
@@ -205,7 +196,6 @@ namespace brex
                     nstates.singlestates.insert(iter->toNextState(star->matchfollow));
                     nstates.singlestates.insert(iter->toNextState(star->skipfollow));
 
-                    advanced = true;
                     break;
                 }
                 case NFAOptTag::RangeK: {
@@ -230,44 +220,20 @@ namespace brex
                         }
                     }
 
-                    advanced = true;
                     break;
                 }
                 default: {
-                    //No epsilon transitions for these so just keep token and no additonal states so no advanced = true
-                    nstates.singlestates.insert(*iter);
+                    //No epsilon transitions for these so just keep token
                     break;
                 }
             }
         }
-
-        return advanced;
     }
 
-    bool NFAMachine::advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const
+    void NFAMachine::advanceEpsilonForFullStates(const NFAState& ostates, NFAState& nstates) const
     {
-        bool advanced = false;
-
         for(auto iter = ostates.fullstates.cbegin(); iter != ostates.fullstates.cend(); ++iter) {
             BREX_ASSERT(false, "Not implemented");
         }
-
-        return advanced;
-    }
-
-    void NFAMachine::mergeStatesFrom(const NFAState& ostates, NFAState& nstates)
-    {
-        std::copy(ostates.simplestates.cbegin(), ostates.simplestates.cend(), std::inserter(nstates.simplestates, nstates.simplestates.begin()));
-        std::copy(ostates.singlestates.cbegin(), ostates.singlestates.cend(), std::inserter(nstates.singlestates, nstates.singlestates.begin()));
-        std::copy(ostates.fullstates.cbegin(), ostates.fullstates.cend(), std::inserter(nstates.fullstates, nstates.fullstates.begin()));
-    }
-
-    bool NFAMachine::isNewState(const NFAState& ostates, const NFAState& nstates)
-    {
-        if(ostates.simplestates.size() != nstates.simplestates.size() || ostates.singlestates.size() != nstates.singlestates.size() || ostates.fullstates.size() != nstates.fullstates.size()) {
-            return true;
-        }
-
-        return !std::equal(ostates.simplestates.cbegin(), ostates.simplestates.cend(), nstates.simplestates.cbegin()) || !std::equal(ostates.singlestates.cbegin(), ostates.singlestates.cend(), nstates.singlestates.cbegin()) || !std::equal(ostates.fullstates.cbegin(), ostates.fullstates.cend(), nstates.fullstates.cbegin());
     }
 }

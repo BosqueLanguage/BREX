@@ -24,10 +24,8 @@ namespace brex
             this->cstates.simplestates.insert(NFASimpleStateToken{this->m->startstate});
 
             NFAState nstates;
-            while(this->m->advanceEpsilon(this->cstates, nstates)) {
-                this->cstates = std::move(nstates);
-                nstates.reset();
-            }
+            this->m->advanceEpsilon(this->cstates, nstates);
+            this->cstates = std::move(nstates);
         }
 
         void runStep(RegexChar c)
@@ -36,12 +34,8 @@ namespace brex
             this->m->advanceChar(c, this->cstates, ncstates);
 
             NFAState nstates;
-            while(this->m->advanceEpsilon(ncstates, nstates)) {
-                ncstates = std::move(nstates);
-                nstates.reset();
-            }
-
-            this->cstates = std::move(ncstates);
+            this->m->advanceEpsilon(ncstates, nstates);
+            this->cstates = std::move(nstates);
         }
 
         inline bool accepted() const { return this->m->inAccepted(this->cstates); }
