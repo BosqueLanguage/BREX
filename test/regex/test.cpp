@@ -728,17 +728,31 @@ BOOST_AUTO_TEST_CASE(simpleab) {
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"c", false);
 }
-BOOST_AUTO_TEST_CASE(simple09b) {
-    auto texecutor = tryParseForUnicodeTest(u8"[0-9]|\"b\"");
+BOOST_AUTO_TEST_CASE(simpleabstar) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")*/");
     BOOST_CHECK(texecutor.has_value());
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbbb", true);
+}
+BOOST_AUTO_TEST_CASE(simple09b) {
+    auto texecutor = tryParseForUnicodeTest(u8"/[0-9]|\"b\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"3", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
 }
 BOOST_AUTO_TEST_CASE(multiple) {
     auto texecutor = tryParseForUnicodeTest(u8"/\"a\"|\"b\"|\"c\"/");
@@ -746,8 +760,22 @@ BOOST_AUTO_TEST_CASE(multiple) {
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"c", true);
+}
+BOOST_AUTO_TEST_CASE(abplusfollow) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")+[0-9]./");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"a", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"b01", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa5!", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ababc1", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abab1a", true);
 }
 BOOST_AUTO_TEST_CASE(mixeddown1) {
     auto texecutor = tryParseForUnicodeTest(u8"/\"a\"*|\"b\"?|\"c\"+/");
@@ -755,17 +783,27 @@ BOOST_AUTO_TEST_CASE(mixeddown1) {
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bc", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"c", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"cc", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ccd", false);
 }
-BOOST_AUTO_TEST_CASE(mixeddown1) {
+BOOST_AUTO_TEST_CASE(mixeddownalt1) {
     auto texecutor = tryParseForUnicodeTest(u8"/\"a\"*|(\"b\"?|\"c\"+)/");
     BOOST_CHECK(texecutor.has_value());
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bc", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"c", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"cc", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ccd", false);
 }
 BOOST_AUTO_TEST_CASE(mixedup) {
     auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")+|\"c\"/");
@@ -773,8 +811,14 @@ BOOST_AUTO_TEST_CASE(mixedup) {
     
     auto executor = texecutor.value();
 
-    xxxx;
-    ACCEPTS_TEST_UNICODE(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"a", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"c", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"cc", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbba", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbaac", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 
