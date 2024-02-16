@@ -176,4 +176,43 @@ BOOST_AUTO_TEST_CASE(simple) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//All
+BOOST_AUTO_TEST_SUITE(All)
+BOOST_AUTO_TEST_CASE(ii) {
+    PARSE_TEST_UNICODE(u8"/[0-9] (\"5\"|\"6\")/", u8"xxxx");
+    PARSE_TEST_UNICODE(u8"/[0-9] && (\"5\"|\"6\")/", u8"xxxx");
+    PARSE_TEST_UNICODE(u8"/[0-9] &/", u8"xxxx");
+    PARSE_TEST_UNICODE(u8"/& [0-9]/", u8"xxxx");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Negative
+BOOST_AUTO_TEST_SUITE(Negative)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/^!\"bob\"/", u8"Invalid regex -- negation is not allowed inside anchor");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+
+////
+//StartsAnchor
+BOOST_AUTO_TEST_SUITE(StartsAnchor)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/.+ & ^^(\"bob\"|\"sally\")/", u8"Invalid regex component -- expected");
+    PARSE_TEST_UNICODE(u8"/^\"bob\"|\"sally\"/", u8"Invalid regex -- all top-level components are front or back checks");
+    PARSE_TEST_UNICODE(u8"/.+ & !^(\"bob\"|\"sally\")$/", u8"Invalid regex -- front and back checks cannot be used together");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//EndsAnchor
+BOOST_AUTO_TEST_SUITE(EndsAnchor)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/.+ & (\"bob\"|\"sally\")$$/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/\"bob\"|\"sally\" $/", u8"Invalid regex -- all top-level components are front or back checks");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

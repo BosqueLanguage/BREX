@@ -645,7 +645,7 @@ namespace brex
         {
             std::vector<const RegexOpt*> sre;
 
-            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(')')) {
+            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(')') && !this->isToken('>') && !this->isToken('$')) {
                 sre.push_back(this->parseRepeatComponent());
             }
 
@@ -692,40 +692,32 @@ namespace brex
             bool isFrontCheck = false;
             bool isBackCheck = false;
 
-            while(this->isToken('!') || this->isToken('$') || this->isToken('^')) {
-                if(this->isToken('!')) {
-                    if(isNegate) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple negations"));
-                    }
-                    else {
-                        isNegate = true;
-                    }
-                }
-                else if(this->isToken('$')) {
-                    if(isBackCheck) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple back checks"));
-                    }
-                    else {
-                        isBackCheck = true;
-                    }
-                }
-                else if(this->isToken('^')) {
-                    if(isFrontCheck) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- multiple front checks"));
-                    }
-                    else {
-                        isFrontCheck = true;
-                    }
-                }
-
+            if(this->isToken('!')) {
+                isNegate = true;
                 this->advance();
+            }
+
+            if(this->isToken('^')) {
+                this->advance();
+                isFrontCheck = true;
+            }
+
+            if(this->isToken('!')) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- negation is not allowed inside anchor"));
+            }
+
+            const RegexOpt* popt = this->parsePositiveComponent();
+
+            this->advanceTriviaOnly();
+            if(this->isToken('$')) {
+                this->advance();
+                isBackCheck = true;
             }
 
             if(isFrontCheck && isBackCheck) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- front and back checks cannot be used together"));
             }
 
-            const RegexOpt* popt = this->parsePositiveComponent();
             return RegexToplevelEntry(isNegate, isFrontCheck, isBackCheck, popt);
         }
 

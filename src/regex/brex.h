@@ -409,27 +409,29 @@ namespace brex
 
         std::u8string toBSQONFormat() const
         {
-            std::u8string optstr;
+            std::u8string fstr;
             if(this->isNegated) {
-                optstr += u8'!';
+                fstr += u8'!';
             }
 
             if(this->isFrontCheck) {
-                optstr += u8'^';
+                fstr += u8'^';
             }
-
+            
+            std::u8string tstr;
             if(this->isBackCheck) {
-                optstr += u8'$';
+                tstr = u8'$';
             }
 
-            if(optstr.empty() || !this->opt->needsParens()) {
-                optstr += this->opt->toBSQONFormat();
+            std::u8string opstr;
+            if((fstr.empty() && tstr.empty()) || !this->opt->needsParens()) {
+                opstr = this->opt->toBSQONFormat();
             }
             else {
-                optstr += u8'(' + this->opt->toBSQONFormat() + u8')';
+                opstr = u8'(' + this->opt->toBSQONFormat() + u8')';
             }
 
-            return optstr;
+            return fstr + opstr + tstr;
         }
 
         static RegexToplevelEntry jparse(json j)
@@ -468,7 +470,7 @@ namespace brex
             std::u8string muststr;
             for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
                 if(ii != this->musts.cbegin()) {
-                    muststr += u8'&';
+                    muststr += u8" & ";
                 }
 
                 muststr += ii->toBSQONFormat();

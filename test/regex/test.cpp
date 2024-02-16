@@ -866,4 +866,87 @@ BOOST_AUTO_TEST_CASE(taggednumber) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//All
+BOOST_AUTO_TEST_SUITE(All)
+BOOST_AUTO_TEST_CASE(ii) {
+    auto texecutor = tryParseForUnicodeTest(u8"/[0-9]&(\"5\"|\"6\")/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"5", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"6", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"3", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Negative
+BOOST_AUTO_TEST_SUITE(Negative)
+BOOST_AUTO_TEST_CASE(notbob) {
+    auto texecutor = tryParseForUnicodeTest(u8"/!(\"bob\"|\"sally\")/");
+
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"5", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"6", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bob", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"sally", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//StartsAnchor
+BOOST_AUTO_TEST_SUITE(StartsAnchor)
+BOOST_AUTO_TEST_CASE(bob) {
+    auto texecutor = tryParseForUnicodeTest(u8"/.+ & ^(\"bob\"|\"sally\")/");
+
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"bob xyz", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bo", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"5 bob", false);
+}
+BOOST_AUTO_TEST_CASE(notbob) {
+    auto texecutor = tryParseForUnicodeTest(u8"/.+ & !^(\"bob\"|\"sally\")/");
+
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"bob xyz", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"bo", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"5 bob", true);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//EndsAnchor
+BOOST_AUTO_TEST_SUITE(EndsAnchor)
+BOOST_AUTO_TEST_CASE(bob) {
+    auto texecutor = tryParseForUnicodeTest(u8"/.+ & (\"bob\"|\"sally\")$/");
+
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"bob xyz", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"bo", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"5 bob", true);
+}
+BOOST_AUTO_TEST_CASE(notbob) {
+    auto texecutor = tryParseForUnicodeTest(u8"/.+ & !(\"bob\"|\"sally\")$/");
+
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE(executor, u8"bob xyz", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bo", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"5 bob", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

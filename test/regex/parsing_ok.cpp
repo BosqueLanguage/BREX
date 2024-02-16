@@ -281,4 +281,41 @@ BOOST_AUTO_TEST_CASE(taggednumber) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//All
+BOOST_AUTO_TEST_SUITE(All)
+BOOST_AUTO_TEST_CASE(ii) {
+    PARSE_TEST_UNICODE(u8"/[0-9]&(\"5\"|\"6\")/", u8"/[0-9] & \"5\"|\"6\"/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//Negative
+BOOST_AUTO_TEST_SUITE(Negative)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/!(\"bob\"|\"sally\")/", u8"/!(\"bob\"|\"sally\")/");
+    PARSE_TEST_UNICODE(u8"/! \"bob\"|\"sally\"/", u8"/!(\"bob\"|\"sally\")/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//StartsAnchor
+BOOST_AUTO_TEST_SUITE(StartsAnchor)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/.+ & ^(\"bob\"|\"sally\")/", u8"/.+ & ^(\"bob\"|\"sally\")/");
+    PARSE_TEST_UNICODE(u8"/.+ & ^ \"bob\"|\"sally\"/", u8"/.+ & ^(\"bob\"|\"sally\")/");
+    PARSE_TEST_UNICODE(u8"/.+ & !^(\"bob\"|\"sally\")/", u8"/.+ & !^(\"bob\"|\"sally\")/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+////
+//EndsAnchor
+BOOST_AUTO_TEST_SUITE(EndsAnchor)
+BOOST_AUTO_TEST_CASE(notbob) {
+    PARSE_TEST_UNICODE(u8"/.+ & (\"bob\"|\"sally\")$/", u8"/.+ & (\"bob\"|\"sally\")$/");
+    //PARSE_TEST_UNICODE(u8"/.+ & \"bob\"|\"sally\" $/", u8"/.+ & (\"bob\"|\"sally\")$/");
+    //PARSE_TEST_UNICODE(u8"/.+ & !(\"bob\"|\"sally\")$/", u8"/.+ & !(\"bob\"|\"sally\")$/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()
