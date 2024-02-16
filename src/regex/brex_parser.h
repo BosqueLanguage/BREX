@@ -366,6 +366,12 @@ namespace brex
             }
 
             std::vector<SingleCharRange> range;
+            if(this->isToken('-')) {
+                //then it is a literal hyphen in ths special start of list position
+                this->cpos++;
+                range.push_back({ (RegexChar)'-', (RegexChar)'-' });
+            }
+
             while(!this->isEOS() && !this->isToken(']')) {
                 auto lb = this->parseRegexChar(unicodeok);
 
@@ -374,9 +380,22 @@ namespace brex
                 }
                 else {
                     this->cpos++;
-
-                    auto ub = this->parseRegexChar(unicodeok);
-                    range.push_back({ std::min(lb, ub), std::max(lb, ub) });
+                    if(this->isToken(']')) {
+                        //then it is a literal hyphen in the special end of list position
+                        range.push_back({ lb, lb });
+                        range.push_back({ (RegexChar)'-', (RegexChar)'-' });
+                    }
+                    else {
+                        if (this->isToken('-')) {
+                            //then it is a literal hyphen in a special end position but as part of a range :-0
+                            this->cpos++;
+                            range.push_back({ std::min(lb, (RegexChar)'-'), std::max(lb, (RegexChar)'-') });
+                        }
+                        else {
+                            auto ub = this->parseRegexChar(unicodeok);
+                            range.push_back({ std::min(lb, ub), std::max(lb, ub) });
+                        }
+                    }
                 }
             }
 

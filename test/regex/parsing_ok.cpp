@@ -270,4 +270,15 @@ BOOST_AUTO_TEST_CASE(mixedup) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Sequence
+BOOST_AUTO_TEST_SUITE(Sequence)
+BOOST_AUTO_TEST_CASE(overlap) {
+    PARSE_TEST_UNICODE(u8"/(\"a\"|\"b\")+\"b\"/", u8"/(\"a\"|\"b\")+\"b\"/");
+}
+BOOST_AUTO_TEST_CASE(taggednumber) {
+    PARSE_TEST_UNICODE(u8"/[+-]?[0-9]+(\"n\"|\"i\")/", u8"/[+-]?[0-9]+(\"n\"|\"i\")/");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()

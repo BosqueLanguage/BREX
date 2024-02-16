@@ -822,4 +822,48 @@ BOOST_AUTO_TEST_CASE(mixedup) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+////
+//Sequence
+BOOST_AUTO_TEST_SUITE(Sequence)
+BOOST_AUTO_TEST_CASE(overlap) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")+\"b\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbb", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"acb", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abaa", false);
+}
+BOOST_AUTO_TEST_CASE(overlapempty) {
+    auto texecutor = tryParseForUnicodeTest(u8"/(\"a\"|\"b\")*\"b\"/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"b", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"ab", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"bbb", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"acb", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"abaa", false);
+}
+BOOST_AUTO_TEST_CASE(taggednumber) {
+    auto texecutor = tryParseForUnicodeTest(u8"/[+-]?[0-9]+(\"n\"|\"i\")/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"123i", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"0n", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"-123i", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"+-123i", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"+i", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"123", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE_END()
