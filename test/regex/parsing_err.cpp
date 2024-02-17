@@ -180,10 +180,9 @@ BOOST_AUTO_TEST_SUITE_END()
 //All
 BOOST_AUTO_TEST_SUITE(All)
 BOOST_AUTO_TEST_CASE(ii) {
-    PARSE_TEST_UNICODE(u8"/[0-9] (\"5\"|\"6\")/", u8"xxxx");
-    PARSE_TEST_UNICODE(u8"/[0-9] && (\"5\"|\"6\")/", u8"xxxx");
-    PARSE_TEST_UNICODE(u8"/[0-9] &/", u8"xxxx");
-    PARSE_TEST_UNICODE(u8"/& [0-9]/", u8"xxxx");
+    PARSE_TEST_UNICODE(u8"/[0-9] && (\"5\"|\"6\")/", u8"Invalid regex -- && is not a valid regex operator");
+    PARSE_TEST_UNICODE(u8"/[0-9] &/", u8"Empty regex sequence");
+    PARSE_TEST_UNICODE(u8"/& [0-9]/", u8"Empty regex sequence");
 }
 BOOST_AUTO_TEST_SUITE_END()
 

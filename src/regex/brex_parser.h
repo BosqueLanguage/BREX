@@ -727,7 +727,13 @@ namespace brex
 
             are.push_back(this->parseSingleToplevelRegexComponent());
             while (this->isToken('&')) {
-                this->advance();
+                this->cpos++;
+                if(this->isToken('&')) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- && is not a valid regex operator (did you mean '&')"));
+                    this->advance();
+                }
+
+                this->advanceTriviaOnly();
                 are.push_back(this->parseSingleToplevelRegexComponent());
             }
 
