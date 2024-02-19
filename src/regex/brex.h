@@ -445,27 +445,117 @@ namespace brex
         }
     };
 
-    class RegexTopLevelAllOf
+    enum class RegexComponentTag
+    {
+        Single,
+        AllOf
+    };
+
+    class RegexComponent
+    {
+    public:
+        RegexComponentTag tag;
+
+        RegexComponent(RegexComponentTag tag) : tag(tag) {;}
+        virtual ~RegexComponent() = default;
+
+        virtual std::u8string toBSQONFormat() const = 0;
+
+        static RegexComponent* jparse(json j)
+        {
+            if(!j.is_array()) {
+                return RegexSingleComponent::jparse(j);
+            }
+            else {
+                return RegexAllOfComponent::jparse(j);
+            }
+        }
+
+        //TODO: maybe semantic check on containsable that:
+        // (1) does not contain epsilon
+        // (2) has an anchor set for the front *OR* back of the match -- e.g. epsilon is not a prefix or suffix
+        // (3) neither front/back match all chars
+        //
+        // For now lets go for starts or ends with a literal component!!!
+        // This gives us a nice way to know that we can quickly find the contains using Boyer-Moore or some other fast search
+
+        virtual bool isContainsable() const = 0;
+        virtual bool isMatchable() const = 0;
+    };
+
+    class RegexSingleComponent : public RegexComponent
+    {
+    private: 
+        static bool isOptFastMatchable(const RegexOpt* opt) {
+            auto tag = opt->tag;
+            switch (tag)
+            {
+            case RegexOptTag::Literal: {
+                return true;
+            }
+            case RegexOptTag::CharRange: {
+                return true;
+            }
+            case RegexOptTag::PlusRepeat: {
+                auto popt = static_cast<const PlusRepeatOpt*>(opt);
+                return RegexSingleComponent::isOptFastMatchable(popt->repeat);
+            }
+            case RegexOptTag::RangeRepeat: {
+                auto ropt = static_cast<const RangeRepeatOpt*>(opt);
+                return ropt->low > 0 && RegexSingleComponent::isOptFastMatchable(ropt->repeat);
+            }
+            case RegexOptTag::Sequence: {
+                auto sopt = static_cast<const SequenceOpt*>(opt);
+                return RegexSingleComponent::isOptFastMatchable(sopt->regexs.front()) || RegexSingleComponent::isOptFastMatchable(sopt->regexs.back());
+            }
+            default: {
+                return false;
+            }
+            }
+        }
+
+    public:
+        const RegexToplevelEntry entry;
+
+        RegexSingleComponent(const RegexToplevelEntry& entry) : RegexComponent(RegexComponentTag::Single), entry(entry) {;}
+        ~RegexSingleComponent() = default;
+
+        virtual std::u8string toBSQONFormat() const override final
+        {
+            return this->entry.toBSQONFormat();
+        }
+
+        static RegexSingleComponent* jparse(json j)
+        {
+            auto entry = RegexToplevelEntry::jparse(j["entry"]);
+            return new RegexSingleComponent(entry);
+        }
+
+        virtual bool isContainsable() const override final
+        {
+            if(this->entry.isFrontCheck || this->entry.isBackCheck || this->entry.isNegated) {
+                return false;
+            }
+            else {
+                return RegexSingleComponent::isOptFastMatchable(this->entry.opt);
+            }
+        }
+
+        virtual bool isMatchable() const override final
+        {
+            return !this->entry.isFrontCheck && !this->entry.isBackCheck && !this->entry.isNegated;
+        }
+    };
+
+    class RegexAllOfComponent : public RegexComponent
     {
     public:
         std::vector<RegexToplevelEntry> musts;
 
-        RegexTopLevelAllOf() : musts() {;}
-        RegexTopLevelAllOf(const std::vector<RegexToplevelEntry>& musts) : musts(musts) {;}
-        ~RegexTopLevelAllOf() = default;
+        RegexAllOfComponent(const std::vector<RegexToplevelEntry>& musts) : RegexComponent(RegexComponentTag::AllOf), musts(musts) {;}
+        virtual ~RegexAllOfComponent() = default;
 
-        RegexTopLevelAllOf(const RegexTopLevelAllOf& other) = default;
-        RegexTopLevelAllOf(RegexTopLevelAllOf&& other) = default;
-
-        RegexTopLevelAllOf& operator=(const RegexTopLevelAllOf& other) = default;
-        RegexTopLevelAllOf& operator=(RegexTopLevelAllOf&& other) = default;
-
-        bool isEmpty() const
-        {
-            return this->musts.empty();
-        }
-
-        std::u8string toBSQONFormat() const
+        std::u8string toBSQONFormat() const override final
         {
             std::u8string muststr;
             for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
@@ -479,7 +569,7 @@ namespace brex
             return muststr;
         }
 
-        static RegexTopLevelAllOf jparse(json j)
+        static RegexAllOfComponent* jparse(json j)
         {
             auto jmusts = j["musts"];
             std::vector<RegexToplevelEntry> musts;
@@ -488,7 +578,19 @@ namespace brex
                 return RegexToplevelEntry::jparse(arg);
             });
 
-            return RegexTopLevelAllOf(musts);
+            return new RegexAllOfComponent(musts);
+        }
+
+        virtual bool isContainsable() const override final
+        {
+            return false;
+        }
+
+        virtual bool isMatchable() const override final
+        {
+            return std::any_of(this->musts.cbegin(), this->musts.cend(), [](const RegexToplevelEntry& opt) { 
+                return !opt.isNegated && !opt.isFrontCheck && !opt.isBackCheck;
+            });
         }
     };
 
@@ -510,43 +612,43 @@ namespace brex
     public:
         const RegexKindTag rtag;
         const RegexCharInfoTag ctag;
-        const bool isContainsable;
-        const bool isMatchable;
 
-        const RegexToplevelEntry sre; //null if allopt is used
-        const RegexTopLevelAllOf allopt; //if empty then no allopt is not used
+        const RegexComponent* preanchor;
+        const RegexComponent* postanchor;
+        const RegexComponent* re;
 
-        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, bool isContainsable, bool isMatchable, const RegexToplevelEntry& sre, const RegexTopLevelAllOf& allopt): rtag(rtag), ctag(ctag), isContainsable(isContainsable), isMatchable(isMatchable), sre(sre), allopt(allopt) {;}
+        Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexComponent* preanchor, const RegexComponent* postanchor, const RegexComponent* re): rtag(rtag), ctag(ctag), preanchor(preanchor), postanchor(postanchor), re(re) {;}
         ~Regex() = default;
 
         static Regex* jparse(json j)
         {
             auto rtag = (!j.contains("kind") || j["kind"].is_null()) ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
             auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
-            auto isContainsable = (!j.contains("isContainsable") || !j["isContainsable"].get<bool>()) ? false : j["isContainsable"].get<bool>();
-            auto isMatchable = (!j.contains("isMatchable") || !j["isMatchable"].get<bool>()) ? false : j["isMatchable"].get<bool>();
 
-            RegexToplevelEntry sre;
-            if(j.contains("sre") && !j["sre"].is_null()) {
-                sre = RegexToplevelEntry::jparse(j["sre"]);
-            }
+            auto preanchor = (!j.contains("preanchor") || j["preanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["preanchor"]);
+            auto postanchor = (!j.contains("postanchor") || j["postanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["postanchor"]);
+            auto re = RegexComponent::jparse(j["re"]);
 
-            RegexTopLevelAllOf allopt;
-            if((j.contains("allopt") || !j["allopt"].is_null())) {
-                allopt = RegexTopLevelAllOf::jparse(j["allopt"]);
-            }
-
-            return new Regex(rtag, ctag, isContainsable, isMatchable, sre, allopt);
+            return new Regex(rtag, ctag, preanchor, postanchor, re);
         }
 
         std::u8string toBSQONFormat() const
         {
             std::u8string fstr;
-            if(this->allopt.isEmpty()) {
-                fstr = this->sre.toBSQONFormat();
+            if(this->preanchor != nullptr) {
+                fstr += this->preanchor->toBSQONFormat() + u8"^";
             }
-            else {
-                fstr = this->allopt.toBSQONFormat();
+
+            if(this->preanchor != nullptr || this->postanchor != nullptr) {
+                fstr += u8"<";
+            }
+            fstr += this->re->toBSQONFormat();
+            if(this->preanchor != nullptr || this->postanchor != nullptr) {
+                fstr += u8">";
+            }
+
+            if(this->postanchor != nullptr) {
+                fstr += u8"$" + this->postanchor->toBSQONFormat();
             }
 
             std::u8string fchar = u8"";
@@ -563,6 +665,48 @@ namespace brex
             }
 
             return u8'/' + fstr + u8'/' + fchar;
+        }
+
+        bool canUseInTest() const
+        {
+            //Simple -- anchors don't make sense in a test
+            return this->preanchor == nullptr && this->postanchor == nullptr; 
+        }
+
+        bool canStartsWith(bool oobPrefix) const
+        {
+            //either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
+            return oobPrefix || this->preanchor == nullptr;
+        }
+
+        bool canEndsWith(bool oobPostfix) const
+        {
+            //either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
+            return oobPostfix || this->postanchor == nullptr;
+        }
+
+        bool canUseInContains() const
+        {
+            //re must be containsable (e.g. quickly searchable for a match in a larger string) 
+            return this->re->isContainsable();
+        }
+
+        bool canUseInMatchStart(bool oobPrefix) const
+        {
+            //re must be matchable and either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
+            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
+        }
+
+        bool canUseInMatchEnd() const
+        {
+            //re must be matchable and either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
+            return this->re->isMatchable() && this->postanchor == nullptr;
+        }
+
+        bool canUseInMatchContains() const
+        {
+            //re must be matchable (which containsable implies)
+            return this->re->isContainsable();
         }
     };
 }

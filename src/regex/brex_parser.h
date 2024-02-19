@@ -721,7 +721,7 @@ namespace brex
             return RegexToplevelEntry(isNegate, isFrontCheck, isBackCheck, popt);
         }
 
-        std::pair<RegexToplevelEntry, RegexTopLevelAllOf> parseToplevelRegexComponent()
+        RegexComponent* parseRegexComponent()
         {
             std::vector<RegexToplevelEntry> are;
 
@@ -742,10 +742,10 @@ namespace brex
             }
 
             if(are.size() == 1) {
-                return std::make_pair(are[0], RegexTopLevelAllOf{});
+                return new RegexSingleComponent(are[0]);
             }
             else {
-                return std::make_pair(RegexToplevelEntry{}, RegexTopLevelAllOf(are));
+                return new RegexAllOfComponent(are);
             }
         }
 
@@ -765,7 +765,84 @@ namespace brex
 
             auto parser = RegexParser(data + 1, len - 2, isUnicode, isStrictASCII, isResource);
 
-            auto rr = parser.parseToplevelRegexComponent();
+            std::vector<RegexComponent*> rv;
+            bool preanchor = false;
+            bool postanchor = false;
+            bool preparen = false;
+            bool postparen = false;
+
+            parser.advanceTriviaOnly();
+            if(!parser.isToken('<')) {
+                rv.push_back(parser.parseRegexComponent());
+            }
+
+            if(parser.isToken('^')) {
+                preanchor = true;
+                parser.advance();
+            }
+
+            if(parser.isToken('<')) {
+                preparen = true;
+                parser.advance();
+            }
+
+            if(!parser.isEOS()) {
+                rv.push_back(parser.parseRegexComponent());
+            }
+            
+            if(parser.isToken('>')) {
+                postparen = true;
+                parser.advance();
+            }
+
+            if(parser.isToken('$')) {
+                postanchor = true;
+                parser.advance();
+            }
+
+            if(!parser.isEOS()) {
+                rv.push_back(parser.parseRegexComponent());
+            }
+            
+            if(preparen != postparen) {
+                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- mismatched <...> parenthesized expression"));
+            }
+
+            if(preanchor || postanchor) {
+                if(!preparen || !postparen) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- anchor must be used with a <...> parenthesized expression"));
+                }
+            }
+
+            RegexComponent* prere = nullptr;
+            RegexComponent* postre = nullptr;
+            RegexComponent* re = nullptr;
+
+            if(preanchor && postanchor) {
+                if(rv.size() != 3) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- pre/post anchors must be used with exactly 3 components pre^<...>$post"));
+                }
+                prere = rv[0];
+                postre = rv[2];
+                re = rv[1];
+            }
+            else if(preanchor) {
+                if(rv.size() != 2) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- pre anchor must be used with exactly 2 components pre^<...>"));
+                }
+                prere = rv[0];
+                re = rv[1];
+            }
+            else if(postanchor) {
+                if(rv.size() != 2) {
+                    parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- post anchor must be used with exactly 2 components <...>$post"));
+                }
+                re = rv[0];
+                postre = rv[1];
+            }
+            else {
+                re = rv[0];
+            }
 
             if(parser.cpos != parser.epos) {
                 parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- trailing characters after end of regex"));
@@ -778,25 +855,7 @@ namespace brex
             auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
             auto kindtag = isPath ? RegexKindTag::Path : (isResource ? RegexKindTag::Resource : RegexKindTag::Std);
 
-            //TODO: maybe semantic check on containsable that:
-            // (1) does not contain epsilon
-            // (2) has an anchor set for the front *OR* back of the match -- e.g. epsilon is not a prefix or suffix
-            // (3) neither front/back match all chars
-
-            bool isContainsable = false;
-            bool isMatchable = false;
-            if(rr.second.isEmpty()) {
-                isContainsable = !rr.first.isFrontCheck && !rr.first.isBackCheck && !rr.first.isNegated;
-                isMatchable = !rr.first.isFrontCheck && !rr.first.isBackCheck && !rr.first.isNegated;
-            }
-            else {
-                //isContainsable stays false
-                isMatchable = std::any_of(rr.second.musts.cbegin(), rr.second.musts.cend(), [](const RegexToplevelEntry& opt) { 
-                    return !opt.isNegated && !opt.isFrontCheck && !opt.isBackCheck;
-                });
-            }
-
-            return std::make_pair(std::make_optional(new Regex(kindtag, chartype, isContainsable, isMatchable, rr.first, rr.second)), std::vector<RegexParserError>());
+            return std::make_pair(std::make_optional(new Regex(kindtag, chartype, prere, postre, re)), std::vector<RegexParserError>());
         }
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
