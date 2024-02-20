@@ -844,6 +844,13 @@ namespace brex
                 re = rv[0];
             }
 
+            if(prere != nullptr && !prere->validPreAnchor()) {
+                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- pre anchor must be a valid front check"));
+            }
+            if(postre != nullptr && !postre->validPostAnchor()) {
+                parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- post anchor must be a valid back check"));
+            }
+
             if(parser.cpos != parser.epos) {
                 parser.errors.push_back(RegexParserError(parser.cline, u8"Invalid regex -- trailing characters after end of regex"));
             }

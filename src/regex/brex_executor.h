@@ -4,7 +4,43 @@
 namespace brex
 {
     template <typename TStr, typename TIter>
-    class SingleCheckREInfo
+    class ComponentCheckREInfo
+    {
+    public:
+        ComponentCheckREInfo() = default;
+        ComponentCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative) : executor(executor), isNegative(isNegative) {;}
+        virtual ~ComponentCheckREInfo() = default;
+
+        ComponentCheckREInfo(const ComponentCheckREInfo& other) = default;
+        ComponentCheckREInfo(ComponentCheckREInfo&& other) = default;
+
+        ComponentCheckREInfo& operator=(const ComponentCheckREInfo& other) = default;
+        ComponentCheckREInfo& operator=(ComponentCheckREInfo&& other) = default;
+
+        //test is the regex accepts the string from spos to epos (inclusive)
+        virtual bool test(TStr* sstr, int64_t spos, int64_t epos) = 0;
+        
+        //test is there is a substring that the regex accepts
+        virtual bool testContains(TStr* sstr, int64_t spos, int64_t epos) = 0;
+
+        //test is there is a substring that the regex accepts -- must start at spos
+        virtual bool testFront(TStr* sstr, int64_t spos, int64_t epos) = 0;
+
+        //test is there is a substring that the regex accepts -- must end at epos
+        virtual bool testBack(TStr* sstr, int64_t spos, int64_t epos) = 0;
+
+        //return the first and last index of the substring that the regex accepts -- spos it the first matching index and epos is the longest matching index (empty if no match exists)
+        virtual std::vector<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos) = 0;
+        
+        //return the end index of the match -- starting from spos (or empty if no match is exists)
+        virtual std::vector<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos) = 0;
+
+        //return the start index of the match -- ending at epos (or empty if no match is exists)
+        virtual std::vector<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos) = 0;
+    };
+
+    template <typename TStr, typename TIter>
+    class SingleCheckREInfo : public ComponentCheckREInfo<TStr, TIter>
     {
     public:
         NFAExecutor<TStr, TIter> executor;
@@ -13,40 +49,94 @@ namespace brex
         bool isBackCheck;
 
         SingleCheckREInfo() = default;
-        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck) : executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck) {;}
-        ~SingleCheckREInfo() = default;
+        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck) : ComponentCheckREInfo(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck) {;}
+        virtual ~SingleCheckREInfo() = default;
 
         SingleCheckREInfo(const SingleCheckREInfo& other) = default;
         SingleCheckREInfo(SingleCheckREInfo&& other) = default;
 
         SingleCheckREInfo& operator=(const SingleCheckREInfo& other) = default;
         SingleCheckREInfo& operator=(SingleCheckREInfo&& other) = default;
-    };
 
-    enum ExecutorError
-    {
-        Ok,
-        NotContainsable,
-        NotMatchable
+        bool validateSingleOp(TStr* sstr, int64_t spos, int64_t epos)
+        {
+            bool accepted = false;
+            if(this->isFrontCheck) {
+                accepted = this->executor.matchTestForward(sstr, spos, epos);
+            }
+            else if(this->isBackCheck) {
+                accepted = this->executor.matchTestReverse(sstr, spos, epos);
+            }
+            else {
+                accepted = this->executor.test(sstr, spos, epos);
+            }
+
+            return this->isNegative ? !accepted : accepted;
+        }
+
+        bool test(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            return this->executor.test(sstr, spos, epos);
+        }
+
+        bool testContains(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            //by def a single option that is not negative or front/back marked
+            for(int64_t ii = spos; ii <= epos; ++ii) {
+                if(this->executor.matchTestForward(sstr, ii, epos)) {
+                    return true;
+                }
+            }
+        }
+
+        bool testFront(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            return this->executor.matchTestForward(sstr, spos, epos);
+        }
+
+        bool testBack(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            return this->executor.matchTestReverse(sstr, spos, epos);
+        }
+
+        std::vector<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            for(int64_t ii = spos; ii <= epos; ++ii) {
+                auto mm = this->executor.matchForward(sstr, ii, epos);
+
+                if(!mm.empty()) {
+                    return std::make_pair(ii, mm.back());
+                }
+            }
+
+            return std::vector<std::pair<int64_t, int64_t>>{};
+        }
+
+        std::vector<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            return this->executor.matchForward(sstr, spos, epos);
+        }
+
+        std::vector<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            return this->executor.matchBack(sstr, spos, epos);
+        }
     };
 
     template <typename TStr, typename TIter>
-    class REExecutor
+    class MultiCheckREInfo : public ComponentCheckREInfo<TStr, TIter>
     {
     public:
         std::vector<SingleCheckREInfo<TStr, TIter>> checks;
-        const bool isContainsable;
-        const bool isMatchable;
 
-        REExecutor(const std::vector<SingleCheckREInfo<TStr, TIter>>& checks, bool isContainsable, bool isMatchable) : checks(checks), isContainsable(isContainsable), isMatchable(isMatchable) {;}
-        ~REExecutor() = default;
+        MultiCheckREInfo(const std::vector<SingleCheckREInfo<TStr, TIter>>& checks) : ComponentCheckREInfo(), checks(checks) {;}
+        virtual ~SingleCheckREInfo() = default;
 
-    private:
-        void splitOpsPolarity(std::vector<SingleCheckREInfo<TStr, TIter>>& posopts, std::vector<SingleCheckREInfo<TStr, TIter>>& checkopts)
+        void splitBindingOps(std::vector<SingleCheckREInfo<TStr, TIter>>& bindingopts, std::vector<SingleCheckREInfo<TStr, TIter>>& checkopts)
         {
             for(auto iter = this->checks.cbegin(); iter != this->checks.cend(); ++iter) {
                 if(!iter->isNegative && !iter->isFrontCheck && !iter->isBackCheck) {
-                    posopts.push_back(*iter);
+                    bindingopts.push_back(*iter);
                 }
                 else {
                     checkopts.push_back(*iter);
@@ -70,241 +160,326 @@ namespace brex
             return sharedmatches;
         }
 
-        bool validateSingleOp(SingleCheckREInfo<TStr, TIter>& check, TStr* sstr, int64_t spos, int64_t epos)
+        static bool validateOpSet(std::vector<SingleCheckREInfo<TStr, TIter>>& opts, TStr* sstr, int64_t spos, int64_t epos)
         {
-            bool accepted = false;
-            if(check.isFrontCheck) {
-                accepted = check.executor.matchTestForward(sstr, spos, epos);
-            }
-            else if(check.isBackCheck) {
-                accepted = check.executor.matchTestReverse(sstr, spos, epos);
-            }
-            else {
-                accepted = check.executor.test(sstr, spos, epos);
-            }
-
-            return check.isNegative ? !accepted : accepted;
-        }
-
-        bool validateOpSet(std::vector<SingleCheckREInfo<TStr, TIter>>& opts, TStr* sstr, int64_t spos, int64_t epos)
-        {
-            return std::all_of(opts.begin(), opts.end(), [this, sstr, spos, epos](SingleCheckREInfo<TStr, TIter>& check) {
-                return this->validateSingleOp(check, sstr, spos, epos);
+            return std::all_of(opts.begin(), opts.end(), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>& check) {
+                return check.validateSingleOp(sstr, spos, epos);
             });
         }
 
-        std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, std::vector<SingleCheckREInfo<TStr, TIter>>& checks, TStr* sstr, int64_t spos)
+        static std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, std::vector<SingleCheckREInfo<TStr, TIter>>& checks, TStr* sstr, int64_t spos)
         {
             std::vector<int64_t> matches;
-            std::copy_if(opts.begin(), opts.end(), std::back_inserter(matches), [this, sstr, spos, &checks](int64_t epos) {
-                return this->validateOpSet(checks, sstr, spos, epos);
+            std::copy_if(opts.begin(), opts.end(), std::back_inserter(matches), [sstr, spos, &checks](int64_t epos) {
+                return MultiCheckREInfo::validateOpSet(checks, sstr, spos, epos);
             });
 
             return matches;
         }
 
-    public:
-        bool test(TStr* sstr, int64_t spos, int64_t epos)
+        bool test(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-           if(this->checks.size() == 1) {
-                auto accept = this->checks[0].executor.test(sstr, spos, epos);
-                return this->checks[0].isNegative ? !accept : accept;
+            return MultiCheckREInfo::validateOpSet(this->checks, sstr, spos, epos);
+        }
+
+        bool testContains(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            //CANNOT HAPPEN -- by def a matchable is a single option that is not negative or front/back marked
+            return false;
+        }
+
+        bool testFront(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            this->splitBindingOps(matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts.front().executor.matchForward(sstr, spos, epos);
             }
             else {
-                return validateOpSet(this->checks, sstr, spos, epos);
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
+                    return check.executor.matchForward(sstr, spos, epos);
+                });
+
+                realmatches = MultiCheckREInfo::computeSharedMatches(matches);
             }
+
+            auto validmatches = MultiCheckREInfo::validateMatchSetOptions(realmatches, checkops, sstr, spos);
+            return !validmatches.empty();
+        }
+
+        bool testBack(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            this->splitBindingOps(matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts.front().executor.matchReverse(sstr, spos, epos);
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
+                    return check.executor.matchBack(sstr, spos, epos);
+                });
+
+                realmatches = MultiCheckREInfo::computeSharedMatches(matches);
+            }
+
+            auto validmatches = MultiCheckREInfo::validateMatchSetOptions(realmatches, checkops, sstr, spos);
+            return !validmatches.empty();
+        }
+
+        std::vector<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            //CANNOT HAPPEN -- by def a matchable is a single option that is not negative or front/back marked
+            return std::vector<std::pair<int64_t, int64_t>>{};
+        }
+
+        std::vector<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            this->splitBindingOps(matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts.front().executor.matchForward(sstr, spos, epos);
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
+                    return check.executor.matchForward(sstr, spos, epos);
+                });
+
+                realmatches = MultiCheckREInfo::computeSharedMatches(matches);
+            }
+
+            return MultiCheckREInfo::validateMatchSetOptions(realmatches, checkops, sstr, spos);
+        }
+
+        std::vector<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos) override final
+        {
+            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            this->splitBindingOps(matchopts, checkops);
+
+            std::vector<int64_t> realmatches;
+            if(matchopts.size() == 1) {
+                realmatches = matchopts.front().executor.matchReverse(sstr, spos, epos);
+            }
+            else {
+                std::vector<std::vector<int64_t>> matches;
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
+                    return check.executor.matchBack(sstr, spos, epos);
+                });
+
+                realmatches = MultiCheckREInfo::computeSharedMatches(matches);
+            }
+
+            return MultiCheckREInfo::validateMatchSetOptions(realmatches, checkops, sstr, spos);
+        }
+    };
+
+    enum ExecutorError
+    {
+        Ok,
+        InvalidRegexStructure
+    };
+
+    template <typename TStr, typename TIter>
+    class REExecutor
+    {
+    public:
+        const Regex* declre; 
+
+        ComponentCheckREInfo<TStr, TIter>* optPre;
+        ComponentCheckREInfo<TStr, TIter>* optPost;
+        ComponentCheckREInfo<TStr, TIter>* re;
+
+        REExecutor(const Regex* declre, ComponentCheckREInfo<TStr, TIter>* optPre, ComponentCheckREInfo<TStr, TIter>* optPost, ComponentCheckREInfo<TStr, TIter>* re) : declre(declre), optPre(optPre), optPost(optPost), re(re) {;}
+        ~REExecutor() = default;
+
+    public:
+        bool test(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
+        {
+            error = ExecutorError::Ok;
+            if(!this->declre->canUseInTest(oobPrefix, oobPostfix)) {
+                error = ExecutorError::InvalidRegexStructure;
+                return false;
+            }
+
+            bool rechk = this->re->test(sstr, spos, epos);
+            if(!rechk) {
+                return false;
+            }
+
+            bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, spos - 1);
+            bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, epos + 1, (int64_t)sstr->size() - 1);
+
+            return prechk && postchk;
         }
         
-        bool testContains(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+        bool testContains(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->isContainsable) {
-                error = ExecutorError::NotContainsable;
+            if(!this->declre->canUseInContains()) {
+                error = ExecutorError::InvalidRegexStructure;
                 return false;
             }
 
-            //by def a single option that is not negative or front/back marked
-            auto scheck = this->checks[0];
-            for(int64_t ii = spos; ii <= epos; ++ii) {
-                if(scheck.executor.matchTestForward(sstr, ii, epos)) {
-                    return true;
-                }
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                return this->re->testContains(sstr, spos, epos);
+            }
+            else {
+                auto opts = this->re->matchContains(sstr, spos, epos);
+
+                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+
+                    return prechk && postchk;
+                });
             }
         }
 
-        bool testFront(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+        bool testFront(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->isMatchable) {
-                error = ExecutorError::NotMatchable;
+            if(!this->declre->canStartsWith(oobPrefix)) {
+                error = ExecutorError::InvalidRegexStructure;
                 return false;
             }
 
-            if(this->checks.size() == 1) {
-                //by def a single option that is not negative or front/back marked
-                auto accept = this->checks[0].executor.matchTestForward(sstr, spos, epos);
-                return this->checks[0].isNegative ? !accept : accept;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                return this->re->testFront(sstr, spos, epos);
             }
             else {
-                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
-                splitOpsPolarity(this->checks, matchopts, checkops);
+                auto opts = this->re->matchFront(sstr, spos, epos);
 
-                if(matchopts.size() == 1) {
-                    auto matches = matchopts[0].executor.matchForward(sstr, spos, epos);
-                    return !matches.empty() && validateOpSet(checkops, sstr, spos, matches.back());
-                }
-                else {
-                    std::vector<std::vector<int64_t>> matches;
-                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                        return check.executor.matchForward(sstr, spos, epos);
-                    });
+                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPostfix](int64_t opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, opt - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
-                    auto sharedmatches = computeSharedMatches(matches);
-                    auto validmatches = validateMatchSetOptions(sharedmatches, checkops, sstr, spos);
-                
-                    return !validmatches.empty();
-                }
+                    return prechk && postchk;
+                });
             }
         }
 
         bool testBack(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->isMatchable) {
-                error = ExecutorError::NotMatchable;
+            if(!this->declre->canEndsWith()) {
+                error = ExecutorError::InvalidRegexStructure;
                 return false;
             }
 
-            if(this->checks.size() == 1) {
-                //by def a single option that is not negative or front/back marked
-                auto accept = this->checks[0].executor.matchTestReverse(sstr, spos, epos);
-                return this->checks[0].isNegative ? !accept : accept;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                return this->re->testBack(sstr, spos, epos);
             }
             else {
-                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
-                splitOpsPolarity(this->checks, matchopts, checkops);
+                auto opts = this->re->matchBack(sstr, spos, epos);
 
-                if(matchopts.size() == 1) {
-                    auto matches = matchopts[0].executor.matchReverse(sstr, spos, epos);
-                    return !matches.empty() && validateOpSet(checkops, sstr, spos, matches.back());
-                }
-                else {
-                    std::vector<std::vector<int64_t>> matches;
-                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                        return check.executor.matchReverse(sstr, spos, epos);
-                    });
+                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPrefix](int64_t opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
 
-                    auto sharedmatches = computeSharedMatches(matches);
-                    auto validmatches = validateMatchSetOptions(sharedmatches, checkops, sstr, spos);
-                
-                    return !validmatches.empty();
-                }
+                    return prechk && postchk;
+                });
             }
         }
 
-        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->isContainsable) {
-                error = ExecutorError::NotContainsable;
+            if(!this->declre->canUseInMatchContains()) {
+                error = ExecutorError::InvalidRegexStructure;
                 return std::nullopt;
             }
 
-            //by def a single option that is not negative or front/back marked
-            auto scheck = this->checks[0];
-
-            for(int64_t ii = spos; ii <= epos; ++ii) {
-                auto mm = scheck.executor.matchForward(sstr, ii, epos);
-
-                if(!mm.empty()) {
-                    return std::make_optional(std::make_pair(ii, mm.back()));
-                }
-            }
-        }
-
-        std::optional<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
-        {
-            error = ExecutorError::Ok;
-            if(!this->isMatchable) {
-                error = ExecutorError::NotMatchable;
-                return false;
-            }
-
-            if(this->checks.size() == 1) {
-                //by def a single option that is not negative or front/back marked
-                auto opts = this->checks[0].executor.matchForward(sstr, spos, epos);
-                return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
+            std::vector<std::pair<int64_t, int64_t>> mmr;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                mmr = this->re->matchContains(sstr, spos, epos);
             }
             else {
-                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
-                splitOpsPolarity(this->checks, matchopts, checkops);
+                auto opts = this->re->matchContains(sstr, spos, epos);
 
-                std::vector<int64_t> realmatches;
-                if(matchopts.size() == 1) {
-                    realmatches = matchopts[0].executor.matchForward(sstr, spos, epos);
-                }
-                else {
-                    std::vector<std::vector<int64_t>> matches;
-                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                        return check.executor.matchForward(sstr, spos, epos);
-                    });
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
-                    realmatches = computeSharedMatches(matches);
-                }
-
-                auto validmatches = validateMatchSetOptions(realmatches, checkops, sstr, spos);
-                return !validmatches.empty() ? std::make_optional(validmatches.back()) : std::nullopt;
+                    return prechk && postchk;
+                });
             }
+
+            return !mmr.empty() ? std::make_optional(mmr.back()) : std::nullopt;
         }
 
-        std::optional<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+        std::optional<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->isMatchable) {
-                error = ExecutorError::NotMatchable;
-                return false;
+            if(!this->declre->canUseInMatchStart()) {
+                error = ExecutorError::InvalidRegexStructure;
+                return std::nullopt;
             }
 
-            if(this->checks.size() == 1) {
-                //by def a single option that is not negative or front/back marked
-                auto opts = this->checks[0].executor.matchReverse(sstr, spos, epos);
-                return !opts.empty() ? std::make_optional(opts.back()) : std::nullopt;
+            std::vector<int64_t> mmr;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                mmr = this->re->matchFront(sstr, spos, epos);
             }
             else {
-                std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-                std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
-                splitOpsPolarity(this->checks, matchopts, checkops);
+                auto opts = this->re->matchFront(sstr, spos, epos);
 
-                std::vector<int64_t> realmatches;
-                if(matchopts.size() == 1) {
-                    realmatches = matchopts[0].executor.matchReverse(sstr, spos, epos);
-                }
-                else {
-                    std::vector<std::vector<int64_t>> matches;
-                    std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                        return check.executor->matchReverse(sstr, spos, epos);
-                    });
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPostfix](int64_t opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, opt - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
-                    realmatches = computeSharedMatches(matches);
-                }
-
-                auto validmatches = validateMatchSetOptions(realmatches, checkops, sstr, spos);
-                return !validmatches.empty() ? std::make_optional(validmatches.back()) : std::nullopt;
+                    return prechk && postchk;
+                });
             }
+
+            return !mmr.empty() ? std::make_optional(mmr.back()) : std::nullopt;
         }
 
-        bool test(TStr* sstr) { return this->test(sstr, 0, (int64_t)sstr->size() - 1); }
+        std::optional<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
+        {
+            error = ExecutorError::Ok;
+            if(!this->declre->canUseInMatchEnd()) {
+                error = ExecutorError::InvalidRegexStructure;
+                return std::nullopt;
+            }
 
-        bool testContains(TStr* sstr, ExecutorError& error) { return this->testContains(sstr, 0, (int64_t)sstr->size() - 1, error); }
-        bool testFront(TStr* sstr, ExecutorError& error) { return this->testFront(sstr, 0, (int64_t)sstr->size() - 1, error); }
-        bool testBack(TStr* sstr, ExecutorError& error) { return this->testBack(sstr, 0, (int64_t)sstr->size() - 1, error); }
+            std::vector<int64_t> mmr;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                mmr = this->re->matchBack(sstr, spos, epos);
+            }
+            else {
+                auto opts = this->re->matchBack(sstr, spos, epos);
 
-        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, ExecutorError& error) { return this->matchContains(sstr, 0, (int64_t)sstr->size() - 1, error); }
-        std::optional<int64_t> matchFront(TStr* sstr, ExecutorError& error) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1, error); }
-        std::optional<int64_t> matchBack(TStr* sstr, ExecutorError& error) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1, error); }
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix](int64_t opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
+
+                    return prechk && postchk;
+                });
+            }
+
+            return !mmr.empty() ? std::make_optional(mmr.back()) : std::nullopt;
+        }
+
+        bool test(TStr* sstr, ExecutorError& error) { return this->test(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+
+        bool testContains(TStr* sstr, ExecutorError& error) { return this->testContains(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        bool testFront(TStr* sstr, ExecutorError& error) { return this->testFront(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        bool testBack(TStr* sstr, ExecutorError& error) { return this->testBack(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+
+        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, ExecutorError& error) { return this->matchContains(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        std::optional<int64_t> matchFront(TStr* sstr, ExecutorError& error) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        std::optional<int64_t> matchBack(TStr* sstr, ExecutorError& error) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
     };
 
     typedef REExecutor<UnicodeString, UnicodeRegexIterator> UnicodeRegexExecutor;

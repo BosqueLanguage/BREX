@@ -481,6 +481,9 @@ namespace brex
 
         virtual bool isContainsable() const = 0;
         virtual bool isMatchable() const = 0;
+
+        virtual bool validPreAnchor() const = 0;
+        virtual bool validPostAnchor() const = 0;
     };
 
     class RegexSingleComponent : public RegexComponent
@@ -545,6 +548,16 @@ namespace brex
         {
             return !this->entry.isFrontCheck && !this->entry.isBackCheck && !this->entry.isNegated;
         }
+
+        virtual bool validPreAnchor() const override final
+        {
+            return !this->entry.isFrontCheck && !this->entry.isBackCheck;
+        }
+
+        virtual bool validPostAnchor() const override final
+        {
+            return !this->entry.isBackCheck && !this->entry.isBackCheck;
+        }
     };
 
     class RegexAllOfComponent : public RegexComponent
@@ -591,6 +604,24 @@ namespace brex
             return std::any_of(this->musts.cbegin(), this->musts.cend(), [](const RegexToplevelEntry& opt) { 
                 return !opt.isNegated && !opt.isFrontCheck && !opt.isBackCheck;
             });
+        }
+
+        virtual bool validPreAnchor() const override final
+        {
+            bool allfree = std::all_of(this->musts.cbegin(), this->musts.cend(), [](const RegexToplevelEntry& opt) { 
+                return !opt.isFrontCheck && !opt.isBackCheck;
+            });
+
+            return this->isMatchable() && allfree;
+        }
+
+        virtual bool validPostAnchor() const override final
+        {
+            bool allfree = std::all_of(this->musts.cbegin(), this->musts.cend(), [](const RegexToplevelEntry& opt) { 
+                return !opt.isFrontCheck && !opt.isBackCheck;
+            });
+
+            return this->isMatchable() && allfree;
         }
     };
 
@@ -667,22 +698,22 @@ namespace brex
             return u8'/' + fstr + u8'/' + fchar;
         }
 
-        bool canUseInTest() const
+        bool canUseInTest(bool oobPrefix, bool oobPostfix) const
         {
-            //Simple -- anchors don't make sense in a test
-            return this->preanchor == nullptr && this->postanchor == nullptr; 
+            //Simple -- anchors don't make sense in a test unless we allow OOB prefix or postfix
+            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr); 
         }
 
         bool canStartsWith(bool oobPrefix) const
         {
             //either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
-            return oobPrefix || this->preanchor == nullptr;
+            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
         }
 
         bool canEndsWith(bool oobPostfix) const
         {
             //either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return oobPostfix || this->postanchor == nullptr;
+            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
         }
 
         bool canUseInContains() const
@@ -697,10 +728,10 @@ namespace brex
             return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
         }
 
-        bool canUseInMatchEnd() const
+        bool canUseInMatchEnd(bool oobPostfix) const
         {
             //re must be matchable and either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return this->re->isMatchable() && this->postanchor == nullptr;
+            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
         }
 
         bool canUseInMatchContains() const
