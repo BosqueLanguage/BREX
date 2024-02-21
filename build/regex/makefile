@@ -45,6 +45,10 @@ $(BIN_DIR)brex: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(RE_DIR)
 	@mkdir -p $(OUT_EXE)
 	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)brex $(RE_DIR)brex_cmd.cpp $(OUT_EXE)brexlib.a
 
+$(BIN_DIR)brex_dbg: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(RE_DIR)brex_dbg_host.cpp
+	@mkdir -p $(OUT_EXE)
+	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)brex_dbg $(RE_DIR)brex_dbg_host.cpp $(OUT_EXE)brexlib.a
+
 $(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(COMMON_OBJS)
 	@mkdir -p $(OUT_EXE)
 	$(AR) $(ARFLAGS) $(OUT_EXE)brexlib.a $(REGEX_OBJS) $(COMMON_OBJS)
