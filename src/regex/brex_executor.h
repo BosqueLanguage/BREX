@@ -101,15 +101,19 @@ namespace brex
 
         std::vector<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos) override final
         {
+            std::vector<std::pair<int64_t, int64_t>> matches;
+
             for(int64_t ii = spos; ii <= epos; ++ii) {
                 auto mm = this->executor.matchForward(sstr, ii, epos);
 
                 if(!mm.empty()) {
-                    return std::make_pair(ii, mm.back());
+                    std::transform(mm.cbegin(), mm.cend(), std::back_inserter(matches), [ii](int64_t epos) {
+                        return std::make_pair(ii, epos);
+                    });
                 }
             }
 
-            return std::vector<std::pair<int64_t, int64_t>>{};
+            return matches;
         }
 
         std::vector<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos) override final
@@ -119,7 +123,7 @@ namespace brex
 
         std::vector<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            return this->executor.matchBack(sstr, spos, epos);
+            return this->executor.matchReverse(sstr, spos, epos);
         }
     };
 
@@ -304,7 +308,6 @@ namespace brex
         REExecutor(const Regex* declre, ComponentCheckREInfo<TStr, TIter>* optPre, ComponentCheckREInfo<TStr, TIter>* optPost, ComponentCheckREInfo<TStr, TIter>* re) : declre(declre), optPre(optPre), optPost(optPost), re(re) {;}
         ~REExecutor() = default;
 
-    public:
         bool test(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
@@ -393,7 +396,7 @@ namespace brex
             }
         }
 
-        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
+        std::optional<std::pair<int64_t, int64_t>> matchContainsFirst(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
             if(!this->declre->canUseInMatchContains()) {
@@ -416,7 +419,65 @@ namespace brex
                 });
             }
 
-            return !mmr.empty() ? std::make_optional(mmr.back()) : std::nullopt;
+            std::sort(mmr.begin(), mmr.end(), [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                return a.first < b.first;
+            });
+            auto midx = mmr.front().first;
+
+            std::vector<std::pair<int64_t, int64_t>> minmmr;
+            std::copy_if(mmr.cbegin(), mmr.cend(), std::back_inserter(minmmr), [midx](const std::pair<int64_t, int64_t>& opt) {
+                return opt.first == midx;
+            });
+
+            std::sort(minmmr.begin(), minmmr.end(), [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                return a.second < b.second;
+            });
+
+            return std::make_optional(minmmr.back());
+        }
+
+        std::optional<std::pair<int64_t, int64_t>> matchContainsLast(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
+        {
+            error = ExecutorError::Ok;
+            if(!this->declre->canUseInMatchContains()) {
+                error = ExecutorError::InvalidRegexStructure;
+                return std::nullopt;
+            }
+
+            std::vector<std::pair<int64_t, int64_t>> mmr;
+            if(this->optPre == nullptr && this->optPost == nullptr) {
+                mmr = this->re->matchContains(sstr, spos, epos);
+            }
+            else {
+                auto opts = this->re->matchContains(sstr, spos, epos);
+
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+
+                    return prechk && postchk;
+                });
+            }
+
+            if(mmr.empty()) {
+                return std::nullopt;
+            }
+
+            std::sort(mmr.begin(), mmr.end(), [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                return a.second < b.second;
+            });
+            auto midx = mmr.back().second;
+
+            std::vector<std::pair<int64_t, int64_t>> maxmmr;
+            std::copy_if(mmr.cbegin(), mmr.cend(), std::back_inserter(maxmmr), [midx](const std::pair<int64_t, int64_t>& opt) {
+                return opt.second == midx;
+            });
+
+            std::sort(maxmmr.begin(), maxmmr.end(), [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                return a.first < b.first;
+            });
+
+            return std::make_optional(minmmr.front());
         }
 
         std::optional<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)

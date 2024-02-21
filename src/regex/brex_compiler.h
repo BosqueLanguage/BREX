@@ -80,7 +80,7 @@ namespace brex
         std::vector<RegexCompileError> errors;
 
         template <typename TStr, typename TIter>
-        std::optional<SingleCheckREInfo<TStr, TIter>> compileSingleTopLevelEntry(const RegexToplevelEntry& tlre, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn)
+        std::optional<SingleCheckREInfo<TStr, TIter>*> compileSingleTopLevelEntry(const RegexToplevelEntry& tlre, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn)
         {
             RegexResolver resolver(resolverState, nameResolverFn, namedRegexes, envRegexes);
             auto fullre = resolver.resolve(tlre.opt);
@@ -99,10 +99,41 @@ namespace brex
             
             NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
 
-            SingleCheckREInfo<TStr, TIter> scc(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
+            SingleCheckREInfo<TStr, TIter> scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
             return std::make_optional(scc);
         }
         
+        template <typename TStr, typename TIter>
+        ComponentCheckREInfo<TStr, TIter>* compileComponent(const RegexComponent* cc, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn)
+        {
+            if(cc->tag == RegexComponentTag::Single) {
+                auto sc = static_cast<const RegexSingleComponent*>(cc);
+                auto cv = this->compileSingleTopLevelEntry<TStr, TIter>(sc->entry, namedRegexes, envRegexes, resolverState, nameResolverFn);
+
+                if(cv.has_value()) {
+                    return cv.value();
+                }
+                else {
+                    return nullptr;
+                }
+            }
+            else {
+                auto allc = static_cast<const RegexAllOfComponent*>(cc);
+
+                std::vector<ComponentCheckREInfo<TStr, TIter>*> checks;
+                for(auto ii = allc->musts.cbegin(); ii != allc->musts.cend(); ++ii) {
+                    auto cv = this->compileSingleTopLevelEntry<TStr, TIter>(*ii, namedRegexes, envRegexes, resolverState, nameResolverFn);
+                    if(cv.has_value()) {
+                        checks.push_back(cv.value());
+                    }
+                    else {
+                        return nullptr;
+                    }
+                }
+
+                return new MultiCheckREInfo<TStr, TIter>(checks);
+            }
+        }
 
     public:
         RegexCompiler() : errors() { ; }
@@ -114,31 +145,16 @@ namespace brex
         {
             RegexCompiler rcc;
 
-            std::vector<SingleCheckREInfo<TStr, TIter>> checks;
-            if(re->allopt.isEmpty()) {
-                auto cv = rcc.compileSingleTopLevelEntry<TStr, TIter>(re->sre, namedRegexes, envRegexes, resolverState, nameResolverFn);
-                if(cv.has_value()) {
-                    checks.push_back(cv.value());
-                }
-                else {
-                    std::copy(rcc.errors.cbegin(), rcc.errors.cend(), std::back_inserter(errinfo));
-                    return nullptr;
-                }
+            ComponentCheckREInfo<TStr, TIter>* optPre = re->preanchor != nullptr ? rcc.compileComponent<TStr, TIter>(re->preanchor, namedRegexes, envRegexes, resolverState, nameResolverFn) : nullptr; 
+            ComponentCheckREInfo<TStr, TIter>* optPost = re->postanchor != nullptr ? rcc.compileComponent<TStr, TIter>(re->postanchor, namedRegexes, envRegexes, resolverState, nameResolverFn) : nullptr;
+            ComponentCheckREInfo<TStr, TIter>* cre = rcc.compileComponent<TStr, TIter>(re->re, namedRegexes, envRegexes, resolverState, nameResolverFn);
+
+            if(!rcc.errors.empty()) {
+                std::copy(rcc.errors.cbegin(), rcc.errors.cend(), std::back_inserter(errinfo));
+                return nullptr;
             }
-            else {
-                for(auto ii = re->allopt.musts.cbegin(); ii != re->allopt.musts.cend(); ++ii) {
-                    auto cv = rcc.compileSingleTopLevelEntry<TStr, TIter>(*ii, namedRegexes, envRegexes, resolverState, nameResolverFn);
-                    if(cv.has_value()) {
-                        checks.push_back(cv.value());
-                    }
-                    else {
-                        std::copy(rcc.errors.cbegin(), rcc.errors.cend(), std::back_inserter(errinfo));
-                        return nullptr;
-                    }
-                }
-            }
-            
-            return new REExecutor<TStr, TIter>(checks, re->isContainsable, re->isMatchable);
+
+            return new REExecutor<TStr, TIter>(re, optPre, optPost, cre);
         }
         
         static UnicodeRegexExecutor* compileUnicodeRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
