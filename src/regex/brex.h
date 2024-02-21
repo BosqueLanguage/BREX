@@ -461,15 +461,7 @@ namespace brex
 
         virtual std::u8string toBSQONFormat() const = 0;
 
-        static RegexComponent* jparse(json j)
-        {
-            if(!j.is_array()) {
-                return RegexSingleComponent::jparse(j);
-            }
-            else {
-                return RegexAllOfComponent::jparse(j);
-            }
-        }
+        static RegexComponent* jparse(json j);
 
         //TODO: maybe semantic check on containsable that:
         // (1) does not contain epsilon
@@ -701,7 +693,12 @@ namespace brex
         bool canUseInTest(bool oobPrefix, bool oobPostfix) const
         {
             //Simple -- anchors don't make sense in a test unless we allow OOB prefix or postfix
-            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr); 
+            if(this->preanchor == nullptr && this->postanchor == nullptr) {
+                return true;
+            }
+            else {
+                return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr);
+            }
         }
 
         bool canStartsWith(bool oobPrefix) const

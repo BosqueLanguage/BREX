@@ -131,11 +131,11 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(Parens)
 BOOST_AUTO_TEST_CASE(simple) {
     PARSE_TEST_UNICODE(u8"/(\"a\"/", u8"Missing ) in regex");
-    PARSE_TEST_UNICODE(u8"/\"a\")/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/\"a\")/", u8"Empty regex sequence");
     PARSE_TEST_UNICODE(u8"/((\"a\")/", u8"Missing ) in regex");
 
-    PARSE_TEST_UNICODE(u8"/(\"a\")\"b\")*/", u8"Invalid regex -- trailing characters after end of regex");
-    PARSE_TEST_UNICODE(u8"/(\"a\")+)?/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/(\"a\")\"b\")*/", u8"Empty regex sequence");
+    PARSE_TEST_UNICODE(u8"/(\"a\")+)?/", u8"Empty regex sequence");
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -209,7 +209,7 @@ BOOST_AUTO_TEST_SUITE_END()
 //EndsAnchor
 BOOST_AUTO_TEST_SUITE(EndsAnchor)
 BOOST_AUTO_TEST_CASE(notbob) {
-    PARSE_TEST_UNICODE(u8"/.+ & (\"bob\"|\"sally\")$$/", u8"Invalid regex -- trailing characters after end of regex");
+    PARSE_TEST_UNICODE(u8"/.+ & (\"bob\"|\"sally\")$$/", u8"Empty regex sequence");
     PARSE_TEST_UNICODE(u8"/\"bob\"|\"sally\" $/", u8"Invalid regex -- all top-level components are front or back checks");
 }
 BOOST_AUTO_TEST_SUITE_END()

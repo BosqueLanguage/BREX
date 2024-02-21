@@ -8,7 +8,6 @@ namespace brex
     {
     public:
         ComponentCheckREInfo() = default;
-        ComponentCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative) : executor(executor), isNegative(isNegative) {;}
         virtual ~ComponentCheckREInfo() = default;
 
         ComponentCheckREInfo(const ComponentCheckREInfo& other) = default;
@@ -49,7 +48,7 @@ namespace brex
         bool isBackCheck;
 
         SingleCheckREInfo() = default;
-        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck) : ComponentCheckREInfo(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck) {;}
+        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck) : ComponentCheckREInfo<TStr, TIter>(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck) {;}
         virtual ~SingleCheckREInfo() = default;
 
         SingleCheckREInfo(const SingleCheckREInfo& other) = default;
@@ -76,7 +75,18 @@ namespace brex
 
         bool test(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            return this->executor.test(sstr, spos, epos);
+            bool accepted = false;
+            if(this->isFrontCheck) {
+                accepted = this->executor.matchTestForward(sstr, spos, epos);
+            }
+            else if(this->isBackCheck) {
+                accepted = this->executor.matchTestReverse(sstr, spos, epos);
+            }
+            else {
+                accepted = this->executor.test(sstr, spos, epos);
+            }
+
+            return this->isNegative ? !accepted : accepted;
         }
 
         bool testContains(TStr* sstr, int64_t spos, int64_t epos) override final
@@ -87,6 +97,8 @@ namespace brex
                     return true;
                 }
             }
+
+            return false;
         }
 
         bool testFront(TStr* sstr, int64_t spos, int64_t epos) override final
@@ -131,19 +143,20 @@ namespace brex
     class MultiCheckREInfo : public ComponentCheckREInfo<TStr, TIter>
     {
     public:
-        std::vector<SingleCheckREInfo<TStr, TIter>> checks;
+        std::vector<SingleCheckREInfo<TStr, TIter>*> checks;
 
-        MultiCheckREInfo(const std::vector<SingleCheckREInfo<TStr, TIter>>& checks) : ComponentCheckREInfo(), checks(checks) {;}
-        virtual ~SingleCheckREInfo() = default;
+        MultiCheckREInfo(const std::vector<SingleCheckREInfo<TStr, TIter>*>& checks) : ComponentCheckREInfo<TStr, TIter>(), checks(checks) {;}
+        virtual ~MultiCheckREInfo() = default;
 
-        void splitBindingOps(std::vector<SingleCheckREInfo<TStr, TIter>>& bindingopts, std::vector<SingleCheckREInfo<TStr, TIter>>& checkopts)
+        void splitBindingOps(std::vector<SingleCheckREInfo<TStr, TIter>*>& bindingopts, std::vector<SingleCheckREInfo<TStr, TIter>*>& checkopts)
         {
-            for(auto iter = this->checks.cbegin(); iter != this->checks.cend(); ++iter) {
-                if(!iter->isNegative && !iter->isFrontCheck && !iter->isBackCheck) {
-                    bindingopts.push_back(*iter);
+            for(auto iter = this->checks.begin(); iter != this->checks.end(); ++iter) {
+                SingleCheckREInfo<TStr, TIter>* chk = *iter;
+                if(!chk->isNegative && !chk->isFrontCheck && !chk->isBackCheck) {
+                    bindingopts.push_back(chk);
                 }
                 else {
-                    checkopts.push_back(*iter);
+                    checkopts.push_back(chk);
                 }
             }
         }
@@ -164,14 +177,14 @@ namespace brex
             return sharedmatches;
         }
 
-        static bool validateOpSet(std::vector<SingleCheckREInfo<TStr, TIter>>& opts, TStr* sstr, int64_t spos, int64_t epos)
+        static bool validateOpSet(std::vector<SingleCheckREInfo<TStr, TIter>*>& opts, TStr* sstr, int64_t spos, int64_t epos)
         {
-            return std::all_of(opts.begin(), opts.end(), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>& check) {
-                return check.validateSingleOp(sstr, spos, epos);
+            return std::all_of(opts.begin(), opts.end(), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>* check) {
+                return check->validateSingleOp(sstr, spos, epos);
             });
         }
 
-        static std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, std::vector<SingleCheckREInfo<TStr, TIter>>& checks, TStr* sstr, int64_t spos)
+        static std::vector<int64_t> validateMatchSetOptions(const std::vector<int64_t>& opts, std::vector<SingleCheckREInfo<TStr, TIter>*>& checks, TStr* sstr, int64_t spos)
         {
             std::vector<int64_t> matches;
             std::copy_if(opts.begin(), opts.end(), std::back_inserter(matches), [sstr, spos, &checks](int64_t epos) {
@@ -194,18 +207,18 @@ namespace brex
 
         bool testFront(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> checkops;
             this->splitBindingOps(matchopts, checkops);
 
             std::vector<int64_t> realmatches;
             if(matchopts.size() == 1) {
-                realmatches = matchopts.front().executor.matchForward(sstr, spos, epos);
+                realmatches = matchopts.front()->executor.matchForward(sstr, spos, epos);
             }
             else {
                 std::vector<std::vector<int64_t>> matches;
-                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                    return check.executor.matchForward(sstr, spos, epos);
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>* check) {
+                    return check->executor.matchForward(sstr, spos, epos);
                 });
 
                 realmatches = MultiCheckREInfo::computeSharedMatches(matches);
@@ -217,18 +230,18 @@ namespace brex
 
         bool testBack(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> checkops;
             this->splitBindingOps(matchopts, checkops);
 
             std::vector<int64_t> realmatches;
             if(matchopts.size() == 1) {
-                realmatches = matchopts.front().executor.matchReverse(sstr, spos, epos);
+                realmatches = matchopts.front()->executor.matchReverse(sstr, spos, epos);
             }
             else {
                 std::vector<std::vector<int64_t>> matches;
-                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                    return check.executor.matchBack(sstr, spos, epos);
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>* check) {
+                    return check->executor.matchReverse(sstr, spos, epos);
                 });
 
                 realmatches = MultiCheckREInfo::computeSharedMatches(matches);
@@ -246,18 +259,18 @@ namespace brex
 
         std::vector<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> checkops;
             this->splitBindingOps(matchopts, checkops);
 
             std::vector<int64_t> realmatches;
             if(matchopts.size() == 1) {
-                realmatches = matchopts.front().executor.matchForward(sstr, spos, epos);
+                realmatches = matchopts.front()->executor.matchForward(sstr, spos, epos);
             }
             else {
                 std::vector<std::vector<int64_t>> matches;
-                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                    return check.executor.matchForward(sstr, spos, epos);
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>* check) {
+                    return check->executor.matchForward(sstr, spos, epos);
                 });
 
                 realmatches = MultiCheckREInfo::computeSharedMatches(matches);
@@ -268,18 +281,18 @@ namespace brex
 
         std::vector<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            std::vector<SingleCheckREInfo<TStr, TIter>> matchopts;
-            std::vector<SingleCheckREInfo<TStr, TIter>> checkops;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> matchopts;
+            std::vector<SingleCheckREInfo<TStr, TIter>*> checkops;
             this->splitBindingOps(matchopts, checkops);
 
             std::vector<int64_t> realmatches;
             if(matchopts.size() == 1) {
-                realmatches = matchopts.front().executor.matchReverse(sstr, spos, epos);
+                realmatches = matchopts.front()->executor.matchReverse(sstr, spos, epos);
             }
             else {
                 std::vector<std::vector<int64_t>> matches;
-                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](const SingleCheckREInfo<TStr, TIter>& check) {
-                    return check.executor.matchBack(sstr, spos, epos);
+                std::transform(matchopts.cbegin(), matchopts.cend(), std::back_inserter(matches), [sstr, spos, epos](SingleCheckREInfo<TStr, TIter>* check) {
+                    return check->executor.matchReverse(sstr, spos, epos);
                 });
 
                 realmatches = MultiCheckREInfo::computeSharedMatches(matches);
@@ -321,8 +334,8 @@ namespace brex
                 return false;
             }
 
-            bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, spos - 1);
-            bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, epos + 1, (int64_t)sstr->size() - 1);
+            bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, 0, spos - 1);
+            bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, epos + 1, (int64_t)sstr->size() - 1);
 
             return prechk && postchk;
         }
@@ -341,9 +354,9 @@ namespace brex
             else {
                 auto opts = this->re->matchContains(sstr, spos, epos);
 
-                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+                return std::any_of(opts.cbegin(), opts.cend(), [this, sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
                     return prechk && postchk;
                 });
@@ -364,19 +377,19 @@ namespace brex
             else {
                 auto opts = this->re->matchFront(sstr, spos, epos);
 
-                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPostfix](int64_t opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, opt - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+                return std::any_of(opts.cbegin(), opts.cend(), [this, sstr, spos, epos, oobPostfix](int64_t opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, 0, opt - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
                     return prechk && postchk;
                 });
             }
         }
 
-        bool testBack(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
+        bool testBack(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->declre->canEndsWith()) {
+            if(!this->declre->canEndsWith(oobPostfix)) {
                 error = ExecutorError::InvalidRegexStructure;
                 return false;
             }
@@ -387,9 +400,9 @@ namespace brex
             else {
                 auto opts = this->re->matchBack(sstr, spos, epos);
 
-                return std::any_of(opts.cbegin(), opts.cend(), [sstr, spos, epos, oobPrefix](int64_t opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
+                return std::any_of(opts.cbegin(), opts.cend(), [this, sstr, spos, epos, oobPrefix](int64_t opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
 
                     return prechk && postchk;
                 });
@@ -411,9 +424,9 @@ namespace brex
             else {
                 auto opts = this->re->matchContains(sstr, spos, epos);
 
-                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [this, sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
                     return prechk && postchk;
                 });
@@ -451,9 +464,9 @@ namespace brex
             else {
                 auto opts = this->re->matchContains(sstr, spos, epos);
 
-                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [this, sstr, spos, epos, oobPrefix, oobPostfix](const std::pair<int64_t, int64_t>& opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt.first - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt.second + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
                     return prechk && postchk;
                 });
@@ -477,13 +490,13 @@ namespace brex
                 return a.first < b.first;
             });
 
-            return std::make_optional(minmmr.front());
+            return std::make_optional(maxmmr.front());
         }
 
         std::optional<int64_t> matchFront(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->declre->canUseInMatchStart()) {
+            if(!this->declre->canUseInMatchStart(oobPrefix)) {
                 error = ExecutorError::InvalidRegexStructure;
                 return std::nullopt;
             }
@@ -495,9 +508,9 @@ namespace brex
             else {
                 auto opts = this->re->matchFront(sstr, spos, epos);
 
-                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPostfix](int64_t opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, 0, opt - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [this, sstr, spos, epos, oobPostfix](int64_t opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, 0, opt - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt + 1, oobPostfix ? (int64_t)sstr->size() - 1 : epos);
 
                     return prechk && postchk;
                 });
@@ -509,7 +522,7 @@ namespace brex
         std::optional<int64_t> matchBack(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error)
         {
             error = ExecutorError::Ok;
-            if(!this->declre->canUseInMatchEnd()) {
+            if(!this->declre->canUseInMatchEnd(oobPostfix)) {
                 error = ExecutorError::InvalidRegexStructure;
                 return std::nullopt;
             }
@@ -521,9 +534,9 @@ namespace brex
             else {
                 auto opts = this->re->matchBack(sstr, spos, epos);
 
-                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [sstr, spos, epos, oobPrefix](int64_t opt) {
-                    bool prechk = this->optPre != nullptr && this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
-                    bool postchk = this->optPost != nullptr && this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
+                std::copy_if(opts.cbegin(), opts.cend(), std::back_inserter(mmr), [this, sstr, spos, epos, oobPrefix](int64_t opt) {
+                    bool prechk = this->optPre == nullptr || this->optPre->testBack(sstr, oobPrefix ? 0 : spos, opt - 1);
+                    bool postchk = this->optPost == nullptr || this->optPost->testFront(sstr, opt + 1, (int64_t)sstr->size() - 1);
 
                     return prechk && postchk;
                 });

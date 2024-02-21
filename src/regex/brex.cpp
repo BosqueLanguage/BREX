@@ -40,4 +40,14 @@ namespace brex
             return SequenceOpt::jparse(j);
         }
     }
+
+    RegexComponent* RegexComponent::jparse(json j)
+    {
+        if(!j.is_array()) {
+            return RegexSingleComponent::jparse(j);
+        }
+        else {
+            return RegexAllOfComponent::jparse(j);
+        }
+    }
 }

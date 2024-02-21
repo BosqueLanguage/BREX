@@ -174,6 +174,7 @@ int main(int argc, char** argv)
 
 
     ////////////
+    brex::ExecutorError dummyerr;
     /*
     auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
 
@@ -182,7 +183,7 @@ int main(int argc, char** argv)
     auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), aemptymap, nullptr, nullptr, acompileerror);
 
     auto aastr = brex::ASCIIString("abc");
-    auto aaccepts = aexecutor->test(&aastr);
+    auto aaccepts = aexecutor->test(&aastr, dummyerr);
     if(aaccepts) {
         std::cout << "Accepted ASCII" << std::endl;
     }
@@ -190,7 +191,7 @@ int main(int argc, char** argv)
         std::cout << "Rejected ASCII" << std::endl;
     }
     */
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/[0-9] (\"5\"|\"6\")/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"abc\"/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
@@ -203,8 +204,8 @@ int main(int argc, char** argv)
     std::vector<brex::RegexCompileError> ucompileerror;
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), uemptymap, nullptr, nullptr, ucompileerror);
 
-    auto ustr = brex::UnicodeString(u8"+i");
-    auto uaccepts = uexecutor->test(&ustr);
+    auto ustr = brex::UnicodeString(u8"abc");
+    auto uaccepts = uexecutor->test(&ustr, dummyerr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;
     }
@@ -245,7 +246,14 @@ int main(int argc, char** argv)
     std::cout << std::string(uustr.cbegin(), uustr.cend()) << std::endl;
 
     if(flags.contains(Flags::Accepts)) {
-        auto accepts = executor->test(&uustr);
+        brex::ExecutorError err;
+        auto accepts = executor->test(&uustr, err);
+
+        if(err != brex::ExecutorError::Ok) {
+            std::cout << "Invalid regex form for operation" << std::endl;
+            return 1;
+        }
+
         if(accepts) {
             std::cout << "Accepted" << std::endl;
         }

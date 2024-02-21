@@ -99,7 +99,7 @@ namespace brex
             
             NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
 
-            SingleCheckREInfo<TStr, TIter> scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
+            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
             return std::make_optional(scc);
         }
         
@@ -120,7 +120,7 @@ namespace brex
             else {
                 auto allc = static_cast<const RegexAllOfComponent*>(cc);
 
-                std::vector<ComponentCheckREInfo<TStr, TIter>*> checks;
+                std::vector<SingleCheckREInfo<TStr, TIter>*> checks;
                 for(auto ii = allc->musts.cbegin(); ii != allc->musts.cend(); ++ii) {
                     auto cv = this->compileSingleTopLevelEntry<TStr, TIter>(*ii, namedRegexes, envRegexes, resolverState, nameResolverFn);
                     if(cv.has_value()) {
