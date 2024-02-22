@@ -62,6 +62,16 @@ namespace brex
             return (this->cpos + 1 < this->epos) && (*this->cpos == '%' && *(this->cpos + 1) == '%');
         }
 
+        inline bool isInlineTokenCommentStart() const
+        {
+            return (this->cpos + 1 < this->epos) && (*this->cpos == '%' && *(this->cpos + 1) == '*');
+        }
+
+        inline bool isInlineTokenCommentEnd() const
+        {
+            return (this->cpos + 1 < this->epos) && (*this->cpos == '*' && *(this->cpos + 1) == '%');
+        }
+
         inline bool isNamedPfx()
         {
             return (this->cpos + 2 < this->epos) && (*this->cpos == '$' && *(this->cpos + 1) == '{');
@@ -79,17 +89,31 @@ namespace brex
 
         void advanceTriviaOnly()
         {
-            while(this->isTokenWS() || this->isTokenCommentStart()) {
-                if(this->isToken('\n')) {
-                    this->cline++;
-                }
-
-                if(this->isTokenWS()) {
-                    this->cpos++;
-                }
-                else {
-                    while(!this->isEOS() && !this->isToken('\n')) {
+            while(this->isTokenWS() || this->isTokenCommentStart() || this->isInlineTokenCommentStart()) {
+                if(this->isInlineTokenCommentStart()) {
+                    this->cpos += 2;
+                    while(!this->isEOS() && !this->isInlineTokenCommentEnd()) {
+                        if(this->isToken('\n')) {
+                            this->cline++;
+                        }
                         this->cpos++;
+                    }
+
+                    if(this->isInlineTokenCommentEnd()) {
+                        this->cpos += 2;
+                    }
+                } 
+                else {
+                    if(this->isToken('\n')) {
+                       this->cline++;
+                    }
+                    if(this->isTokenWS()) {
+                        this->cpos++;
+                    }
+                    else {
+                        while(!this->isEOS() && !this->isToken('\n')) {
+                            this->cpos++;
+                        }
                     }
                 }
             }

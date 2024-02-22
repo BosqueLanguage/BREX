@@ -20,7 +20,7 @@ BRex introduces new (text)[docs/regex_semantics.md] and (path)[docs/path_semanti
 
 Unicode support is a foundational part of the BRex design and implementation. As such the BRex language support the full unicode char set and is fully utf8 aware. However, in many cases the simplicity of ASCII regexes is desired and BRex provides an explicit ASCII regex and processing pipeline as well. 
 
-The matching engine is based on a NFA simulation to ensure that the average case performance is efficient and that the worst case performance is not pathalogical ([ReDOS](https://en.wikipedia.org/wiki/ReDoS)). This ensures that BRex can be used in a wide range of applications, particularly data validation, without severe risks around performance issues.
+The matching engine is based on a NFA simulation to ensure that the average case performance is efficient and that the worst case performance is not pathalogical ([ReDOS](https://en.wikipedia.org/wiki/ReDoS)). We also restrict the regex forms used in searching so that we can always use a fast string search algorithm (e.g. [Boyer-Moore](https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm)) to quickly scan for start/end positions. This ensures that BRex can be used in a wide range of applications, particularly data validation, without severe risks around performance issues.
 
 Finally, BRex includes a number of novel language features that extend classic regular expression langauges with features that are useful in the context of data validation and specification. These include named patterns, conjunction, negation, and an explicit URI path language ([BPath](docs/path_semnatics.md])). These features, combined with various ergonomic improvements, make BRex a powerful and expressive language for working with regular expressions and structured textual data more generally!
 
@@ -43,5 +43,124 @@ BRex includes a number of distinct features that are not present in classic PCRE
 
 - **URI Paths**: BRex includes a full language **TODO** for describing URI paths and path-globs with well founded semantics. This is useful for describing and validating URI paths. This allows us to easily express the constraints on these commonly occurring and complex strings -- `\file://home/user/["BRex" | "BSQON"]/**/["output_"[0-9]+].log\g`
 
-## Examples
+## Example Expressions
 
+### A simple regex -- letter _h_ followed by one or more vowels
+In BRex this is expressed as and defaults to a Unicode regex:
+```
+/"h"[aeiou]+/
+```
+
+We can also specify that it matches ASCII (using an ascii literal and the `a` flag):
+```
+/'h'[aeiou]+/a
+```
+
+Comments and line breaks are fine too (note whitespace is ignored outside of literals and ranges):
+```
+/
+  "h"      %% start with h
+  [aeiou]+ %% followed by one or more vowels
+/
+```
+
+### Using unicode and escapes
+We can use unicode directly in the regex:
+```
+/"🌶" %*unicode pepper*%/
+```
+
+Or we can use hex escapes:
+```
+/"%x1f335; %x59;" %*unicode 🌵 and Y*%/
+```
+
+Common escapes are also supported:
+```
+/"%NUL; %n; %%; %;" %* null, newline, literal %, and a " quote*%/
+```
+
+Also in ranges:
+```
+/[🌵🌶]?/
+```
+
+### The usual set of repeats and optional (but no greedy/lazy behaviors)
+A simple number regex:
+```
+/[+-]? ("0" | [1-9][0-9]+)/
+```
+
+A Zipcode regex:
+```
+/[0-9]{5}(-[0-9]{3})?/
+```
+
+A (simple) filename + short extension regex:
+```
+/[a-zA-Z0-9_]+ "." [a-zA-Z0-9]{1,3}/
+```
+
+### Named patterns
+A simple number regex with named parts (defined previously):
+```
+/[+-]? ("0" | ${NonZeroDigit}${Digit}+)/
+```
+
+### Conjunction, Start/End Anchors, and Negation
+A regex that matches a Zipcode **AND** that is a valid Kentucky prefix:
+```
+/${Zipcode} & ^4[0-2]/
+```
+
+A regex that matches a filename that ends with ".txt":
+```
+/${FileName} & ".txt"$/
+```
+
+A regex that matches a filename that does not end with ".tmp" or ".scratch":
+```
+/${FileName} & !(".tmp" | ".scratch")$/
+```
+
+### Matching Anchors
+These allow is to find matches that are guarded by other expressions (which we don't want to include in the match).
+
+For a file like mark_abc.txt we can match the abc part but make sure it is contained in the context of the username and not followed by a .tmp or .scratch file:
+```
+/"mark_"^<${Filename}>$!(".tmp" | ".scratch")/
+```
+
+### A simple URI path (TODO)
+
+## Example Matching
+
+The BRex API provides a range of matching/testing algorithms for various text processing scenarios. All matching algorithms are specialized (via templates) for both Unicode and ASCII processing.
+
+### Testing for a match
+The simplist case is to take a string (or slice/view) and test if it is in the language described by the BRex expression. This is the `test` method.
+```C
+bool test(TStr* sstr, ExecutorError& error);
+```
+
+More interesting is allowing anchors that extend beyond the bounds of the view. Useful for lookahead or behind parsing scenarios.
+```C
+bool test(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error);
+```
+
+In this case the string between `spos` and `epos` is matched and, if desired, the `oobPrefix`/`oobPostfix` flags are set too allow the anchor expressions to extend beyond these bounds.
+
+BRex similarly provides a `testFront` and `testBack` method that allow for testing if a string starts or ends with a match to the BRex expression as well as a `testContains`.
+
+### Finding a match
+BRex does not provide grouping or lazy/eager matches. Instead it always finds the longest match **over the full expression** (TODO we also want to allow shortest). This ensures that the matching is unique and predictable. You can then chunk out individual parts of the match in additional.
+
+Thus the API for finding a match is simple:
+```C
+std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, ExecutorError& error);
+```
+
+Where the `std::pair` result is the start and end position of the FIRST match in the string and the LONGEST possible match.
+
+As with test we also provide `matchFront` and `matchBack` methods that allow for finding the first match at the start or end of the string. And a more verbose version that allows subrange matches and out of bounds anchors.
+        
