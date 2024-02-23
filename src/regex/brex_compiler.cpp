@@ -12,7 +12,7 @@ namespace brex
         auto realname = this->nameResolverFn(opt->rname, this->resolverState);
 
         if(std::find(this->pending_resolves.cbegin(), this->pending_resolves.cend(), realname) != this->pending_resolves.cend()) {
-            this->errors.push_back(RegexCompileError(u8"Env regex " + std::u8string(opt->rname.cbegin(), opt->rname.cend()) + u8" is recursive resolution"));
+            this->errors.push_back(RegexCompileError(u8"Named regex " + std::u8string(opt->rname.cbegin(), opt->rname.cend()) + u8" is recursive resolution"));
             return opt;
         }
 

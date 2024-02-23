@@ -28,6 +28,10 @@ bool dbg_tryParseIntoNameMap(const std::string& name, const std::u8string& str, 
     return nmap.insert({ name, sre->entry.opt }).second;
 }
 
+std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
+    return name;
+}
+
 int main(int argc, char** argv)
 {
     brex::ExecutorError dummyerr;
@@ -65,9 +69,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::map<std::string, const brex::RegexOpt*> uemptymap;
     std::vector<brex::RegexCompileError> ucompileerror;
-    auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), uemptymap, nullptr, nullptr, ucompileerror);
+    auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, nullptr, dbg_fnresolve, ucompileerror);
 
     auto ustr = brex::UnicodeString(u8"abc");
     auto uaccepts = uexecutor->test(&ustr, dummyerr);
