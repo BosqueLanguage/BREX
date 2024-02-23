@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+
+# Scratch
+bin/*
+build/output/*
+.vscode/launch.json
