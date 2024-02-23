@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(aeiouascii) {
     ACCEPTS_TEST_ASCII_DOCS(executor, "haec ", false);
 }
 BOOST_AUTO_TEST_CASE(aeiouspaces) {
-    auto texecutor = tryParseForUnicodeDocsTest(u8"/\n    \"h\" %%starts with h \n    [aeiou]+ %%then aeiou\n/");
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\n    \"h\" %%starts with h \n  %* comment *%  [aeiou]+ %%then aeiou\n/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -222,6 +222,36 @@ BOOST_AUTO_TEST_CASE(aeiouspaces) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"h", false);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ae ", false);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"haec ", false);
+}
+BOOST_AUTO_TEST_CASE(pepper) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"🌶\" %*unicode pepper*%/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌶🌶", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌶", true);
+}
+BOOST_AUTO_TEST_CASE(hexescapes) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"%x1f335; %x59;\" %*unicode pepper*%/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌵 ", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌵 Y", true);
+}
+BOOST_AUTO_TEST_CASE(commonescapes) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"%NUL; %n; %%; %;\" %* null, newline, literal %, and a \" quote*%/");
+    BOOST_CHECK(texecutor.has_value());
+}
+BOOST_AUTO_TEST_CASE(escapesinrange) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/[🌵🌶]?/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌶🌶", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌶", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌵", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", true);
 }
 BOOST_AUTO_TEST_SUITE_END()
 
