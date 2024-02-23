@@ -5,10 +5,34 @@
 #include <iostream>
 #include <fstream>
 
+
+bool dbg_tryParseIntoNameMap(const std::string& name, const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
+    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    if(!pr.first.has_value() || !pr.second.empty()) {
+        return false;
+    }
+
+    if(pr.first.value()->preanchor != nullptr || pr.first.value()->postanchor != nullptr) {
+        return false;
+    }
+
+    if(pr.first.value()->re->tag != brex::RegexComponentTag::Single) {
+        return false;
+    }
+
+    auto sre = static_cast<const brex::RegexSingleComponent*>(pr.first.value()->re);
+    if(sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated) {
+        return false;
+    }
+
+    return nmap.insert({ name, sre->entry.opt }).second;
+}
+
 int main(int argc, char** argv)
 {
     brex::ExecutorError dummyerr;
-    
+    std::map<std::string, const brex::RegexOpt*> nmap;
+
     /*
     auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
 
@@ -26,7 +50,13 @@ int main(int argc, char** argv)
     }
     */
 
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"abc\"/");
+    bool ok = dbg_tryParseIntoNameMap("Digit", u8"/[0-9]/", nmap);
+    if(!ok) {
+        std::cout << "Failed to parse into name map" << std::endl;
+        return 1;
+    }
+
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/[+-]${Digit}+/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";

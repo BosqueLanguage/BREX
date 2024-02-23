@@ -4,7 +4,7 @@
 #include "../../src/regex/brex_parser.h"
 #include "../../src/regex/brex_compiler.h"
 
-std::optional<brex::UnicodeRegexExecutor*> tryParseForUnicodeTest(const std::u8string& str) {
+std::optional<brex::UnicodeRegexExecutor*> tryParseForUnicodeDocsTest(const std::u8string& str) {
     auto pr = brex::RegexParser::parseUnicodeRegex(str);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
@@ -61,7 +61,7 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForNameSubTest(const std::u8s
     return std::make_optional(executor);
 }
 
-std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string& str) {
+std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::string& str) {
     auto pr = brex::RegexParser::parseASCIIRegex(str);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
@@ -77,52 +77,66 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string&
     return std::make_optional(executor);
 }
 
-#define ACCEPTS_TEST_UNICODE(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
+#define ACCEPTS_TEST_UNICODE_DOCS(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
-#define ACCEPTS_TEST_ASCII(RE, STR, ACCEPT) {auto uustr = brex::ASCIIString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
+#define ACCEPTS_TEST_ASCII_DOCS(RE, STR, ACCEPT) {auto uustr = brex::ASCIIString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
 BOOST_AUTO_TEST_SUITE(Docs)
 
 BOOST_AUTO_TEST_SUITE(Readme)
 BOOST_AUTO_TEST_CASE(thisisaliteral) {
-    auto texecutor = tryParseForUnicodeTest(u8"/\"this is a literal\"*/");
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"this is a literal\"*/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_UNICODE(executor, u8"", true);
-    ACCEPTS_TEST_UNICODE(executor, u8"this is a literal", true);
-    ACCEPTS_TEST_UNICODE(executor, u8"this is a literalthis is a literal", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"this is a literal", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"this is a literalthis is a literal", true);
     
-    ACCEPTS_TEST_UNICODE(executor, u8"abcd", false);
-    ACCEPTS_TEST_UNICODE(executor, u8"this is ", false);
-    ACCEPTS_TEST_UNICODE(executor, u8" this is a literal", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abcd", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"this is ", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8" this is a literal", false);
 }
 BOOST_AUTO_TEST_CASE(thisisaliteralpepper) {
-    auto texecutor = tryParseForUnicodeTest(u8"/\"unicode literal 🌶\"*/");
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"unicode literal 🌶\"*/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_UNICODE(executor, u8"", false);
-    ACCEPTS_TEST_UNICODE(executor, u8"unicode literal 🌶", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"unicode literal 🌶", true);
 
-    ACCEPTS_TEST_UNICODE(executor, u8"abcd", false);
-    ACCEPTS_TEST_UNICODE(executor, u8"unicode ", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abcd", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"unicode ", false);
 }
 BOOST_AUTO_TEST_CASE(thisisaliteralascii) {
-    auto texecutor = tryParseForASCIITest("/'ascii literals %x59;'/");
+    auto texecutor = tryParseForASCIIDocsTest("/'ascii literals %x59;'/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "bob", false);
-    ACCEPTS_TEST_ASCII(executor, "ascii literals Y", true);
-    ACCEPTS_TEST_ASCII(executor, "ascii literals Z", false);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "bob", false);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "ascii literals Y", true);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "ascii literals Z", false);
 }
 BOOST_AUTO_TEST_CASE(twoescapesparse) {
-    auto texecutor = tryParseForASCIITest("/\"%x7;%0;\"/");
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"%x7;%x0;\"/");
     BOOST_CHECK(texecutor.has_value());
 
-    auto uexecutor = tryParseForASCIITest("/\"%a;%NUL;\"/");
+    auto uexecutor = tryParseForUnicodeDocsTest(u8"/\"%a;%NUL;\"/");
     BOOST_CHECK(uexecutor.has_value());
+}
+
+BOOST_AUTO_TEST_CASE(nameddigit) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("Digit", u8"/[0-9]/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/[+-]${Digit}+/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abc", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"0", false);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"+2", true);
 }
 BOOST_AUTO_TEST_SUITE_END()
 
