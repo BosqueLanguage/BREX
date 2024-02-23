@@ -124,7 +124,6 @@ BOOST_AUTO_TEST_CASE(twoescapesparse) {
     auto uexecutor = tryParseForUnicodeDocsTest(u8"/\"%a;%NUL;\"/");
     BOOST_CHECK(uexecutor.has_value());
 }
-
 BOOST_AUTO_TEST_CASE(nameddigit) {
     std::map<std::string, const brex::RegexOpt*> nmap;
     BOOST_CHECK(tryParseIntoNameMap("Digit", u8"/[0-9]/", nmap));
@@ -137,6 +136,92 @@ BOOST_AUTO_TEST_CASE(nameddigit) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"0", false);
 
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"+2", true);
+}
+BOOST_AUTO_TEST_CASE(notsuffix) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/!(\".txt\" | \".pdf\")/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abc", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", true);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8".txt", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8".pdf", false);
+}
+BOOST_AUTO_TEST_CASE(kyversion1) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/[0-9]{5}(\"-\"[0-9]{3})? & ^\"4\"[0-2]/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"87111", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"41502", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"49502", false);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abc", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"123", false);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502-123", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502-abc", false);
+}
+BOOST_AUTO_TEST_CASE(kyversion2) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("Zipcode", u8"/[0-9]{5}(\"-\"[0-9]{3})?/", nmap));
+    BOOST_CHECK(tryParseIntoNameMap("PrefixKY", u8"/\"4\"[0-2]/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/${Zipcode} & ^${PrefixKY}/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"87111", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"41502", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"49502", false);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abc", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"123", false);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502-123", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"40502-abc", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(ReadmeExamples)
+BOOST_AUTO_TEST_CASE(aeiou) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\"h\"[aeiou]+/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ha", true);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"h", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ae ", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"haec ", false);
+}
+BOOST_AUTO_TEST_CASE(aeiouascii) {
+    auto texecutor = tryParseForASCIIDocsTest("/'h'[aeiou]+/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_ASCII_DOCS(executor, "", false);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "ha", true);
+
+    ACCEPTS_TEST_ASCII_DOCS(executor, "h", false);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "ae ", false);
+    ACCEPTS_TEST_ASCII_DOCS(executor, "haec ", false);
+}
+BOOST_AUTO_TEST_CASE(aeiouspaces) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/\n    \"h\" %%starts with h \n    [aeiou]+ %%then aeiou\n/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ha", true);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"h", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ae ", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"haec ", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 

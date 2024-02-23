@@ -54,13 +54,15 @@ int main(int argc, char** argv)
     }
     */
 
-    bool ok = dbg_tryParseIntoNameMap("Digit", u8"/[0-9]/", nmap);
+    bool ok = true;
+    ok &= dbg_tryParseIntoNameMap("Zipcode", u8"/[0-9]{5}(\"-\"[0-9]{3})?/", nmap);
+    ok &= dbg_tryParseIntoNameMap("PrefixKY", u8"/\"4\"[0-2]/", nmap);
     if(!ok) {
         std::cout << "Failed to parse into name map" << std::endl;
         return 1;
     }
 
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/[+-]${Digit}+/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/${Zipcode} & ^${PrefixKY}/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";

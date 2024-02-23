@@ -37,7 +37,7 @@ BRex includes a number of distinct features that are not present in classic PCRE
 
 - **Negation**: BRex supports a syntactically limited from of negation (`!` operator) to express that a string does not match a regular expression -- `/!(".txt" | ".pdf")/`. This generalizes conjunction in ranges `[^a-z]` to the full language -- but only the top-level can be negated allowing us to preserve match efficiency.
 
-- **Conjunction**: BRex supports the `&` operator to express, in a single regular expression, that a string must a member of multiple languages! This is a invaluable feature for data validation tasks where there are often multiple logically-distinct constrains that would otherwise be forced into a single expression -- check a zipcode is valid *and* for Kentucky `/"[0-9]{5}(-[0-9]{3})? & ^"4"[0-2]/` or with names `/${Zipcode} & ^${PrefixKY}/`.
+- **Conjunction**: BRex supports the `&` operator to express, in a single regular expression, that a string must a member of multiple languages! This is a invaluable feature for data validation tasks where there are often multiple logically-distinct constrains that would otherwise be forced into a single expression -- check a zipcode is valid *and* for Kentucky `/"[0-9]{5}("-"[0-9]{3})? & ^"4"[0-2]/` or with names `/${Zipcode} & ^${PrefixKY}/`.
 
 - **Anchors**: BRex supports anchors that allow guarded and conditional matching before and after fixed regex -- `/${UserName}"_"^ <[a-zA-Z]+> $!(".tmp" | ".scratch")/` which matches the `[a-zA-Z]+` term but only when proceeded by the username/underscore and not followed by the given extensions.
 
