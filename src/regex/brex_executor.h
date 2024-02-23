@@ -434,6 +434,10 @@ namespace brex
                 });
             }
 
+            if(mmr.empty()) {
+                return std::nullopt;
+            }
+
             std::sort(mmr.begin(), mmr.end(), [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
                 return a.first < b.first;
             });
@@ -553,7 +557,8 @@ namespace brex
         bool testFront(TStr* sstr, ExecutorError& error) { return this->testFront(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
         bool testBack(TStr* sstr, ExecutorError& error) { return this->testBack(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
 
-        std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, ExecutorError& error) { return this->matchContains(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        std::optional<std::pair<int64_t, int64_t>> matchContainsFirst(TStr* sstr, ExecutorError& error) { return this->matchContainsFirst(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
+        std::optional<std::pair<int64_t, int64_t>> matchContainsLast(TStr* sstr, ExecutorError& error) { return this->matchContainsLast(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
         std::optional<int64_t> matchFront(TStr* sstr, ExecutorError& error) { return this->matchFront(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
         std::optional<int64_t> matchBack(TStr* sstr, ExecutorError& error) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1, false, false, error); }
     };
