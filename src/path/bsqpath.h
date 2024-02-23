@@ -2,16 +2,16 @@
 
 #include "../common.h"
 
-namespace BSQON
+namespace bpath
 {
-    class BSQPath
+    class PathGlob
     {
     public:
         //
         //TODO fill this in with code to handle path validation
         //
 
-        static BSQPath* jparse(json jv)
+        static PathGlob* jparse(json jv)
         {
             return nullptr;
         }
