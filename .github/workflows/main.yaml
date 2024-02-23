@@ -18,8 +18,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libboost-all-dev
-        gcc --version
-        g++ --version
     - name: Install
       run: make -f ./build/regex/makefile all
     - name: Run Tests
