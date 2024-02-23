@@ -31,7 +31,7 @@ BRex includes a number of distinct features that are not present in classic PCRE
 
 - **Unified Escaping**: BRex eschews the classic, and frequently error prone, PCRE style of using `\` to escape special characters in favor of a unified escaping mechanism. All characters can be escaped using hex codes `/"%x7;%0;"/` or memonic names `%a;`, `%NUL;`, or `%;` (for the quote literal). Unicode can be hex escaped or inserted directly into the string (or char range `/[🌵-🌶]/`)
 
-- **Comments and Line Breaks**: BRex supports comments and splitting as well as whitespace within an expression (outside of a literal or range whitespace is ignored). This allows for the expression to be structured for readability `/[+-]? "0"|[1-9][0-9]+/`. 
+- **Comments and Line Breaks**: BRex supports comments and splitting as well as whitespace within an expression (outside of a literal or range whitespace is ignored). This allows for the expression to be structured for readability. 
 
 - **Named Patterns**: BRex supports named patterns for composition and reuse allowing expressions to be built up in parts and common features to be shared across multiple expressions -- `/[+-]${Digit}+/`.
 

@@ -20,7 +20,6 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForUnicodeTest(const std::u8s
     return std::make_optional(executor);
 }
 
-
 std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string& str) {
     auto pr = brex::RegexParser::parseASCIIRegex(str);
     if(!pr.first.has_value() || !pr.second.empty()) {
