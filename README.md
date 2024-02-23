@@ -93,7 +93,7 @@ A simple number regex:
 
 A Zipcode regex:
 ```
-/[0-9]{5}(-[0-9]{3})?/
+/[0-9]{5}("-"[0-9]{3})?/
 ```
 
 A (simple) filename + short extension regex:
@@ -110,7 +110,7 @@ A simple number regex with named parts (defined previously):
 ### Conjunction, Start/End Anchors, and Negation
 A regex that matches a Zipcode **AND** that is a valid Kentucky prefix:
 ```
-/${Zipcode} & ^4[0-2]/
+/${Zipcode} & ^"4"[0-2]/
 ```
 
 A regex that matches a filename that ends with ".txt":
@@ -120,7 +120,7 @@ A regex that matches a filename that ends with ".txt":
 
 A regex that matches a filename that does not end with ".tmp" or ".scratch":
 ```
-/${FileName} & !(".tmp" | ".scratch")$/
+/${Filename} & !(".tmp" | ".scratch")$/
 ```
 
 ### Matching Anchors
@@ -128,7 +128,7 @@ These allow is to find matches that are guarded by other expressions (which we d
 
 For a file like mark_abc.txt we can match the abc part but make sure it is contained in the context of the username and not followed by a .tmp or .scratch file:
 ```
-/"mark_"^<${Filename}>$!(".tmp" | ".scratch")/
+/"mark_"^<${FilenameFragment}>$!(".tmp" | ".scratch")/
 ```
 
 ### A simple URI path (TODO)

@@ -139,7 +139,6 @@ namespace brex
         RegexCompiler() : errors() { ; }
         ~RegexCompiler() = default;
 
-
         template <typename TStr, typename TIter>
         static REExecutor<TStr, TIter>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const RegexOpt*>* envRegexes, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
         {

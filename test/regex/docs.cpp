@@ -78,6 +78,7 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::str
 }
 
 #define ACCEPTS_TEST_UNICODE_DOCS(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
+#define ACCEPTS_TEST_UNICODE_RNG_DOCS(RE, STR, SPOS, EPOS, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, SPOS, EPOS, true, true, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
 #define ACCEPTS_TEST_ASCII_DOCS(RE, STR, ACCEPT) {auto uustr = brex::ASCIIString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
@@ -253,6 +254,93 @@ BOOST_AUTO_TEST_CASE(escapesinrange) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"🌵", true);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", true);
 }
+BOOST_AUTO_TEST_CASE(repeatsnumber) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/[+-]? (\"0\" | [1-9][0-9]+)/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"+01", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"1234", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"1000", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"-1000", true);
+}
+BOOST_AUTO_TEST_CASE(repeatsfilename) {
+    auto texecutor = tryParseForUnicodeDocsTest(u8"/[a-zA-Z0-9_]+ \".\" [a-zA-Z0-9]{1,3}/");
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.txt", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_1.pdf", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_abc_.g", true);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8".txt", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.t_t", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.pogo", false);
+}
+BOOST_AUTO_TEST_CASE(namednumber) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("NonZeroDigit", u8"/[1-9]/", nmap));
+    BOOST_CHECK(tryParseIntoNameMap("Digit", u8"/[0-9]/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/[+-]? (\"0\" | ${NonZeroDigit}${Digit}+)/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"+01", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"0", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"1234", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"1000", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"-1000", true);
+}
+BOOST_AUTO_TEST_CASE(conjunctionfilehasext) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("Filename", u8"/[a-zA-Z0-9_]+ \".\" [a-zA-Z0-9]{1,}/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/${Filename} & \".txt\"$/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.txt", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_1.pdf", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_abc_.g", false);
+}
+BOOST_AUTO_TEST_CASE(conjunctionfilenotext) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("Filename", u8"/[a-zA-Z0-9_]+ \".\" [a-zA-Z0-9]{1,}/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/${Filename} & !(\".tmp\" | \".scratch\")$/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.txt", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_1.pdf", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_abc_.g", true);
+
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.tmp", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"_1.scratch", false);
+}
+BOOST_AUTO_TEST_CASE(anchorfile) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("FilenameFragment", u8"/[a-zA-Z0-9_]+/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/\"mark_\"^<${FilenameFragment}>$!(\".tmp\" | \".scratch\")/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"a.txt", 0, 3, false);
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"a.txt", 0, 0, false);
+    
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.txt", 5, 5, true);
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_ab.txt", 5, 6, true);
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.txt", 5, 6, false);
+
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mak_a.txt", 4, 4, false);
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.tmp", 5, 5, false);
+    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.tmpa", 5, 5, false);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

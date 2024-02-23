@@ -103,12 +103,14 @@ namespace brex
 
         bool testFront(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            return this->executor.matchTestForward(sstr, spos, epos);
+            bool accepts = this->executor.matchTestForward(sstr, spos, epos);
+            return this->isNegative ? !accepts : accepts;
         }
 
         bool testBack(TStr* sstr, int64_t spos, int64_t epos) override final
         {
-            return this->executor.matchTestReverse(sstr, spos, epos);
+            bool accepts = this->executor.matchTestReverse(sstr, spos, epos);
+            return this->isNegative ? !accepts : accepts;
         }
 
         std::vector<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, int64_t spos, int64_t epos) override final

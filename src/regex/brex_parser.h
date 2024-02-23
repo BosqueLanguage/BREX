@@ -669,7 +669,7 @@ namespace brex
         {
             std::vector<const RegexOpt*> sre;
 
-            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(')') && !this->isToken('>') && !(this->isToken('$') && !this->isNamedPfx())) {
+            while(!this->isEOS() && !this->isToken('&') && !this->isToken('|') && !this->isToken(')') && !this->isToken('>') && !this->isToken('^') && !(this->isToken('$') && !this->isNamedPfx())) {
                 sre.push_back(this->parseRepeatComponent());
             }
 

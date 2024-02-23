@@ -697,7 +697,7 @@ namespace brex
                 return true;
             }
             else {
-                return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr);
+                return (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr);
             }
         }
 

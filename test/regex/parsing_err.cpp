@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_SUITE_END()
 //StartsAnchor
 BOOST_AUTO_TEST_SUITE(StartsAnchor)
 BOOST_AUTO_TEST_CASE(notbob) {
-    PARSE_TEST_UNICODE(u8"/.+ & ^^(\"bob\"|\"sally\")/", u8"Invalid regex component -- expected");
+    PARSE_TEST_UNICODE(u8"/.+ & ^^(\"bob\"|\"sally\")/", u8"Empty regex sequence");
     PARSE_TEST_UNICODE(u8"/^\"bob\"|\"sally\"/", u8"Invalid regex -- all top-level components are front or back checks");
     PARSE_TEST_UNICODE(u8"/.+ & !^(\"bob\"|\"sally\")$/", u8"Invalid regex -- front and back checks cannot be used together");
 }

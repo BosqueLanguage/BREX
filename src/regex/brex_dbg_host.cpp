@@ -55,14 +55,13 @@ int main(int argc, char** argv)
     */
 
     bool ok = true;
-    ok &= dbg_tryParseIntoNameMap("Zipcode", u8"/[0-9]{5}(\"-\"[0-9]{3})?/", nmap);
-    ok &= dbg_tryParseIntoNameMap("PrefixKY", u8"/\"4\"[0-2]/", nmap);
+    ok &= dbg_tryParseIntoNameMap("FilenameFragment", u8"/[a-zA-Z0-9_]+/", nmap);
     if(!ok) {
         std::cout << "Failed to parse into name map" << std::endl;
         return 1;
     }
 
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"%NUL; %n; %%; %;\" %* null, newline, literal %, and a \" quote*%/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"mark_\"^<${FilenameFragment}>$!(\".tmp\" | \".scratch\")/");
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
@@ -74,8 +73,8 @@ int main(int argc, char** argv)
     std::vector<brex::RegexCompileError> ucompileerror;
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, nullptr, dbg_fnresolve, ucompileerror);
 
-    auto ustr = brex::UnicodeString(u8"abc");
-    auto uaccepts = uexecutor->test(&ustr, dummyerr);
+    auto ustr = brex::UnicodeString(u8"mark_a.txt");
+    auto uaccepts = uexecutor->test(&ustr, 5, 5, true, true, dummyerr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;
     }
