@@ -1,4 +1,4 @@
-name: brexci
+name: Brex Build
 
 on:
   push:
