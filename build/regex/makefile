@@ -45,7 +45,7 @@ REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)parsing_ok
 
 MAKEFLAGS += -j4
 
-all: $(OUT_EXE)brexlib.a $(BIN_DIR)brex $(BIN_DIR)brex_dbg
+all: $(OUT_EXE)brexlib.a $(BIN_DIR)brex $(BIN_DIR)brex_dbg $(PCKG_DIR)brexlib.a
 
 $(PCKG_DIR)brexlib.a: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a
 	@mkdir -p $(PCKG_DIR)
