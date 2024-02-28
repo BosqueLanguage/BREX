@@ -686,6 +686,15 @@ namespace brex
             return u8'/' + fstr + u8'/' + fchar;
         }
 
+        std::u8string toBSQONGlobFormat() const 
+        {
+            BREX_ASSERT(this->ctag == RegexCharInfoTag::ASCII, "only ASCII regexes can be converted to glob format");
+            BREX_ASSERT(this->preanchor == nullptr, "only regexes without a preanchor can be converted to glob format");
+            BREX_ASSERT(this->postanchor == nullptr, "only regexes without a postanchor can be converted to glob format");
+
+            return u8'<' + this->re->toBSQONFormat() + u8'>';
+        }
+
         bool canUseInTest(bool oobPrefix, bool oobPostfix) const
         {
             //Simple -- anchors don't make sense in a test unless we allow OOB prefix or postfix
