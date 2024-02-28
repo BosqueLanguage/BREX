@@ -620,8 +620,7 @@ namespace brex
     enum class RegexKindTag
     {
         Std,
-        Path,
-        Resource
+        Path
     };
 
     enum class RegexCharInfoTag
@@ -645,7 +644,7 @@ namespace brex
 
         static Regex* jparse(json j)
         {
-            auto rtag = (!j.contains("kind") || j["kind"].is_null()) ? RegexKindTag::Std : (j["kind"].get<std::string>() == "path" ? RegexKindTag::Path : (j["kind"].get<std::string>() == "resource" ? RegexKindTag::Resource : RegexKindTag::Std));
+            auto rtag = (!j.contains("isPath") || j["isPath"].is_null()) ? RegexKindTag::Std : RegexKindTag::Path;
             auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
 
             auto preanchor = (!j.contains("preanchor") || j["preanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["preanchor"]);
@@ -677,9 +676,6 @@ namespace brex
             std::u8string fchar = u8"";
             if(this->rtag == RegexKindTag::Path) {
                 fchar = u8"p";
-            }
-            else if(this->rtag == RegexKindTag::Resource) {
-                fchar = u8"r";
             }
             else {
                 if(this->ctag == RegexCharInfoTag::ASCII) {
