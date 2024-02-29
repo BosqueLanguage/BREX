@@ -68,7 +68,7 @@ $(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(PATH_OBJS) $(COMMON_OBJS)
 	@mkdir -p $(OUT_EXE)
 	$(AR) $(ARFLAGS) $(OUT_EXE)brexlib.a $(REGEX_OBJS) $(PATH_OBJS) $(COMMON_OBJS)
 
-$(OUT_OBJ )path_glob.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(PATH_HEADERS) $(PTH_DIR)path_glob.cpp
+$(OUT_OBJ)path_glob.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(PATH_HEADERS) $(PTH_DIR)path_glob.cpp
 	@mkdir -p $(OUT_OBJ)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)path_glob.o -c $(PTH_DIR)path_glob.cpp
 

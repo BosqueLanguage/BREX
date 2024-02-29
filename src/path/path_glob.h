@@ -301,7 +301,7 @@ namespace bpath
 
         const bool tailingSlash; //cannot have elenentinfo and tailingSlash as false
 
-        PathGlob(GlobSimpleComponent* scheme, std::optional<GlobAuthorityInfo*> authorityinfo, std::vector<SegmentGlobCompnent*> segments, std::optional<GlobElementInfo*> elementinfo, bool tailingStar) : scheme(scheme), authorityinfo(authorityinfo), segments(segments), elementinfo(elementinfo), tailingSlash(tailingSlash) {;}
+        PathGlob(GlobSimpleComponent* scheme, std::optional<GlobAuthorityInfo*> authorityinfo, std::vector<SegmentGlobCompnent*> segments, std::optional<GlobElementInfo*> elementinfo, bool tailingSlash) : scheme(scheme), authorityinfo(authorityinfo), segments(segments), elementinfo(elementinfo), tailingSlash(tailingSlash) {;}
 
         std::u8string toBSQONFormat() const
         {
