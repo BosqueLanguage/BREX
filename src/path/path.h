@@ -43,17 +43,33 @@ namespace bpath
         }
     };
 
-    class PathElement
+    class Path
     {
     public:
         const brex::ASCIIString scheme;
         const std::optional<AuthorityInfo> authorityinfo;
         const std::vector<brex::ASCIIString> segments;
+
+        Path(brex::ASCIIString scheme, std::optional<AuthorityInfo> authorityinfo, std::vector<brex::ASCIIString> segments) : scheme(scheme), authorityinfo(authorityinfo), segments(segments) {;}
+        virtual ~Path() {;}
+
+        virtual bool isElementPath() const { return false; }
+        virtual bool isGroupPath() const { return false; }
+
+        virtual std::u8string toBSQONFormat() const = 0;
+    };
+
+    class PathElement : public Path
+    {
+    public:
         const ElementInfo elementinfo;
 
-        PathElement(brex::ASCIIString scheme, std::optional<AuthorityInfo> authorityinfo, std::vector<brex::ASCIIString> segments, ElementInfo elementinfo) : scheme(scheme), authorityinfo(authorityinfo), segments(segments), elementinfo(elementinfo) {;}
+        PathElement(brex::ASCIIString scheme, std::optional<AuthorityInfo> authorityinfo, std::vector<brex::ASCIIString> segments, ElementInfo elementinfo) : Path(scheme, authorityinfo, segments), elementinfo(elementinfo) {;}
+        virtual ~PathElement() {;}
 
-        std::u8string toBSQONFormat() const
+        bool isElementPath() const override final { return true; }
+
+        std::u8string toBSQONFormat() const override final
         {
             std::u8string res = std::u8string(this->scheme.cbegin(), this->scheme.cend());
             res += u8":";
@@ -69,16 +85,15 @@ namespace bpath
         }
     };
 
-    class PathGroup
+    class PathGroup : public Path
     {
     public:
-        const brex::ASCIIString scheme;
-        const std::optional<AuthorityInfo> authorityinfo;
-        const std::vector<brex::ASCIIString> segments;
+        PathGroup(brex::ASCIIString scheme, std::optional<AuthorityInfo> authorityinfo, std::vector<brex::ASCIIString> segments) : Path(scheme, authorityinfo, segments) {;}
+        virtual ~PathGroup() {;}
 
-        PathGroup(brex::ASCIIString scheme, std::optional<AuthorityInfo> authorityinfo, std::vector<brex::ASCIIString> segments) : scheme(scheme), authorityinfo(authorityinfo), segments(segments) {;}
+        bool isGroupPath() const override final { return true; }
 
-        std::u8string toBSQONFormat() const
+        std::u8string toBSQONFormat() const override final
         {
             std::u8string res = std::u8string(this->scheme.cbegin(), this->scheme.cend());
             res += u8":";

@@ -84,9 +84,9 @@ $(OUT_OBJ)nfa_machine.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)nfa_machine
 	@mkdir -p $(OUT_OBJ)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)nfa_machine.o -c $(RE_DIR)nfa_machine.cpp
 
-$(OUT_OBJ)common.o: $(COMMON_HEADERS) $(COMMON_SOURCES)
+$(OUT_OBJ)common.o: $(COMMON_HEADERS) $(SRC_DIR)common.cpp
 	@mkdir -p $(OUT_OBJ)
-	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(COMMON_SOURCES)
+	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(SRC_DIR)common.cpp
 
 testfiles: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(REGEX_TEST_SOURCES)
 	@mkdir -p $(BIN_DIR)
