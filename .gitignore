@@ -34,4 +34,5 @@
 # Scratch
 bin/*
 build/output/*
+build/brex/*
 .vscode/launch.json

@@ -19,6 +19,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install libboost-all-dev
     - name: Install
-      run: make -f ./build/regex/makefile all
+      run: make -f ./build/makefile all
     - name: Run Tests
-      run: make -f ./build/regex/makefile test
+      run: make -f ./build/makefile test

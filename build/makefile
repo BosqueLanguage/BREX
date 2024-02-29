@@ -1,13 +1,15 @@
 MAKE_PATH=$(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR=$(MAKE_PATH)/../
-BIN_DIR=$(MAKE_PATH)/../../bin/
-SRC_DIR=$(MAKE_PATH)/../../src/
+BUILD_DIR=$(MAKE_PATH)/
+BIN_DIR=$(MAKE_PATH)/../bin/
+SRC_DIR=$(MAKE_PATH)/../src/
 RE_DIR=$(SRC_DIR)regex/
+PTH_DIR=$(SRC_DIR)path/
 
-REGEX_TEST_SRC_DIR=$(MAKE_PATH)/../../test/regex/
+REGEX_TEST_SRC_DIR=$(MAKE_PATH)/../test/regex/
 
 OUT_EXE=$(BUILD_DIR)output/
 OUT_OBJ=$(BUILD_DIR)output/obj/
+PCKG_DIR=$(BUILD_DIR)brex/
 
 JSON_INCLUDES=-I $(BUILD_DIR)include/headers/json/
 LIB_PATH=$(OUT_EXE)
@@ -35,11 +37,24 @@ REGEX_HEADERS=$(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(
 REGEX_SOURCES=$(RE_DIR)brex.cpp $(RE_DIR)brex_compiler.cpp $(RE_DIR)nfa_machine.cpp
 REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
+PATH_HEADERS=$(PTH_DIR)path.h $(PTH_DIR)path_fragment.h $(PTH_DIR)path_glob.h
+PATH_SOURCES=$(PTH_DIR)path_glob.cpp
+PATH_OBJS=$(OUT_OBJ)path_glob.o
+
 REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)parsing_ok.cpp $(REGEX_TEST_SRC_DIR)parsing_err.cpp $(REGEX_TEST_SRC_DIR)test.cpp $(REGEX_TEST_SRC_DIR)other_ops.cpp $(REGEX_TEST_SRC_DIR)docs.cpp
 
 MAKEFLAGS += -j4
 
-all: $(OUT_EXE)brexlib.a $(BIN_DIR)brex $(BIN_DIR)brex_dbg
+all: $(OUT_EXE)brexlib.a $(BIN_DIR)brex $(BIN_DIR)brex_dbg $(PCKG_DIR)brexlib.a
+
+$(PCKG_DIR)brexlib.a: $(COMMON_HEADERS) $(REGEX_HEADERS) $(PATH_HEADERS) $(OUT_EXE)brexlib.a
+	@mkdir -p $(PCKG_DIR)
+	@mkdir -p $(PCKG_DIR)regex/
+	@mkdir -p $(PCKG_DIR)path/
+	cp $(OUT_EXE)brexlib.a $(PCKG_DIR)brexlib.a
+	cp $(COMMON_HEADERS) $(PCKG_DIR)
+	cp $(REGEX_HEADERS) $(PCKG_DIR)regex/
+	cp $(PATH_HEADERS) $(PCKG_DIR)path/
 
 $(BIN_DIR)brex: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(RE_DIR)brex_cmd.cpp
 	@mkdir -p $(BIN_DIR)
@@ -49,9 +64,13 @@ $(BIN_DIR)brex_dbg: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(RE_
 	@mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)brex_dbg $(RE_DIR)brex_dbg_host.cpp $(OUT_EXE)brexlib.a
 
-$(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(COMMON_OBJS)
+$(OUT_EXE)brexlib.a: $(REGEX_OBJS) $(PATH_OBJS) $(COMMON_OBJS)
 	@mkdir -p $(OUT_EXE)
-	$(AR) $(ARFLAGS) $(OUT_EXE)brexlib.a $(REGEX_OBJS) $(COMMON_OBJS)
+	$(AR) $(ARFLAGS) $(OUT_EXE)brexlib.a $(REGEX_OBJS) $(PATH_OBJS) $(COMMON_OBJS)
+
+$(OUT_OBJ)path_glob.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(PATH_HEADERS) $(PTH_DIR)path_glob.cpp
+	@mkdir -p $(OUT_OBJ)
+	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)path_glob.o -c $(PTH_DIR)path_glob.cpp
 
 $(OUT_OBJ)brex.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)brex.cpp
 	@mkdir -p $(OUT_OBJ)

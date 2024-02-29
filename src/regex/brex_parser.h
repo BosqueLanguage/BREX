@@ -774,7 +774,7 @@ namespace brex
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool isPath, bool isResource)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool isPath)
         {
             if(len < 1) {
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Empty string is not a valid regex -- must be of form /.../")});
@@ -787,7 +787,7 @@ namespace brex
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
             }
 
-            auto parser = RegexParser(data + 1, len - 2, isUnicode, isStrictASCII, isResource);
+            auto parser = RegexParser(data + 1, len - 2, isUnicode, isStrictASCII, isPath);
 
             std::vector<RegexComponent*> rv;
             bool preanchor = false;
@@ -884,19 +884,19 @@ namespace brex
             }
 
             auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
-            auto kindtag = isPath ? RegexKindTag::Path : (isResource ? RegexKindTag::Resource : RegexKindTag::Std);
+            auto kindtag = isPath ? RegexKindTag::Path : RegexKindTag::Std;
 
             return std::make_pair(std::make_optional(new Regex(kindtag, chartype, prere, postre, re)), std::vector<RegexParserError>());
         }
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false, false);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false);
         }
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, false, false);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, false);
         }
     };
 }

@@ -10,8 +10,8 @@
 typedef nlohmann::json json;
 
 #ifdef BREX_DEBUG
-#define BREX_ABORT(msg) processAssert(__FILE__, __LINE__, msg)
-#define BREX_ASSERT(condition, msg) if(!(condition)) { processAssert(__FILE__, __LINE__, msg); }
+#define BREX_ABORT(msg) brex::processAssert(__FILE__, __LINE__, msg)
+#define BREX_ASSERT(condition, msg) if(!(condition)) { brex::processAssert(__FILE__, __LINE__, msg); }
 #else
 #define BREX_ABORT(msg) processAbort(__FILE__, __LINE__, msg)
 #define BREX_ASSERT(condition, msg)
