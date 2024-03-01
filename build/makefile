@@ -33,7 +33,7 @@ COMMON_HEADERS=$(SRC_DIR)common.h
 COMMON_SOURCES=$(SRC_DIR)common.cpp
 COMMON_OBJS=$(OUT_OBJ)common.o
 
-REGEX_HEADERS=$(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(RE_DIR)nfa_machine.h $(RE_DIR)nfa_executor.h
+REGEX_HEADERS=$(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(RE_DIR)brex_executor.h $(RE_DIR)nfa_machine.h $(RE_DIR)nfa_executor.h
 REGEX_SOURCES=$(RE_DIR)brex.cpp $(RE_DIR)brex_compiler.cpp $(RE_DIR)nfa_machine.cpp
 REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
