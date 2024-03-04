@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../common.h"
 #include "nfa_executor.h"
 
