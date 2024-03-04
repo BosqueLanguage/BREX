@@ -1,4 +1,4 @@
-#define once
+#pragma once
 
 #include "../common.h"
 

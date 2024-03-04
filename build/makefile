@@ -33,7 +33,7 @@ COMMON_HEADERS=$(SRC_DIR)common.h
 COMMON_SOURCES=$(SRC_DIR)common.cpp
 COMMON_OBJS=$(OUT_OBJ)common.o
 
-REGEX_HEADERS=$(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(RE_DIR)nfa_machine.h $(RE_DIR)nfa_executor.h
+REGEX_HEADERS=$(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(RE_DIR)brex_executor.h $(RE_DIR)nfa_machine.h $(RE_DIR)nfa_executor.h
 REGEX_SOURCES=$(RE_DIR)brex.cpp $(RE_DIR)brex_compiler.cpp $(RE_DIR)nfa_machine.cpp
 REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
@@ -84,9 +84,9 @@ $(OUT_OBJ)nfa_machine.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)nfa_machine
 	@mkdir -p $(OUT_OBJ)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)nfa_machine.o -c $(RE_DIR)nfa_machine.cpp
 
-$(OUT_OBJ)common.o: $(COMMON_HEADERS) $(COMMON_SOURCES)
+$(OUT_OBJ)common.o: $(COMMON_HEADERS) $(SRC_DIR)common.cpp
 	@mkdir -p $(OUT_OBJ)
-	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(COMMON_SOURCES)
+	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)common.o -c $(SRC_DIR)common.cpp
 
 testfiles: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)brexlib.a $(REGEX_TEST_SOURCES)
 	@mkdir -p $(BIN_DIR)
