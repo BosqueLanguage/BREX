@@ -5,14 +5,15 @@
 #include "../../src/regex/brex_compiler.h"
 
 std::optional<brex::UnicodeRegexExecutor*> tryParseForUnicodeDocsTest(const std::u8string& str) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }
 
-    std::map<std::string, const brex::RegexOpt*> emptymap;
+    std::map<std::string, const brex::RegexOpt*> namemap;
+    std::map<std::string, const brex::LiteralOpt*> envmap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), emptymap, nullptr, nullptr, compileerror);
+    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
         return std::nullopt;
     }
@@ -25,7 +26,7 @@ std::string fnresolve(const std::string& name, brex::NameResolverState s) {
 }
 
 bool tryParseIntoNameMap(const std::string& name, const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return false;
     }
@@ -47,13 +48,14 @@ bool tryParseIntoNameMap(const std::string& name, const std::u8string& str, std:
 }
 
 std::optional<brex::UnicodeRegexExecutor*> tryParseForNameSubTest(const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }
 
+    std::map<std::string, const brex::LiteralOpt*> envmap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), nmap, nullptr, fnresolve, compileerror);
+    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), nmap, envmap, false, nullptr, fnresolve, compileerror);
     if(!compileerror.empty()) {
         return std::nullopt;
     }
@@ -62,14 +64,15 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForNameSubTest(const std::u8s
 }
 
 std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str);
+    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }
 
-    std::map<std::string, const brex::RegexOpt*> emptymap;
+    std::map<std::string, const brex::RegexOpt*> namemap;
+    std::map<std::string, const brex::LiteralOpt*> envmap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileASCIIRegexToExecutor(pr.first.value(), emptymap, nullptr, nullptr, compileerror);
+    auto executor = brex::RegexCompiler::compileASCIIRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
         return std::nullopt;
     }

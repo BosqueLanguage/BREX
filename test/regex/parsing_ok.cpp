@@ -4,7 +4,7 @@
 #include "../../src/regex/brex_parser.h"
 
 std::optional<std::u8string> tryParseForTestOk_Unicode(const std::u8string& str) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, false);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
     }
@@ -25,7 +25,7 @@ void checkAndReportOkUnicodeResult(const std::u8string& str, const std::u8string
 #define PARSE_TEST_UNICODE(RE, EX) { auto res = tryParseForTestOk_Unicode(RE); BOOST_CHECK(res.has_value()); checkAndReportOkUnicodeResult(res.value(), EX); }
 
 std::optional<std::u8string> tryParseForTestOk_ASCII(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str);
+    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
     }

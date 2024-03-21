@@ -4,7 +4,7 @@
 #include "../../src/regex/brex_parser.h"
 
 std::optional<brex::RegexParserError> tryParseForTestError_Unicode(const std::u8string& str) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, false);
     if(pr.second.empty()) {
         return std::nullopt;
     }
@@ -23,7 +23,7 @@ void checkAndReportErrUnicodeResult(const std::u8string& str, const std::u8strin
 }
 
 std::optional<brex::RegexParserError> tryParseForTestError_ASCII(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str);
+    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
     if(pr.second.empty()) {
         return std::nullopt;
     }
