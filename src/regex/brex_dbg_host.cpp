@@ -7,7 +7,7 @@
 
 
 bool dbg_tryParseIntoNameMap(const std::string& name, const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
-    auto pr = brex::RegexParser::parseUnicodeRegex(str);
+    auto pr = brex::RegexParser::parseUnicodeRegex(str, true);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return false;
     }
@@ -35,14 +35,14 @@ std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
 int main(int argc, char** argv)
 {
     brex::ExecutorError dummyerr;
+    std::vector<brex::RegexCompileError> compileerror;
     std::map<std::string, const brex::RegexOpt*> nmap;
+    std::map<std::string, const brex::LiteralOpt*> emap;
 
     /*
     auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
 
-    std::map<std::string, const brex::RegexOpt*> aemptymap;
-    std::vector<brex::RegexCompileError> acompileerror;
-    auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), aemptymap, nullptr, nullptr, acompileerror);
+    auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
     auto aastr = brex::ASCIIString("abc");
     auto aaccepts = aexecutor->test(&aastr, dummyerr);
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"mark_\"^<${FilenameFragment}>$!(\".tmp\" | \".scratch\")/");
+    auto upr = brex::RegexParser::parseUnicodeRegex(u8"/\"mark_\"^<${FilenameFragment}>$!(\".tmp\" | \".scratch\")/", true);
     if(!upr.first.has_value() || !upr.second.empty()) {
         for(auto iter = upr.second.begin(); iter != upr.second.end(); ++iter) {
             std::cout << std::string(iter->msg.cbegin(), iter->msg.cend()) << " ";
@@ -70,8 +70,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<brex::RegexCompileError> ucompileerror;
-    auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, nullptr, dbg_fnresolve, ucompileerror);
+    auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
     auto ustr = brex::UnicodeString(u8"mark_a.txt");
     auto uaccepts = uexecutor->test(&ustr, 5, 5, true, true, dummyerr);

@@ -293,23 +293,41 @@ namespace bpath
 
     class PathGlob
     {
+    //
+    //  /x/y/*     <-- all files in y
+    //  /x/y/*/    <-- all directories in y
+    //
+    //  /x/y/**   <-- all files (recursively) reachable from y
+    //  /x/y/**/  <-- all directories (recursively) reachable from in y
+    //
+    //  /x/y/*.*     <-- all files in y with an extension
+    //  /x/y/**/*.*  <-- all files (recursively) reachable y with an extension
+    //
     public:
-        const GlobSimpleComponent* scheme;
+        const std::optional<GlobSimpleComponent*> scheme;
         const std::optional<GlobAuthorityInfo*> authorityinfo;
         const std::vector<SegmentGlobCompnent*> segments;
         const std::optional<GlobElementInfo*> elementinfo;
 
-        const bool tailingSlash; //cannot have elenentinfo and tailingSlash as false
+        const bool tailingslash; //cannot have elementinfo and tailingSlash as false
 
-        PathGlob(GlobSimpleComponent* scheme, std::optional<GlobAuthorityInfo*> authorityinfo, std::vector<SegmentGlobCompnent*> segments, std::optional<GlobElementInfo*> elementinfo, bool tailingSlash) : scheme(scheme), authorityinfo(authorityinfo), segments(segments), elementinfo(elementinfo), tailingSlash(tailingSlash) {;}
+        PathGlob(std::optional<GlobSimpleComponent*> scheme, std::optional<GlobAuthorityInfo*> authorityinfo, std::vector<SegmentGlobCompnent*> segments, std::optional<GlobElementInfo*> elementinfo, bool tailingslash) : scheme(scheme), authorityinfo(authorityinfo), segments(segments), elementinfo(elementinfo), tailingslash(tailingslash) {;}
 
         std::u8string toBSQONFormat() const
         {
-            std::u8string res = this->scheme->toBSQONFormat() + u8":";
+            std::u8string res;
+            if(this->scheme.has_value()) {
+                res += this->scheme.value()->toBSQONFormat() + u8":";
+            }
+
             if(this->authorityinfo.has_value()) {
                 res += u8"//" + this->authorityinfo.value()->toBSQONFormat();
             }
-            res += u8"/";
+
+            if(this->scheme.has_value() || this->authorityinfo.has_value()) {
+                res += u8"/";
+            }
+            
             for(size_t i = 0; i < this->segments.size(); ++i) {
                 res += this->segments[i]->toBSQONFormat();
                 
@@ -318,11 +336,11 @@ namespace bpath
                 }
             }
             
-            if(tailingSlash) {
+            if(tailingslash) {
                 res += u8"/";
             }
             if(this->elementinfo.has_value()) {
-                res += this->elementinfo.value()->toBSQONFormat();
+                res += u8"/" + this->elementinfo.value()->toBSQONFormat();
             }
             
             return res;

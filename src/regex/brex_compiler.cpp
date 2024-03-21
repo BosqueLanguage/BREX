@@ -31,34 +31,24 @@ namespace brex
 
     const RegexOpt* RegexResolver::resolveEnvRegexOpt(const EnvRegexOpt* opt)
     {
-        if(this->envRegexes == nullptr) {
+        if(!this->envEnabled) {
             this->errors.push_back(RegexCompileError(u8"Env regexes are not supported in this context"));
             return opt;
         }
 
-        if(std::find(this->pending_resolves.cbegin(), this->pending_resolves.cend(), "env[" + opt->ename + "]") != this->pending_resolves.cend()) {
-            this->errors.push_back(RegexCompileError(u8"Env regex " + std::u8string(opt->ename.cbegin(), opt->ename.cend()) + u8" is recursive resolution"));
-            return opt;
-        }
-
-        auto ii = this->envRegexes->find(opt->ename);
-        if(ii == this->envRegexes->end()) {
+        auto ii = this->envRegexes.find(opt->ename);
+        if(ii == this->envRegexes.end()) {
             this->errors.push_back(RegexCompileError(u8"Env regex " + std::u8string(opt->ename.cbegin(), opt->ename.cend()) + u8" is not defined"));
             return opt;
         }
 
-        this->pending_resolves.push_back("env[" + opt->ename + "]");
-        auto res = this->resolve(ii->second);
-        this->pending_resolves.pop_back();
-
-        return res;
+        return ii->second;
     }
-    
+
     const RegexOpt* RegexResolver::resolveAnyOfOpt(const AnyOfOpt* anyofopt)
     {
         std::vector<const RegexOpt*> opts;
-        for(auto ii = anyofopt->opts.cbegin(); ii != anyofopt->opts.cend(); ++ii)
-        {
+        for(auto ii = anyofopt->opts.cbegin(); ii != anyofopt->opts.cend(); ++ii) {
             auto rr = resolve(*ii);
             if(rr->tag != RegexOptTag::AnyOf) {
                 opts.push_back(rr);
@@ -88,53 +78,89 @@ namespace brex
         {
             switch(opt->tag)
             {
-            case RegexOptTag::Literal:
-            {
+            case RegexOptTag::Literal: {
                 return opt;
             }
-            case RegexOptTag::CharRange:
-            {
+            case RegexOptTag::CharRange: {
                 return opt;
             }
-            case RegexOptTag::CharClassDot:
-            {
+            case RegexOptTag::CharClassDot: {
                 return opt;
             }
-            case RegexOptTag::StarRepeat:
-            {
+            case RegexOptTag::StarRepeat: {
                 auto staropt = static_cast<const StarRepeatOpt*>(opt);
                 return new StarRepeatOpt(resolve(staropt->repeat));
             }
-            case RegexOptTag::PlusRepeat:
-            {
+            case RegexOptTag::PlusRepeat: {
                 auto plusopt = static_cast<const PlusRepeatOpt*>(opt);
                 return new PlusRepeatOpt(resolve(plusopt->repeat));
             }
-            case RegexOptTag::RangeRepeat:
-            {
+            case RegexOptTag::RangeRepeat: {
                 auto rangeopt = static_cast<const RangeRepeatOpt*>(opt);
                 return new RangeRepeatOpt(rangeopt->low, rangeopt->high, resolve(rangeopt->repeat));
             }
-            case RegexOptTag::Optional:
-            {
+            case RegexOptTag::Optional: {
                 auto optionalopt = static_cast<const OptionalOpt*>(opt);
                 return new OptionalOpt(resolve(optionalopt->opt));
             }
-            case RegexOptTag::Sequence:
-            {
+            case RegexOptTag::Sequence: {
                 auto seqopt = static_cast<const SequenceOpt*>(opt);
                 std::vector<const RegexOpt*> seq;
-                for(auto ii = seqopt->regexs.cbegin(); ii != seqopt->regexs.cend(); ++ii)
-                {
+                for(auto ii = seqopt->regexs.cbegin(); ii != seqopt->regexs.cend(); ++ii) {
                     seq.push_back(resolve(*ii));
                 }
 
                 return new SequenceOpt(seq);
             }
-            default:
-            {
+            default: {
                 assert(false);
                 return nullptr;
+            }
+            }
+        }
+    }
+
+    void RegexResolver::gatherEnvironmentNames(std::set<std::string>& names, const RegexOpt* opt)
+    {
+        if(opt->tag == RegexOptTag::EnvRegex)
+        {
+            names.insert(static_cast<const EnvRegexOpt*>(opt)->ename);
+        }
+        else if(opt->tag == RegexOptTag::AnyOf) {
+            const AnyOfOpt* anyofopt = static_cast<const AnyOfOpt*>(opt);
+            for(auto ii = anyofopt->opts.cbegin(); ii != anyofopt->opts.cend(); ++ii) {
+                RegexResolver::gatherEnvironmentNames(names, *ii);
+            }
+        }
+        else
+        {
+            switch(opt->tag)
+            {
+            case RegexOptTag::StarRepeat: {
+                RegexResolver::gatherEnvironmentNames(names, static_cast<const StarRepeatOpt*>(opt)->repeat);
+                break;
+            }
+            case RegexOptTag::PlusRepeat: {
+                RegexResolver::gatherEnvironmentNames(names, static_cast<const PlusRepeatOpt*>(opt)->repeat);
+                break;
+            }
+            case RegexOptTag::RangeRepeat: {
+                RegexResolver::gatherEnvironmentNames(names, static_cast<const RangeRepeatOpt*>(opt)->repeat);
+                break;
+            }
+            case RegexOptTag::Optional: {
+                RegexResolver::gatherEnvironmentNames(names, static_cast<const OptionalOpt*>(opt)->opt);
+                break;
+            }
+            case RegexOptTag::Sequence: {
+                auto seqopt = static_cast<const SequenceOpt*>(opt);
+                for(auto ii = seqopt->regexs.cbegin(); ii != seqopt->regexs.cend(); ++ii) {
+                    RegexResolver::gatherEnvironmentNames(names, *ii);
+                }
+                break;
+            }
+            default: {
+                break;
             }
             }
         }

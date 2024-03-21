@@ -173,7 +173,7 @@ int main(int argc, char** argv)
     }
 
     std::u8string ure(re, re + strlen(re));
-    auto pr = brex::RegexParser::parseUnicodeRegex(ure);
+    auto pr = brex::RegexParser::parseUnicodeRegex(ure, true);
     if(!pr.first.has_value() || !pr.second.empty()) {
         std::cout << "Parse errors in regex:" << std::endl;
         for(auto iter = pr.second.begin(); iter != pr.second.end(); ++iter) {
@@ -184,9 +184,33 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    std::map<std::string, const brex::LiteralOpt*> envmap;
+    std::set<std::string> envnames;
+    bool envRequired = brex::RegexCompiler::gatherEnvironmentNames(envnames, pr.first.value());
+    for(auto iter = envnames.begin(); iter != envnames.end(); ++iter) {
+        char* envval = std::getenv(iter->c_str());
+        if(envval == nullptr) {
+            std::cout << "Environment variable " << *iter << " is required but not set" << std::endl;
+            return 1;
+        }
+
+        std::vector<brex::RegexChar> echars;
+        for(auto citer = envval; *citer != '\0'; ++citer) {
+            auto cc = (uint8_t)*citer;
+            if(cc <= 127 && !(std::isprint(cc) || std::isblank(cc))) {
+                std::cout << "Environment variable " << *iter << " contains non-ascii or non-printable characters" << std::endl;
+                return 1;
+            }
+
+            echars.push_back(cc);
+        }
+
+        envmap.insert({ *iter, new brex::LiteralOpt(echars, pr.first.value()->ctag == brex::RegexCharInfoTag::Unicode) });
+    }
+
     std::map<std::string, const brex::RegexOpt*> emptymap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), emptymap, nullptr, nullptr, compileerror);
+    auto executor = brex::RegexCompiler::compileUnicodeRegexToExecutor(pr.first.value(), emptymap, envmap, envRequired, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
         std::cout << "Errors compiling regex:" << std::endl;
         for(auto iter = compileerror.begin(); iter != compileerror.end(); ++iter) {
