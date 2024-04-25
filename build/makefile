@@ -18,7 +18,7 @@ LIB_PATH=$(OUT_EXE)
 BUILD := dev
 
 CPP=g++
-CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20
+CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20 -fPIC
 
 CPPFLAGS_OPT.debug=-O0 -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG -fsanitize=address
 CPPFLAGS_OPT.dev=-O0 -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG
