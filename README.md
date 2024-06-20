@@ -146,19 +146,12 @@ For a file like mark_abc.txt we can match the abc part but make sure it is conta
 The BRex API provides a range of matching/testing algorithms for various text processing scenarios. All matching algorithms are specialized (via templates) for both Unicode and ASCII processing.
 
 ### Testing for a match
-The simplist case is to take a string (or slice/view) and test if it is in the language described by the BRex expression. This is the `test` method.
+The simplist case is to take a string and test if it is in the language described by the BRex expression. This is the `test` method.
 ```C
 bool test(TStr* sstr, ExecutorError& error);
 ```
 
-More interesting is allowing anchors that extend beyond the bounds of the view. Useful for lookahead or behind parsing scenarios.
-```C
-bool test(TStr* sstr, int64_t spos, int64_t epos, bool oobPrefix, bool oobPostfix, ExecutorError& error);
-```
-
-In this case the string between `spos` and `epos` is matched and, if desired, the `oobPrefix`/`oobPostfix` flags are set too allow the anchor expressions to extend beyond these bounds.
-
-BRex similarly provides a `testFront` and `testBack` method that allow for testing if a string starts or ends with a match to the BRex expression as well as a `testContains`.
+In this case the string between `spos` and `epos` is matched. BRex similarly provides a `testFront` and `testBack` method that allow for testing if a string starts or ends with a match to the BRex expression as well as a `testContains`.
 
 ### Finding a match
 BRex does not provide grouping or lazy/eager matches. Instead it always finds the longest match **over the full expression** (TODO we also want to allow shortest). This ensures that the matching is unique and predictable. You can then chunk out individual parts of the match in additional.
@@ -170,5 +163,5 @@ std::optional<std::pair<int64_t, int64_t>> matchContains(TStr* sstr, ExecutorErr
 
 Where the `std::pair` result is the start and end position of the FIRST match in the string and the LONGEST possible match.
 
-As with test we also provide `matchFront` and `matchBack` methods that allow for finding the first match at the start or end of the string. And a more verbose version that allows subrange matches and out of bounds anchors.
+As with test we also provide `matchFront` and `matchBack` methods that allow for finding the first match at the start or end of the string. And a more verbose version that allows subrange matches.
         

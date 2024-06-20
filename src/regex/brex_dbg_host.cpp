@@ -72,8 +72,8 @@ int main(int argc, char** argv)
 
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
-    auto ustr = brex::UnicodeString(u8"mark_a.txt");
-    auto uaccepts = uexecutor->test(&ustr, 5, 5, true, true, dummyerr);
+    auto ustr = brex::UnicodeString(u8"mark_a.tmp");
+    auto uaccepts = uexecutor->test(&ustr, 5, 5, dummyerr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;
     }

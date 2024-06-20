@@ -695,50 +695,38 @@ namespace brex
             return u8'<' + this->re->toBSQONFormat() + u8'>';
         }
 
-        bool canUseInTest(bool oobPrefix, bool oobPostfix) const
+        bool canUseInTestOperation() const
         {
-            //Simple -- anchors don't make sense in a test unless we allow OOB prefix or postfix
             if(this->preanchor == nullptr && this->postanchor == nullptr) {
                 return true;
             }
             else {
-                return (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr);
+                return this->re->isContainsable();
             }
         }
 
-        bool canStartsWith(bool oobPrefix) const
+        bool canStartsOperation() const
         {
-            //either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
-            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
+            if(this->preanchor == nullptr) {
+                return this->re->isMatchable();
+            }
+            else {
+                return this->re->isContainsable();
+            }
         }
 
-        bool canEndsWith(bool oobPostfix) const
+        bool canEndOperation() const
         {
-            //either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
+            if(this->postanchor == nullptr) {
+                return this->re->isMatchable();
+            }
+            else {
+                return this->re->isContainsable();
+            }
         }
 
         bool canUseInContains() const
         {
-            //re must be containsable (e.g. quickly searchable for a match in a larger string) 
-            return this->re->isContainsable();
-        }
-
-        bool canUseInMatchStart(bool oobPrefix) const
-        {
-            //re must be matchable and either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
-            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
-        }
-
-        bool canUseInMatchEnd(bool oobPostfix) const
-        {
-            //re must be matchable and either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
-        }
-
-        bool canUseInMatchContains() const
-        {
-            //re must be matchable (which containsable implies)
             return this->re->isContainsable();
         }
     };

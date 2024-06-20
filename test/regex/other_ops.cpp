@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(repeat09) {
     auto ustr = brex::UnicodeString(u8"123a456");
     auto rr = executor->matchFront(&ustr, err);
 
-    BOOST_CHECK(rr.has_value() && rr.value() == 2);
+    BOOST_CHECK(rr.has_value() && rr.value() == std::make_pair((int64_t)0, (int64_t)2));
 }
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(repeat09) {
     auto ustr = brex::UnicodeString(u8"123a456");
     auto rr = executor->matchBack(&ustr, err);
 
-    BOOST_CHECK(rr.has_value() && rr.value() == 4);
+    BOOST_CHECK(rr.has_value() && rr.value() == std::make_pair((int64_t)4, (int64_t)6));
 }
 BOOST_AUTO_TEST_SUITE_END()
 
