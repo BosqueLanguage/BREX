@@ -30,8 +30,8 @@ namespace bpath
         std::string value = jv["value"].get<std::string>();
         auto astr = brex::unescapeCString((uint8_t*)value.c_str(), value.size());
 
-        BREX_ASSERT(astr.has_value(), "Invalid CString");
-        return new LiteralComponent(astr.value());
+        BREX_ASSERT(astr.first.has_value(), "Invalid CString");
+        return new LiteralComponent(astr.first.value());
     }
 
     WildcardComponent* WildcardComponent::jparse(json jv)
@@ -91,10 +91,10 @@ namespace bpath
         std::string value = jv["value"].get<std::string>();
         auto astr = brex::unescapeCString((uint8_t*)value.c_str(), value.size());
 
-        BREX_ASSERT(astr.has_value(), "Invalid CString");
+        BREX_ASSERT(astr.first.has_value(), "Invalid CString");
 
         //TODO: need to do more validation here -- like newline is not cool
-        return new SegmentLiteralComponent(astr.value());
+        return new SegmentLiteralComponent(astr.first.value());
     }
 
     SegmentWildcardComponent* SegmentWildcardComponent::jparse(json jv)

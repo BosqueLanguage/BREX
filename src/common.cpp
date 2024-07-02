@@ -96,9 +96,6 @@ namespace brex
     std::vector<std::pair<uint8_t, const char*>> s_escape_names_char = {
         {9, "%t;"},
         {10, "%n;"},
-        {11, "%v;"},
-        {12, "%f;"},
-        {13, "%r;"},
 
         {32, "%space;"},
         {33, "%bang;"},
@@ -136,6 +133,16 @@ namespace brex
         {125, "%rbrace;"},
         {126, "%tilde;"}
     };
+
+    bool isLegalCChar(uint8_t c)
+    {
+        if(c > 127) {
+            return false;
+        }
+        else {
+            return std::isprint(c) || (c == '\t') || (c == '\n');
+        }
+    }
 
     int64_t UnicodeRegexIterator::charCodeByteCount() const
     {
@@ -236,7 +243,7 @@ namespace brex
             return std::nullopt;
         }
         else {
-            if(ischar && cval <= 127 && !std::isprint(cval) && !std::isspace(cval)) {
+            if(ischar && cval <= 127 && !isLegalCChar(cval)) {
                 return std::nullopt;
             }
 
@@ -289,7 +296,7 @@ namespace brex
             return std::nullopt;
         }
         else {
-            if(cval <= 127 && !std::isprint(cval) && !std::isspace(cval)) {
+            if(!isLegalCChar(cval)) {
                 return std::nullopt;
             }
 
@@ -351,35 +358,52 @@ namespace brex
             return std::nullopt;
         }
         else {
-            if(ii->first <= 127 && !std::isprint(ii->first) && !std::isspace(ii->first)) {
-                return std::nullopt;
-            }
-
             return std::make_optional(ii->first);
         }
     }
 
-    std::optional<UnicodeString> unescapeUnicodeString(const uint8_t* bytes, size_t length)
+    size_t msScanCount(const uint8_t* bytes, size_t cpos, size_t length)
+    {
+        size_t count = 0;
+        for(size_t i = cpos + 1; i < length && bytes[i] != '\\'; ++i) {
+            char cc = bytes[i];
+            if(!std::iswspace(cc) || (cc == '\n')) {
+                return 0; //no trailing slash so not an alignment
+            }
+
+            count++;
+        }
+
+        if(count >= 1) {
+            return count + 1; //number of spaces + the trailing slash
+        }
+        else {
+            //it is \n\ which we don't consider an alignment so just eat the newline
+            return 0;
+        }
+    }
+
+    std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeStringLiteralGeneral(const uint8_t* bytes, size_t length, bool multilinechk)
     {
         std::vector<UnicodeStringChar> acc;
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
 
             if(c <= 127 && !std::isprint(c) && !std::isspace(c)) {
-                return std::nullopt;
+                return std::make_pair(std::nullopt, std::make_optional(u8"Invalid character in string"));
             }
 
             if(c == '%') {
                 auto sc = std::find(bytes + i, bytes + length, ';');
                 if(sc == bytes + length) {
-                    return std::nullopt;
+                    return std::make_pair(std::nullopt, std::make_optional(u8"Unterminated escape sequence -- missing ;"));
                 }
 
                 if(isHexEscapePrefix(bytes + i, sc + 1)) {
                     //it should be a hex number
                     auto esc = decodeHexEscapeAsUnicode(bytes + i, sc + 1);
                     if(!esc.has_value()) {
-                        return std::nullopt;
+                        return std::make_pair(std::nullopt, std::make_optional(u8"Invalid hex escape sequence -- " + std::u8string(bytes + i, sc + 1)));
                     }
 
                     std::copy(esc.value().cbegin(), esc.value().cend(), std::back_inserter(acc));
@@ -387,7 +411,7 @@ namespace brex
                 else {
                     auto esc = resolveEscapeUnicodeFromName(bytes + i, sc + 1);
                     if(!esc.has_value()) {
-                        return std::nullopt;
+                        return std::make_pair(std::nullopt, std::make_optional(u8"Invalid escape name -- " + std::u8string(bytes + i, sc + 1)));
                     }
 
                     acc.push_back(esc.value());
@@ -396,11 +420,33 @@ namespace brex
                 i += std::distance(bytes + i, sc);
             }
             else {
-                acc.push_back(c);
+                if(multilinechk && c == '\n') {
+                    //check if the text is of the form \n\s+\ and if so then skip then this is a multiline-aligned string so skip the whitespace
+                    auto dist = msScanCount(bytes, i, length);
+                    if(dist == 0) {
+                        acc.push_back(c);
+                    }
+                    else {
+                        i += dist;
+                    }
+                }
+                else {
+                    acc.push_back(c);
+                }
             }
         }
 
-        return std::make_optional<UnicodeString>(acc.cbegin(), acc.cend());
+        return std::make_pair(std::make_optional<UnicodeString>(acc.cbegin(), acc.cend()), std::nullopt);
+    }
+
+    std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeString(const uint8_t* bytes, size_t length)
+    {
+        return unescapeUnicodeStringLiteralGeneral(bytes, length, false);
+    }
+
+    std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeStringLiteralInclMultiline(const uint8_t* bytes, size_t length)
+    {
+        return unescapeUnicodeStringLiteralGeneral(bytes, length, true);
     }
 
     std::vector<uint8_t> escapeUnicodeString(const UnicodeString& sv)
@@ -423,26 +469,26 @@ namespace brex
         return acc;
     }
 
-    std::optional<CString> unescapeCString(const uint8_t* bytes, size_t length)
+    std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCStringGeneral(const uint8_t* bytes, size_t length, bool multilinechk)
     {
         std::vector<CStringChar> acc;
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
 
-            if(!std::isprint(c) && !std::isspace(c)) {
-                return std::nullopt;
+            if(!isLegalCChar(c)) {
+                return std::make_pair(std::nullopt, std::make_optional(u8"Invalid character in string"));
             }
 
             if(c == '%') {
                 auto sc = std::find(bytes + i, bytes + length, ';');
                 if(sc == bytes + length) {
-                    return std::nullopt;
+                    return std::make_pair(std::nullopt, std::make_optional(u8"Unterminated escape sequence -- missing ;"));
                 }
 
                 if(isHexEscapePrefix(bytes + i, sc + 1)) {
                     auto esc = decodeHexEscapeAsC(bytes + i, sc + 1);
                     if(!esc.has_value()) {
-                        return std::nullopt;
+                        return std::make_pair(std::nullopt, std::make_optional(u8"Invalid hex escape sequence -- " + std::u8string(bytes + i, sc + 1)));
                     }
 
                     std::copy(esc.value().cbegin(), esc.value().cend(), std::back_inserter(acc));
@@ -450,7 +496,7 @@ namespace brex
                 else {
                     auto esc = resolveEscapeCFromName(bytes + i, sc + 1);
                     if(!esc.has_value()) {
-                        return std::nullopt;
+                        return std::make_pair(std::nullopt, std::make_optional(u8"Invalid escape name -- " + std::u8string(bytes + i, sc + 1)));
                     }
 
                     acc.push_back(esc.value());
@@ -459,11 +505,33 @@ namespace brex
                 i += std::distance(bytes + i, sc);
             }
             else {
-                acc.push_back(c);
+                if(multilinechk && c == '\n') {
+                    //check if the text is of the form \n\s+\ and if so then skip then this is a multiline-aligned string so skip the whitespace
+                    auto dist = msScanCount(bytes, i, length);
+                    if(dist == 0) {
+                        acc.push_back(c);
+                    }
+                    else {
+                        i += dist;
+                    }
+                }
+                else {
+                    acc.push_back(c);
+                }
             }
         }
 
-        return std::make_optional<CString>(acc.cbegin(), acc.cend());
+        return std::make_pair(std::make_optional<CString>(acc.cbegin(), acc.cend()), std::nullopt);
+    }
+
+    std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCString(const uint8_t* bytes, size_t length)
+    {
+        return unescapeCStringGeneral(bytes, length, false);
+    }
+
+    std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCStringLiteralInclMultiline(const uint8_t* bytes, size_t length)
+    {
+        return unescapeCStringGeneral(bytes, length, true);
     }
 
     std::vector<uint8_t> escapeCString(const CString& sv)

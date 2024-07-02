@@ -161,11 +161,13 @@ namespace brex
     std::vector<uint8_t> extractRegexCharToBytes(RegexChar rc); //utf8 encoded but no escaping
 
     //Take a bytebuffer (of utf8 bytes) with escapes and convert to/from a UnicodeString
-    std::optional<UnicodeString> unescapeUnicodeString(const uint8_t* bytes, size_t length);
+    std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeString(const uint8_t* bytes, size_t length);
+    std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeStringLiteralInclMultiline(const uint8_t* bytes, size_t length);
     std::vector<uint8_t> escapeUnicodeString(const UnicodeString& sv);
 
     //Take a bytebuffer (of char bytes) with escapes and convert to/from an CString
-    std::optional<CString> unescapeCString(const uint8_t* bytes, size_t length);
+    std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCString(const uint8_t* bytes, size_t length);
+    std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCStringLiteralInclMultiline(const uint8_t* bytes, size_t length);
     std::vector<uint8_t> escapeCString(const CString& sv);
 
     //Take a bytebuffer regex literal (of utf8 bytes or chat bytes) with escapes and convert to/from a vector of RegexChars

@@ -34,10 +34,12 @@ std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
 
 int main(int argc, char** argv)
 {
+    /*
     brex::ExecutorError dummyerr;
     std::vector<brex::RegexCompileError> compileerror;
     std::map<std::string, const brex::RegexOpt*> nmap;
     std::map<std::string, const brex::LiteralOpt*> emap;
+    */
 
     /*
     auto apr = brex::RegexParser::parseCRegex("/[%a;]/");
@@ -54,6 +56,7 @@ int main(int argc, char** argv)
     }
     */
 
+    /*
     bool ok = true;
     ok &= dbg_tryParseIntoNameMap("FilenameFragment", u8"/[a-zA-Z0-9_]+/", nmap);
     if(!ok) {
@@ -80,7 +83,14 @@ int main(int argc, char** argv)
     else {
         std::cout << "Rejected Unicode" << std::endl;
     }
+    */
 
+
+    auto str = std::u8string(u8"%");
+    auto res = brex::unescapeUnicodeStringLiteralInclMultiline((uint8_t*)str.c_str(), str.size());
+
+    auto xstr = res.second.value();
+    std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
 
     return 0;
 }
