@@ -21,8 +21,8 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForUnicodeTest(const std::u8s
     return std::make_optional(executor);
 }
 
-std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
+std::optional<brex::CRegexExecutor*> tryParseForCTest(const std::string& str) {
+    auto pr = brex::RegexParser::parseCRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }
@@ -30,7 +30,7 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string&
     std::map<std::string, const brex::RegexOpt*> namemap;
     std::map<std::string, const brex::LiteralOpt*> envmap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileASCIIRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
+    auto executor = brex::RegexCompiler::compileCRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
         return std::nullopt;
     }
@@ -40,7 +40,7 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIITest(const std::string&
 
 #define ACCEPTS_TEST_UNICODE(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
-#define ACCEPTS_TEST_ASCII(RE, STR, ACCEPT) {auto uustr = brex::ASCIIString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
+#define ACCEPTS_TEST_C(RE, STR, ACCEPT) {auto uustr = brex::CString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
 BOOST_AUTO_TEST_SUITE(Test)
 
@@ -89,37 +89,37 @@ BOOST_AUTO_TEST_CASE(escape) {
     ACCEPTS_TEST_UNICODE(executor, u8"%_aa", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(abc) {
-    auto texecutor = tryParseForASCIITest("/'abc'/");
+    auto texecutor = tryParseForCTest("/'abc'/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "abc", true);
-    ACCEPTS_TEST_ASCII(executor, "ab", false);
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "abc", true);
+    ACCEPTS_TEST_C(executor, "ab", false);
+    ACCEPTS_TEST_C(executor, "", false);
 
-    ACCEPTS_TEST_ASCII(executor, "abcd", false);
-    ACCEPTS_TEST_ASCII(executor, "xab", false);
+    ACCEPTS_TEST_C(executor, "abcd", false);
+    ACCEPTS_TEST_C(executor, "xab", false);
 }
 
 BOOST_AUTO_TEST_CASE(eps) {
-    auto texecutor = tryParseForASCIITest("/''/");
+    auto texecutor = tryParseForCTest("/''/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "abc", false);
-    ACCEPTS_TEST_ASCII(executor, "", true);
+    ACCEPTS_TEST_C(executor, "abc", false);
+    ACCEPTS_TEST_C(executor, "", true);
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    auto texecutor = tryParseForASCIITest("/'%%;%underscore;%x32;'/");
+    auto texecutor = tryParseForCTest("/'%%;%underscore;%x32;'/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "%_2", true);
-    ACCEPTS_TEST_ASCII(executor, "aaa", false);
-    ACCEPTS_TEST_ASCII(executor, "%_aa", false);
+    ACCEPTS_TEST_C(executor, "%_2", true);
+    ACCEPTS_TEST_C(executor, "aaa", false);
+    ACCEPTS_TEST_C(executor, "%_aa", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -214,69 +214,69 @@ BOOST_AUTO_TEST_CASE(complimentemoji) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(opts3) {
-    auto texecutor = tryParseForASCIITest("/[06a]/");
+    auto texecutor = tryParseForCTest("/[06a]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "0", true);
-    ACCEPTS_TEST_ASCII(executor, "a", true);
-    ACCEPTS_TEST_ASCII(executor, "6", true);
-    ACCEPTS_TEST_ASCII(executor, "1", false);
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "0", true);
+    ACCEPTS_TEST_C(executor, "a", true);
+    ACCEPTS_TEST_C(executor, "6", true);
+    ACCEPTS_TEST_C(executor, "1", false);
+    ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(optsrng) {
-    auto texecutor = tryParseForASCIITest("/[0-9]/");
+    auto texecutor = tryParseForCTest("/[0-9]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "0", true);
-    ACCEPTS_TEST_ASCII(executor, "3", true);
-    ACCEPTS_TEST_ASCII(executor, "9", true);
-    ACCEPTS_TEST_ASCII(executor, "a", false);
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "0", true);
+    ACCEPTS_TEST_C(executor, "3", true);
+    ACCEPTS_TEST_C(executor, "9", true);
+    ACCEPTS_TEST_C(executor, "a", false);
+    ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(optshat) {
-    auto texecutor = tryParseForASCIITest("/[0^]/");
+    auto texecutor = tryParseForCTest("/[0^]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "0", true);
-    ACCEPTS_TEST_ASCII(executor, "^", true);
-    ACCEPTS_TEST_ASCII(executor, "1", false);
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "0", true);
+    ACCEPTS_TEST_C(executor, "^", true);
+    ACCEPTS_TEST_C(executor, "1", false);
+    ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    auto texecutor = tryParseForASCIITest("/[0-9 +]/");
+    auto texecutor = tryParseForCTest("/[0-9 +]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "0", true);
-    ACCEPTS_TEST_ASCII(executor, "5", true);
-    ACCEPTS_TEST_ASCII(executor, " ", true);
-    ACCEPTS_TEST_ASCII(executor, "+", true);
-    ACCEPTS_TEST_ASCII(executor, "a", false);
+    ACCEPTS_TEST_C(executor, "0", true);
+    ACCEPTS_TEST_C(executor, "5", true);
+    ACCEPTS_TEST_C(executor, " ", true);
+    ACCEPTS_TEST_C(executor, "+", true);
+    ACCEPTS_TEST_C(executor, "a", false);
 }
 BOOST_AUTO_TEST_CASE(compliment) {
-    auto texecutor = tryParseForASCIITest("/[^A-Z]/");
+    auto texecutor = tryParseForCTest("/[^A-Z]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "0", true);
-    ACCEPTS_TEST_ASCII(executor, "A", false);
-    ACCEPTS_TEST_ASCII(executor, "Q", false);
+    ACCEPTS_TEST_C(executor, "0", true);
+    ACCEPTS_TEST_C(executor, "A", false);
+    ACCEPTS_TEST_C(executor, "Q", false);
 }
 BOOST_AUTO_TEST_CASE(complimet2) {
-    auto texecutor = tryParseForASCIITest("/[^A-Z0a-c]/");
+    auto texecutor = tryParseForCTest("/[^A-Z0a-c]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "5", true);
-    ACCEPTS_TEST_ASCII(executor, " ", true);
-    ACCEPTS_TEST_ASCII(executor, "^", true);
-    ACCEPTS_TEST_ASCII(executor, "0", false);
-    ACCEPTS_TEST_ASCII(executor, "b", false);
+    ACCEPTS_TEST_C(executor, "5", true);
+    ACCEPTS_TEST_C(executor, " ", true);
+    ACCEPTS_TEST_C(executor, "^", true);
+    ACCEPTS_TEST_C(executor, "0", false);
+    ACCEPTS_TEST_C(executor, "b", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -329,45 +329,45 @@ BOOST_AUTO_TEST_CASE(comborng) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    auto texecutor = tryParseForASCIITest("/./");
+    auto texecutor = tryParseForCTest("/./");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "a", true);
-    ACCEPTS_TEST_ASCII(executor, ".", true);
-    ACCEPTS_TEST_ASCII(executor, " ", true);
+    ACCEPTS_TEST_C(executor, "a", true);
+    ACCEPTS_TEST_C(executor, ".", true);
+    ACCEPTS_TEST_C(executor, " ", true);
 
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(dotrng) {
-    auto texecutor = tryParseForASCIITest("/[.b]/");
+    auto texecutor = tryParseForCTest("/[.b]/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "a", false);
-    ACCEPTS_TEST_ASCII(executor, ".", true);
-    ACCEPTS_TEST_ASCII(executor, "b", true);
+    ACCEPTS_TEST_C(executor, "a", false);
+    ACCEPTS_TEST_C(executor, ".", true);
+    ACCEPTS_TEST_C(executor, "b", true);
 
-    ACCEPTS_TEST_ASCII(executor, "", false);
+    ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(combobe) {
-    auto texecutor = tryParseForASCIITest("/.'b'./");
+    auto texecutor = tryParseForCTest("/.'b'./");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, ".b.", true);
-    ACCEPTS_TEST_ASCII(executor, "bbx", true);
-    ACCEPTS_TEST_ASCII(executor, "ab", false);
+    ACCEPTS_TEST_C(executor, ".b.", true);
+    ACCEPTS_TEST_C(executor, "bbx", true);
+    ACCEPTS_TEST_C(executor, "ab", false);
 }
 BOOST_AUTO_TEST_CASE(comborng) {
-    auto texecutor = tryParseForASCIITest("/[0-9]./");
+    auto texecutor = tryParseForCTest("/[0-9]./");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII(executor, "9b", true);
-    ACCEPTS_TEST_ASCII(executor, "ab", false);
+    ACCEPTS_TEST_C(executor, "9b", true);
+    ACCEPTS_TEST_C(executor, "ab", false);
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()

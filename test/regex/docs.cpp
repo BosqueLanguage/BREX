@@ -63,8 +63,8 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForNameSubTest(const std::u8s
     return std::make_optional(executor);
 }
 
-std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
+std::optional<brex::CRegexExecutor*> tryParseForCDocsTest(const std::string& str) {
+    auto pr = brex::RegexParser::parseCRegex(str, false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }
@@ -72,7 +72,7 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::str
     std::map<std::string, const brex::RegexOpt*> namemap;
     std::map<std::string, const brex::LiteralOpt*> envmap;
     std::vector<brex::RegexCompileError> compileerror;
-    auto executor = brex::RegexCompiler::compileASCIIRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
+    auto executor = brex::RegexCompiler::compileCRegexToExecutor(pr.first.value(), namemap, envmap, false, nullptr, nullptr, compileerror);
     if(!compileerror.empty()) {
         return std::nullopt;
     }
@@ -83,7 +83,7 @@ std::optional<brex::ASCIIRegexExecutor*> tryParseForASCIIDocsTest(const std::str
 #define ACCEPTS_TEST_UNICODE_DOCS(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 #define ACCEPTS_TEST_UNICODE_RNG_DOCS(RE, STR, SPOS, EPOS, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, SPOS, EPOS, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
-#define ACCEPTS_TEST_ASCII_DOCS(RE, STR, ACCEPT) {auto uustr = brex::ASCIIString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
+#define ACCEPTS_TEST_C_DOCS(RE, STR, ACCEPT) {auto uustr = brex::CString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
 BOOST_AUTO_TEST_SUITE(Docs)
 
@@ -112,14 +112,14 @@ BOOST_AUTO_TEST_CASE(thisisaliteralpepper) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abcd", false);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"unicode ", false);
 }
-BOOST_AUTO_TEST_CASE(thisisaliteralascii) {
-    auto texecutor = tryParseForASCIIDocsTest("/'ascii literals %x59;'/");
+BOOST_AUTO_TEST_CASE(thisisaliteralc) {
+    auto texecutor = tryParseForCDocsTest("/'char literals %x59;'/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII_DOCS(executor, "bob", false);
-    ACCEPTS_TEST_ASCII_DOCS(executor, "ascii literals Y", true);
-    ACCEPTS_TEST_ASCII_DOCS(executor, "ascii literals Z", false);
+    ACCEPTS_TEST_C_DOCS(executor, "bob", false);
+    ACCEPTS_TEST_C_DOCS(executor, "char literals Y", true);
+    ACCEPTS_TEST_C_DOCS(executor, "char literals Z", false);
 }
 BOOST_AUTO_TEST_CASE(twoescapesparse) {
     auto texecutor = tryParseForUnicodeDocsTest(u8"/\"%x7;%x0;\"/");
@@ -203,17 +203,17 @@ BOOST_AUTO_TEST_CASE(aeiou) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"ae ", false);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"haec ", false);
 }
-BOOST_AUTO_TEST_CASE(aeiouascii) {
-    auto texecutor = tryParseForASCIIDocsTest("/'h'[aeiou]+/");
+BOOST_AUTO_TEST_CASE(aeiouc) {
+    auto texecutor = tryParseForCDocsTest("/'h'[aeiou]+/");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_ASCII_DOCS(executor, "", false);
-    ACCEPTS_TEST_ASCII_DOCS(executor, "ha", true);
+    ACCEPTS_TEST_C_DOCS(executor, "", false);
+    ACCEPTS_TEST_C_DOCS(executor, "ha", true);
 
-    ACCEPTS_TEST_ASCII_DOCS(executor, "h", false);
-    ACCEPTS_TEST_ASCII_DOCS(executor, "ae ", false);
-    ACCEPTS_TEST_ASCII_DOCS(executor, "haec ", false);
+    ACCEPTS_TEST_C_DOCS(executor, "h", false);
+    ACCEPTS_TEST_C_DOCS(executor, "ae ", false);
+    ACCEPTS_TEST_C_DOCS(executor, "haec ", false);
 }
 BOOST_AUTO_TEST_CASE(aeiouspaces) {
     auto texecutor = tryParseForUnicodeDocsTest(u8"/\n    \"h\" %%starts with h \n  %* comment *%  [aeiou]+ %%then aeiou\n/");

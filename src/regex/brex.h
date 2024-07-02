@@ -50,7 +50,7 @@ namespace brex
                 return u8'"' + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8'"';
             }
             else {
-                auto bbytes = escapeRegexASCIILiteralCharBuffer(this->codes);
+                auto bbytes = escapeRegexCLiteralCharBuffer(this->codes);
                 return u8"'" + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8"'";
             }
         }
@@ -89,13 +89,13 @@ namespace brex
             for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
                 auto cr = *ii;
 
-                auto lowbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.low) : escapeSingleASCIIRegexChar(cr.low);
+                auto lowbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.low) : escapeSingleCRegexChar(cr.low);
                 rngs.append(lowbytes.cbegin(), lowbytes.cend());
 
                 if(cr.low != cr.high) {
                     rngs.push_back('-');
                     
-                    auto highbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.high) : escapeSingleASCIIRegexChar(cr.high);
+                    auto highbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.high) : escapeSingleCRegexChar(cr.high);
                     rngs.append(highbytes.cbegin(), highbytes.cend());
                 }
             }
@@ -626,7 +626,7 @@ namespace brex
     enum class RegexCharInfoTag
     {
         Unicode,
-        ASCII
+        Char
     };
 
     class Regex
@@ -645,7 +645,7 @@ namespace brex
         static Regex* jparse(json j)
         {
             auto rtag = (!j.contains("isPath") || j["isPath"].is_null()) ? RegexKindTag::Std : RegexKindTag::Path;
-            auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
+            auto ctag = (!j.contains("isChar") || !j["isChar"].get<bool>()) ? RegexCharInfoTag::Char : RegexCharInfoTag::Unicode;
 
             auto preanchor = (!j.contains("preanchor") || j["preanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["preanchor"]);
             auto postanchor = (!j.contains("postanchor") || j["postanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["postanchor"]);
@@ -678,8 +678,8 @@ namespace brex
                 fchar = u8"p";
             }
             else {
-                if(this->ctag == RegexCharInfoTag::ASCII) {
-                    fchar = u8"a";
+                if(this->ctag == RegexCharInfoTag::Char) {
+                    fchar = u8"c";
                 }
             }
 
@@ -688,7 +688,7 @@ namespace brex
 
         std::u8string toBSQONGlobFormat() const 
         {
-            BREX_ASSERT(this->ctag == RegexCharInfoTag::ASCII, "only ASCII regexes can be converted to glob format");
+            BREX_ASSERT(this->ctag == RegexCharInfoTag::Char, "only char regexes can be converted to glob format");
             BREX_ASSERT(this->preanchor == nullptr, "only regexes without a preanchor can be converted to glob format");
             BREX_ASSERT(this->postanchor == nullptr, "only regexes without a postanchor can be converted to glob format");
 

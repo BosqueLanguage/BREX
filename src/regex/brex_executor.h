@@ -576,5 +576,5 @@ namespace brex
     };
 
     typedef REExecutor<UnicodeString, UnicodeRegexIterator> UnicodeRegexExecutor;
-    typedef REExecutor<ASCIIString, ASCIIRegexIterator> ASCIIRegexExecutor;
+    typedef REExecutor<CString, CRegexIterator> CRegexExecutor;
 }

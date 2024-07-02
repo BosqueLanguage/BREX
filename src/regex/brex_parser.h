@@ -33,13 +33,12 @@ namespace brex
         const uint8_t* epos;
 
         const bool isUnicode;
-        const bool isStrictASCII;
         bool envAllowed;
 
         size_t cline;
         std::vector<RegexParserError> errors;
 
-        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), isStrictASCII(isStrictASCII), envAllowed(envAllowed), cline(0), errors() {;}
+        RegexParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : data(data), cpos(const_cast<uint8_t*>(data)), epos(data + len), isUnicode(isUnicode), envAllowed(envAllowed), cline(0), errors() {;}
         ~RegexParser() = default;
 
         inline bool isEOS() const
@@ -224,7 +223,7 @@ namespace brex
                 }
             }
             else {
-                auto encerr = parserValidateAllASCIIEncoding_SingleChar(this->cpos, this->epos, this->isStrictASCII);
+                auto encerr = parserValidateAllCEncoding_SingleChar(this->cpos, this->epos);
                 if(encerr.has_value()) {
                     this->errors.push_back(RegexParserError(this->cline, encerr.value()));
                     this->scanToSyncToken(']', false);
@@ -242,14 +241,14 @@ namespace brex
                     ccode = unescapeSingleUnicodeRegexChar(this->cpos, tpos + 1);
                 }
                 else {
-                    ccode = unescapeSingleASCIIRegexChar(this->cpos, tpos + 1, this->isStrictASCII);
+                    ccode = unescapeSingleCRegexChar(this->cpos, tpos + 1);
                 }
 
                 if(ccode.has_value()) {
                     code = ccode.value();
                 }
                 else {
-                    auto errors = parserValidateEscapeSequences(!unicodeok, this->isStrictASCII, this->cpos, tpos + 1);
+                    auto errors = parserValidateEscapeSequences(!unicodeok, this->cpos, tpos + 1);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -307,7 +306,7 @@ namespace brex
                 auto codes = unescapeUnicodeRegexLiteral(this->cpos + 1, length);
 
                 if(!codes.has_value()) {
-                    auto errors = parserValidateEscapeSequences(false, this->isStrictASCII, this->cpos + 1, this->cpos + 1 + length);
+                    auto errors = parserValidateEscapeSequences(false, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -323,14 +322,14 @@ namespace brex
             }
         }
 
-        const LiteralOpt* parseASCIILiteral()
+        const LiteralOpt* parseCLiteral()
         {
             //read to closing ' -- check for raw newlines in the expression
             size_t length = 0;
             auto curr = this->cpos + 1;
             while(curr != this->epos && *curr != '\'') {
                 if(*curr <= 127 && !std::isprint(*curr) && !std::isblank(*curr)) {
-                    auto esccname = parserGenerateDiagnosticASCIIEscapeName(*curr);
+                    auto esccname = parserGenerateDiagnosticCEscapeName(*curr);
                     auto esccode = parserGenerateDiagnosticEscapeCode(*curr);
                     this->errors.push_back(RegexParserError(this->cline, u8"Newlines and non-printable chars are not allowed regex literals -- escape them with " + esccname + u8" or " + esccode));
                     return nullptr;
@@ -352,7 +351,7 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
 
-            auto bytechecks = parserValidateAllASCIIEncoding(this->cpos + 1, this->cpos + 1 + length);
+            auto bytechecks = parserValidateAllCEncoding(this->cpos + 1, this->cpos + 1 + length);
             if(bytechecks.has_value()) {
                 this->errors.push_back(RegexParserError(this->cline, bytechecks.value()));
                 this->cpos = curr + 1;
@@ -360,10 +359,10 @@ namespace brex
                 return new LiteralOpt({ }, false);
             }
             else {
-                auto codes = unescapeASCIIRegexLiteral(this->cpos + 1, length, this->isStrictASCII);
+                auto codes = unescapeCRegexLiteral(this->cpos + 1, length);
 
                 if(!codes.has_value()) {
-                    auto errors = parserValidateEscapeSequences(true, this->isStrictASCII, this->cpos + 1, this->cpos + 1 + length);
+                    auto errors = parserValidateEscapeSequences(true, this->cpos + 1, this->cpos + 1 + length);
                     for(auto ii = errors.cbegin(); ii != errors.cend(); ii++) {
                         this->errors.push_back(RegexParserError(this->cline, *ii));
                     }
@@ -508,17 +507,17 @@ namespace brex
                     res = this->parseUnicodeLiteral();
                 }
                 else {
-                    this->errors.push_back(RegexParserError(this->cline, u8"Unicode literals are not allowed in ASCII regexes"));
+                    this->errors.push_back(RegexParserError(this->cline, u8"Unicode literals are not allowed in char regexes"));
                     this->scanToSyncToken('"', true);
                     res = new LiteralOpt({}, false);
                 }
             }
             else if(this->isToken('\'')) {
                 if(!this->isUnicode) {
-                    res = this->parseASCIILiteral();
+                    res = this->parseCLiteral();
                 }
                 else {
-                    this->errors.push_back(RegexParserError(this->cline, u8"ASCII literals are not allowed in Unicode regexes"));
+                    this->errors.push_back(RegexParserError(this->cline, u8"Char literals are not allowed in Unicode regexes"));
                     this->scanToSyncToken('\'', true);
                     res = new LiteralOpt({}, true);  
                 }
@@ -774,7 +773,7 @@ namespace brex
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isStrictASCII, bool isPath, bool envAllowed)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool envAllowed)
         {
             if(len < 1) {
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Empty string is not a valid regex -- must be of form /.../")});
@@ -787,7 +786,7 @@ namespace brex
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
             }
 
-            auto parser = RegexParser(data + 1, len - 2, isUnicode, isStrictASCII, envAllowed);
+            auto parser = RegexParser(data + 1, len - 2, isUnicode, envAllowed);
 
             std::vector<RegexComponent*> rv;
             bool preanchor = false;
@@ -883,7 +882,7 @@ namespace brex
                 return std::make_pair(std::nullopt, parser.errors);
             }
 
-            auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::ASCII;
+            auto chartype = isUnicode ? RegexCharInfoTag::Unicode : RegexCharInfoTag::Char;
             auto kindtag = isPath ? RegexKindTag::Path : RegexKindTag::Std;
 
             return std::make_pair(std::make_optional(new Regex(kindtag, chartype, prere, postre, re)), std::vector<RegexParserError>());
@@ -891,17 +890,17 @@ namespace brex
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseUnicodeRegex(const std::u8string& re, bool envAllowed)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, false, envAllowed);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, envAllowed);
         }
 
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseASCIIRegex(const std::string& re, bool envAllowed)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseCRegex(const std::string& re, bool envAllowed)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, false, envAllowed);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), false, false, envAllowed);
         }
 
         static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parsePathRegex(const std::string& re, bool envAllowed)
         {
-            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, false, envAllowed);
+            return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, envAllowed);
         }
     };
 }

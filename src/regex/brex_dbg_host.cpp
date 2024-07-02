@@ -40,17 +40,17 @@ int main(int argc, char** argv)
     std::map<std::string, const brex::LiteralOpt*> emap;
 
     /*
-    auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
+    auto apr = brex::RegexParser::parseCRegex("/[%a;]/");
 
-    auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
+    auto aexecutor = brex::RegexCompiler::compileCRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
-    auto aastr = brex::ASCIIString("abc");
+    auto aastr = brex::CString("abc");
     auto aaccepts = aexecutor->test(&aastr, dummyerr);
     if(aaccepts) {
-        std::cout << "Accepted ASCII" << std::endl;
+        std::cout << "Accepted Chars" << std::endl;
     }
     else {
-        std::cout << "Rejected ASCII" << std::endl;
+        std::cout << "Rejected Chars" << std::endl;
     }
     */
 

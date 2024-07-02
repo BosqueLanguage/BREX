@@ -21,12 +21,12 @@ Specific goals for the BRex language include:
 
 - **Tooling**: As part of the BRex project we aim to provide a rich tooling ecosystem for working with these expressions. This includes tools for testing, sampling inputs, and synthesizing expressions from examples, and IDE highlighting/linting.
 
-- **Universality** BRex is designed for everyone! Unicode (utf8) support is part of the design and implementation from the start and ASCII regexes are a distinct subset for use where the simplicity of the ASCII subset is desired.
+- **Universality** BRex is designed for everyone! Unicode (utf8) support is part of the design and implementation from the start and simple Char regexes are a distinct subset for use where the simplicity of the printable + whitespace ASCII subset is desired.
 
 ## Overall Design
 BRex introduces new (text)[docs/regex_semantics.md] and (path)[docs/path_semantics.md] languages + core infrastructure components for structured text processing. The goal is to provide a core [native API](docs/native_api.md) for embedding into other applications that operates on byte buffers and provides a uniform interface for operating on strings with regular expressions. On top of this core API this project exposes a Node.js native module **TODO** and a (command line tool)[docs/brex_cmd.md], `brex`, that provides a simple AWK like interface for using BRex expressions to process text files. Finally, the project plans to leverage improvements in the expression semantics to create improved (and novel new) tools to working with these languages (see the issues tracker).
 
-Unicode support is a foundational part of the BRex design and implementation. As such the BRex language support the full unicode char set and is fully utf8 aware. However, in many cases the simplicity of ASCII regexes is desired and BRex provides an explicit ASCII regex and processing pipeline as well. 
+Unicode support is a foundational part of the BRex design and implementation. As such the BRex language support the full unicode char set and is fully utf8 aware. However, in many cases the simplicity is desired and BRex provides an explicit simple ASCII Char regex and processing pipeline as well. 
 
 The matching engine is based on a NFA simulation to ensure that the average case performance is efficient and that the worst case performance is not pathalogical ([ReDOS](https://en.wikipedia.org/wiki/ReDoS)). We also restrict the regex forms used in searching so that we can always use a fast string search algorithm (e.g. [Boyer-Moore](https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm)) to quickly scan for start/end positions. This ensures that BRex can be used in a wide range of applications, particularly data validation, without severe risks around performance issues.
 
@@ -59,9 +59,9 @@ In BRex this is expressed as and defaults to a Unicode regex:
 /"h"[aeiou]+/
 ```
 
-We can also specify that it matches ASCII (using an ascii literal and the `a` flag):
+We can also specify that it matches ASCII printable and whitespace (using an c literal and the `c` flag):
 ```
-/'h'[aeiou]+/a
+/'h'[aeiou]+/c
 ```
 
 Comments and line breaks are fine too (note whitespace is ignored outside of literals and ranges):

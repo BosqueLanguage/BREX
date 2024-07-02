@@ -202,10 +202,10 @@ namespace brex
             return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
-        static ASCIIRegexExecutor* compileASCIIRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        static CRegexExecutor* compileCRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
         {
-            if(re->ctag != RegexCharInfoTag::ASCII) {
-                errinfo.push_back(RegexCompileError(u8"Expected an ASCII regex"));
+            if(re->ctag != RegexCharInfoTag::Char) {
+                errinfo.push_back(RegexCompileError(u8"Expected an char regex"));
                 return nullptr;
             }
 
@@ -214,13 +214,13 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<ASCIIString, ASCIIRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
-        static ASCIIRegexExecutor* compilePathRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        static CRegexExecutor* compilePathRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
         {
-            if(re->ctag != RegexCharInfoTag::ASCII) {
-                errinfo.push_back(RegexCompileError(u8"Expected an ASCII regex"));
+            if(re->ctag != RegexCharInfoTag::Char) {
+                errinfo.push_back(RegexCompileError(u8"Expected an char regex"));
                 return nullptr;
             }
 
@@ -229,7 +229,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<ASCIIString, ASCIIRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
     };
 }

@@ -24,8 +24,8 @@ void checkAndReportOkUnicodeResult(const std::u8string& str, const std::u8string
 
 #define PARSE_TEST_UNICODE(RE, EX) { auto res = tryParseForTestOk_Unicode(RE); BOOST_CHECK(res.has_value()); checkAndReportOkUnicodeResult(res.value(), EX); }
 
-std::optional<std::u8string> tryParseForTestOk_ASCII(const std::string& str) {
-    auto pr = brex::RegexParser::parseASCIIRegex(str, false);
+std::optional<std::u8string> tryParseForTestOk_C(const std::string& str) {
+    auto pr = brex::RegexParser::parseCRegex(str, false);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
     }
@@ -34,7 +34,7 @@ std::optional<std::u8string> tryParseForTestOk_ASCII(const std::string& str) {
     }
 }
 
-void checkAndReportOkASCIIResult(const std::u8string& str, const std::u8string& expected) {
+void checkAndReportOkCResult(const std::u8string& str, const std::u8string& expected) {
     if(str != expected) {
         std::cout << "Expected: " << std::string(expected.cbegin(), expected.cend()) << std::endl;
         std::cout << "Got: " << std::string(str.cbegin(), str.cend()) << std::endl;
@@ -43,7 +43,7 @@ void checkAndReportOkASCIIResult(const std::u8string& str, const std::u8string& 
     BOOST_ASSERT(str == expected);
 }
 
-#define PARSE_TEST_ASCII(RE, EX) { auto res = tryParseForTestOk_ASCII(RE); BOOST_CHECK(res.has_value()); checkAndReportOkASCIIResult(res.value(), EX); }
+#define PARSE_TEST_C(RE, EX) { auto res = tryParseForTestOk_C(RE); BOOST_CHECK(res.has_value()); checkAndReportOkCResult(res.value(), EX); }
 
 BOOST_AUTO_TEST_SUITE(ParsingOk)
 
@@ -74,21 +74,21 @@ BOOST_AUTO_TEST_CASE(escape) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(abc) {
-    PARSE_TEST_ASCII("/'abc'/", u8"/'abc'/a");
+    PARSE_TEST_C("/'abc'/", u8"/'abc'/c");
 }
 
 BOOST_AUTO_TEST_CASE(eps) {
-    PARSE_TEST_ASCII("/''/", u8"/''/a");
+    PARSE_TEST_C("/''/", u8"/''/c");
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_ASCII("/'%x59;'/", u8"/'Y'/a");
+    PARSE_TEST_C("/'%x59;'/", u8"/'Y'/c");
 
-    PARSE_TEST_ASCII("/'%;'/", u8"/'%;'/a");
-    PARSE_TEST_ASCII("/'%%;'/", u8"/'%%;'/a");
-    PARSE_TEST_ASCII("/'%n;'/", u8"/'%n;'/a");
+    PARSE_TEST_C("/'%;'/", u8"/'%;'/c");
+    PARSE_TEST_C("/'%%;'/", u8"/'%%;'/c");
+    PARSE_TEST_C("/'%n;'/", u8"/'%n;'/c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -117,21 +117,21 @@ BOOST_AUTO_TEST_CASE(escape) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    PARSE_TEST_ASCII("/[06a]/", u8"/[06a]/a");
-    PARSE_TEST_ASCII("/[0-9]/", u8"/[0-9]/a");
-    PARSE_TEST_ASCII("/[0^]/", u8"/[0^]/a");
+    PARSE_TEST_C("/[06a]/", u8"/[06a]/c");
+    PARSE_TEST_C("/[0-9]/", u8"/[0-9]/c");
+    PARSE_TEST_C("/[0^]/", u8"/[0^]/c");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_ASCII("/[0-9 +]/", u8"/[0-9 +]/a");
+    PARSE_TEST_C("/[0-9 +]/", u8"/[0-9 +]/c");
 }
 BOOST_AUTO_TEST_CASE(compliment) {
-    PARSE_TEST_ASCII("/[^A-Z]/", u8"/[^A-Z]/a");
+    PARSE_TEST_C("/[^A-Z]/", u8"/[^A-Z]/c");
 }
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_ASCII("/[%x32;-%tick;]/", u8"/[%;-2]/a");
-    PARSE_TEST_ASCII("/[^%x32; %underscore;]/", u8"/[^2 _]/a");
+    PARSE_TEST_C("/[%x32;-%tick;]/", u8"/[%;-2]/c");
+    PARSE_TEST_C("/[^%x32; %underscore;]/", u8"/[^2 _]/c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -150,14 +150,14 @@ BOOST_AUTO_TEST_CASE(combos) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(ASCII)
+BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    PARSE_TEST_ASCII("/./", u8"/./a");
-    PARSE_TEST_ASCII("/[.]/", u8"/[.]/a");
+    PARSE_TEST_C("/./", u8"/./c");
+    PARSE_TEST_C("/[.]/", u8"/[.]/c");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_ASCII("/.'a'./", u8"/.'a'./a");
-    PARSE_TEST_ASCII("/[0-9]./", u8"/[0-9]./a");
+    PARSE_TEST_C("/.'a'./", u8"/.'a'./c");
+    PARSE_TEST_C("/[0-9]./", u8"/[0-9]./c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
