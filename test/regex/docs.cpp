@@ -81,8 +81,6 @@ std::optional<brex::CRegexExecutor*> tryParseForCDocsTest(const std::string& str
 }
 
 #define ACCEPTS_TEST_UNICODE_DOCS(RE, STR, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
-#define ACCEPTS_TEST_UNICODE_RNG_DOCS(RE, STR, SPOS, EPOS, ACCEPT) {auto uustr = brex::UnicodeString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, SPOS, EPOS, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
-
 #define ACCEPTS_TEST_C_DOCS(RE, STR, ACCEPT) {auto uustr = brex::CString(STR); brex::ExecutorError err; auto accepts = executor->test(&uustr, err); BOOST_CHECK(err == brex::ExecutorError::Ok); BOOST_CHECK(accepts == ACCEPT); }
 
 BOOST_AUTO_TEST_SUITE(Docs)
@@ -332,16 +330,15 @@ BOOST_AUTO_TEST_CASE(anchorfile) {
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"a.txt", 0, 3, false);
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"a.txt", 0, 0, false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.txt", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"a.txt", false);
     
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.txt", 5, 5, true);
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_ab.txt", 5, 6, true);
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.txt", 5, 6, false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mark_a.txt", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mark_ab.txt", true);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mark_a", true); //! is vacuous
 
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mak_a.txt", 4, 4, false);
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.tmp", 5, 5, false);
-    ACCEPTS_TEST_UNICODE_RNG_DOCS(executor, u8"mark_a.tmpa", 5, 5, false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mak_a.txt", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mark_a.tmp", false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

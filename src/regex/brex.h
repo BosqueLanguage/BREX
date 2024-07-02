@@ -463,14 +463,6 @@ namespace brex
 
         static RegexComponent* jparse(json j);
 
-        //TODO: maybe semantic check on containsable that:
-        // (1) does not contain epsilon
-        // (2) has an anchor set for the front *OR* back of the match -- e.g. epsilon is not a prefix or suffix
-        // (3) neither front/back match all chars
-        //
-        // For now lets go for starts or ends with a literal component!!!
-        // This gives us a nice way to know that we can quickly find the contains using Boyer-Moore or some other fast search
-
         virtual bool isContainsable() const = 0;
         virtual bool isMatchable() const = 0;
 
@@ -480,35 +472,6 @@ namespace brex
 
     class RegexSingleComponent : public RegexComponent
     {
-    private: 
-        static bool isOptFastMatchable(const RegexOpt* opt) {
-            auto tag = opt->tag;
-            switch (tag)
-            {
-            case RegexOptTag::Literal: {
-                return true;
-            }
-            case RegexOptTag::CharRange: {
-                return true;
-            }
-            case RegexOptTag::PlusRepeat: {
-                auto popt = static_cast<const PlusRepeatOpt*>(opt);
-                return RegexSingleComponent::isOptFastMatchable(popt->repeat);
-            }
-            case RegexOptTag::RangeRepeat: {
-                auto ropt = static_cast<const RangeRepeatOpt*>(opt);
-                return ropt->low > 0 && RegexSingleComponent::isOptFastMatchable(ropt->repeat);
-            }
-            case RegexOptTag::Sequence: {
-                auto sopt = static_cast<const SequenceOpt*>(opt);
-                return RegexSingleComponent::isOptFastMatchable(sopt->regexs.front()) || RegexSingleComponent::isOptFastMatchable(sopt->regexs.back());
-            }
-            default: {
-                return false;
-            }
-            }
-        }
-
     public:
         const RegexToplevelEntry entry;
 
@@ -532,7 +495,12 @@ namespace brex
                 return false;
             }
             else {
-                return RegexSingleComponent::isOptFastMatchable(this->entry.opt);
+                //
+                //TODO: This gives us a nice way to know that we can quickly find the contains using Boyer-Moore or some other fast search
+                //      Maybe make this warnable (and with ranges) for possible ReDOS issues -- what do bounds look like?
+                //
+
+                return true;
             }
         }
 
