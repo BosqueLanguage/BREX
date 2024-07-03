@@ -675,22 +675,12 @@ namespace brex
 
         bool canStartsOperation() const
         {
-            if(this->preanchor == nullptr) {
-                return this->re->isMatchable();
-            }
-            else {
-                return this->re->isContainsable();
-            }
+            return this->preanchor == nullptr && this->re->isMatchable();
         }
 
         bool canEndOperation() const
         {
-            if(this->postanchor == nullptr) {
-                return this->re->isMatchable();
-            }
-            else {
-                return this->re->isContainsable();
-            }
+            return this->postanchor == nullptr && this->re->isMatchable();
         }
 
         bool canUseInContains() const
