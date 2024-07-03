@@ -12,7 +12,7 @@ std::pair<std::optional<brex::UnicodeString>, std::optional<std::u8string>> vali
 
 #define VALIDATE_TEST_UNICODE(RE, EX) { auto res = validateString_Unicode(RE); BOOST_CHECK(res.first.has_value()); BOOST_ASSERT(res.first.value() == EX); }
 #define VALIDATE_TEST_UNICODE_MULTILINE(RE, EX) { auto res = validateString_Unicode_Multiline(RE); BOOST_CHECK(res.first.has_value()); BOOST_ASSERT(res.first.value() == EX); }
-#define VALIDATE_TEST_UNICODE_FAIL(RE, MSG) { auto res = validateString_Unicode(RE); BOOST_CHECK(res.second.has_value()); std::cout << std::string(res.second.value().cbegin(), res.second.value().cend()) << std::endl; BOOST_ASSERT(res.second.value() == MSG); }
+#define VALIDATE_TEST_UNICODE_FAIL(RE, MSG) { auto res = validateString_Unicode(RE); BOOST_CHECK(res.second.has_value()); BOOST_ASSERT(res.second.value() == MSG); }
 
 std::pair<std::optional<brex::CString>, std::optional<std::u8string>> validateString_CString(const std::string& str) {
     return brex::unescapeCString((uint8_t*)str.c_str(), str.size());
@@ -23,8 +23,8 @@ std::pair<std::optional<brex::CString>, std::optional<std::u8string>> validateSt
 }
 
 #define VALIDATE_TEST_CSTRING(RE, EX) { auto res = validateString_CString(RE); BOOST_CHECK(res.first.has_value()); BOOST_ASSERT(res.first.value() == EX); }
-#define VALIDATE_TEST_CSTRING_MULTILINE(RE, EX) { auto res = validateString_CString_Multiline(RE); BOOST_CHECK(res.has_value()); BOOST_ASSERT(res.first.value() == EX); }
-#define VALIDATE_TEST_CSTRING_FAIL(RE, MSG) { auto res = validateString_CString(RE); BOOST_CHECK(res.second.has_value()); std::cout << std::string(res.second.value().cbegin(), res.second.value().cend()) << std::endl; BOOST_ASSERT(res.second.value() == MSG); }
+#define VALIDATE_TEST_CSTRING_MULTILINE(RE, EX) { auto res = validateString_CString_Multiline(RE); BOOST_CHECK(res.first.has_value()); BOOST_ASSERT(res.first.value() == EX); }
+#define VALIDATE_TEST_CSTRING_FAIL(RE, MSG) { auto res = validateString_CString(RE); BOOST_CHECK(res.second.has_value()); BOOST_ASSERT(res.second.value() == MSG); }
 
 BOOST_AUTO_TEST_SUITE(ValidateString)
 
@@ -83,48 +83,80 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(Literal_ERR)
 BOOST_AUTO_TEST_SUITE(Unicode_ERR)
 BOOST_AUTO_TEST_CASE(escape_ERR) {
-    VALIDATE_TEST_UNICODE_FAIL(u8"%", u8"Unterminated escape sequence -- missing ;");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%x0", u8"Unterminated escape sequence -- missing ;");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%59;", u8"Invalid escape name -- %59;");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%x8f3G;", u8"err4");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%x100000000000;", u8"err5");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%x1f3335;", u8"err6");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%x;", u8"err7");
-    VALIDATE_TEST_UNICODE_FAIL(u8"%bob;", u8"err8");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%", u8"Escape sequence is missing terminal ';'");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%x0", u8"Escape sequence is missing terminal ';'");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%59;", u8"Invalid escape sequence -- unknown escape name '59'");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%x8f3G;", u8"Hex escape sequence contains non-hex characters");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%x100000000000;", u8"Invalid hex escape sequence");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%x1f3335;", u8"Invalid hex escape sequence");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%x;", u8"Invalid escape sequence -- unknown escape name 'x'");
+    VALIDATE_TEST_UNICODE_FAIL(u8"%bob;", u8"Invalid escape sequence -- unknown escape name 'bob'");
 }
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C_ERR)
 BOOST_AUTO_TEST_CASE(chars_ERR) {
     VALIDATE_TEST_CSTRING_FAIL("\3", u8"Invalid character in string");
-    VALIDATE_TEST_CSTRING_FAIL("\177", u8"err11");
-    VALIDATE_TEST_CSTRING_FAIL("\v", u8"err12");
+    VALIDATE_TEST_CSTRING_FAIL("\177", u8"Invalid character in string");
+    VALIDATE_TEST_CSTRING_FAIL("\v", u8"Invalid character in string");
 }
 
 BOOST_AUTO_TEST_CASE(escape_ERR) {
-    VALIDATE_TEST_CSTRING_FAIL("%", u8"Unterminated escape sequence -- missing ;");
-    VALIDATE_TEST_CSTRING_FAIL("%x0", u8"Unterminated escape sequence -- missing ;");
-    VALIDATE_TEST_CSTRING_FAIL("%59;", u8"Invalid escape name -- %59;");
-    VALIDATE_TEST_CSTRING_FAIL("%x8f3G;", u8"err16");
-    VALIDATE_TEST_CSTRING_FAIL("%x100;", u8"err17");
-    VALIDATE_TEST_CSTRING_FAIL("%x7F;", u8"err18");
-    VALIDATE_TEST_CSTRING_FAIL("%x;", u8"err19");
-    VALIDATE_TEST_CSTRING_FAIL("%bob;", u8"err20");
+    VALIDATE_TEST_CSTRING_FAIL("%", u8"Escape sequence is missing terminal ';'");
+    VALIDATE_TEST_CSTRING_FAIL("%x0", u8"Escape sequence is missing terminal ';'");
+    VALIDATE_TEST_CSTRING_FAIL("%59;", u8"Invalid escape sequence -- unknown escape name '59'");
+    VALIDATE_TEST_CSTRING_FAIL("%x8f3G;", u8"Hex escape sequence contains non-hex characters");
+    VALIDATE_TEST_CSTRING_FAIL("%x100;", u8"Invalid hex escape sequence");
+    VALIDATE_TEST_CSTRING_FAIL("%x7F;", u8"Invalid hex escape sequence");
+    VALIDATE_TEST_CSTRING_FAIL("%x;", u8"Invalid escape sequence -- unknown escape name 'x'");
+    VALIDATE_TEST_CSTRING_FAIL("%bob;", u8"Invalid escape sequence -- unknown escape name 'bob'");
 
-    VALIDATE_TEST_CSTRING_FAIL("a🌵c", u8"err21");
-    VALIDATE_TEST_CSTRING_FAIL("%a;", u8"err22");
-    VALIDATE_TEST_CSTRING_FAIL("%x7;", u8"err23");
-    VALIDATE_TEST_CSTRING_FAIL("%x127;", u8"err24");
+    VALIDATE_TEST_CSTRING_FAIL("a🌵c", u8"Invalid Char encoding -- string contains a non-char character");
+    VALIDATE_TEST_CSTRING_FAIL("%a;", u8"Invalid escape sequence -- unknown escape name 'a'");
+    VALIDATE_TEST_CSTRING_FAIL("%x7;", u8"Invalid hex escape sequence");
+    VALIDATE_TEST_CSTRING_FAIL("%x127;", u8"Invalid hex escape sequence");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
 ////
 //Strings with multiple lines
+BOOST_AUTO_TEST_SUITE(Literal_Multiline)
+BOOST_AUTO_TEST_SUITE(Unicode_Multiline)
+BOOST_AUTO_TEST_CASE(abc_Multiline) {
+    VALIDATE_TEST_UNICODE_MULTILINE(u8"ab\n  c", u8"ab\n  c");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(C_Multiline)
+BOOST_AUTO_TEST_CASE(abc_Multiline) {
+    VALIDATE_TEST_CSTRING_MULTILINE("ab\n  c", "ab\n  c");
+}
+BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
 
 ////
 //Strings with alignment
 
+BOOST_AUTO_TEST_SUITE(Literal_MultilineAlign)
+BOOST_AUTO_TEST_SUITE(Unicode_MultilineAlign)
+BOOST_AUTO_TEST_CASE(abc_MultilineAlign) {
+    VALIDATE_TEST_UNICODE_MULTILINE(u8"ab\n \\ c", u8"ab\n c");
+    VALIDATE_TEST_UNICODE_MULTILINE(u8"ab\n \\ c \n   \\  ok", u8"ab\n c \n  ok");
+    VALIDATE_TEST_UNICODE_MULTILINE(u8"ab\n\\ c", u8"ab\n\\ c");
+    VALIDATE_TEST_UNICODE_MULTILINE(u8"ab\n  %backslash; c", u8"ab\n  \\ c");
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(C_MultilineAlign)
+BOOST_AUTO_TEST_CASE(abc_MultilineAlign) {
+    VALIDATE_TEST_CSTRING_MULTILINE("ab\n \\ c", "ab\n c");
+    VALIDATE_TEST_CSTRING_MULTILINE("ab\n \\ c \n   \\  ok", "ab\n c \n  ok");
+    VALIDATE_TEST_CSTRING_MULTILINE("ab\n\\ c", "ab\n\\ c");
+    VALIDATE_TEST_CSTRING_MULTILINE("ab\n  %backslash; c", "ab\n  \\ c");
+}
+BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
 

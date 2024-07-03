@@ -385,6 +385,16 @@ namespace brex
 
     std::pair<std::optional<UnicodeString>, std::optional<std::u8string>> unescapeUnicodeStringLiteralGeneral(const uint8_t* bytes, size_t length, bool multilinechk)
     {
+        auto byteschk = parserValidateUTF8ByteEncoding(bytes, bytes + length);
+        if(byteschk.has_value()) {
+            return std::make_pair(std::nullopt, byteschk);
+        }
+
+        auto eschk = parserValidateEscapeSequences(false, bytes, bytes + length);
+        if(!eschk.empty()) {
+            return std::make_pair(std::nullopt, eschk.front());
+        }
+        
         std::vector<UnicodeStringChar> acc;
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
@@ -423,16 +433,12 @@ namespace brex
                 if(multilinechk && c == '\n') {
                     //check if the text is of the form \n\s+\ and if so then skip then this is a multiline-aligned string so skip the whitespace
                     auto dist = msScanCount(bytes, i, length);
-                    if(dist == 0) {
-                        acc.push_back(c);
-                    }
-                    else {
+                    if(dist != 0) {
                         i += dist;
                     }
                 }
-                else {
-                    acc.push_back(c);
-                }
+                    
+                acc.push_back(c);
             }
         }
 
@@ -471,6 +477,16 @@ namespace brex
 
     std::pair<std::optional<CString>, std::optional<std::u8string>> unescapeCStringGeneral(const uint8_t* bytes, size_t length, bool multilinechk)
     {
+        auto byteschk = parserValidateAllCEncoding(bytes, bytes + length);
+        if(byteschk.has_value()) {
+            return std::make_pair(std::nullopt, byteschk);
+        }
+
+        auto eschk = parserValidateEscapeSequences(true, bytes, bytes + length);
+        if(!eschk.empty()) {
+            return std::make_pair(std::nullopt, eschk.front());
+        }
+
         std::vector<CStringChar> acc;
         for(size_t i = 0; i < length; ++i) {
             uint8_t c = bytes[i];
@@ -508,16 +524,12 @@ namespace brex
                 if(multilinechk && c == '\n') {
                     //check if the text is of the form \n\s+\ and if so then skip then this is a multiline-aligned string so skip the whitespace
                     auto dist = msScanCount(bytes, i, length);
-                    if(dist == 0) {
-                        acc.push_back(c);
-                    }
-                    else {
+                    if(dist != 0) {
                         i += dist;
                     }
                 }
-                else {
-                    acc.push_back(c);
-                }
+                
+                acc.push_back(c);
             }
         }
 
