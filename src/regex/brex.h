@@ -50,7 +50,7 @@ namespace brex
                 return u8'"' + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8'"';
             }
             else {
-                auto bbytes = escapeRegexASCIILiteralCharBuffer(this->codes);
+                auto bbytes = escapeRegexCLiteralCharBuffer(this->codes);
                 return u8"'" + std::u8string(bbytes.cbegin(), bbytes.cend()) + u8"'";
             }
         }
@@ -89,13 +89,13 @@ namespace brex
             for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
                 auto cr = *ii;
 
-                auto lowbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.low) : escapeSingleASCIIRegexChar(cr.low);
+                auto lowbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.low) : escapeSingleCRegexChar(cr.low);
                 rngs.append(lowbytes.cbegin(), lowbytes.cend());
 
                 if(cr.low != cr.high) {
                     rngs.push_back('-');
                     
-                    auto highbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.high) : escapeSingleASCIIRegexChar(cr.high);
+                    auto highbytes = this->isunicode ? escapeSingleUnicodeRegexChar(cr.high) : escapeSingleCRegexChar(cr.high);
                     rngs.append(highbytes.cbegin(), highbytes.cend());
                 }
             }
@@ -463,14 +463,6 @@ namespace brex
 
         static RegexComponent* jparse(json j);
 
-        //TODO: maybe semantic check on containsable that:
-        // (1) does not contain epsilon
-        // (2) has an anchor set for the front *OR* back of the match -- e.g. epsilon is not a prefix or suffix
-        // (3) neither front/back match all chars
-        //
-        // For now lets go for starts or ends with a literal component!!!
-        // This gives us a nice way to know that we can quickly find the contains using Boyer-Moore or some other fast search
-
         virtual bool isContainsable() const = 0;
         virtual bool isMatchable() const = 0;
 
@@ -480,35 +472,6 @@ namespace brex
 
     class RegexSingleComponent : public RegexComponent
     {
-    private: 
-        static bool isOptFastMatchable(const RegexOpt* opt) {
-            auto tag = opt->tag;
-            switch (tag)
-            {
-            case RegexOptTag::Literal: {
-                return true;
-            }
-            case RegexOptTag::CharRange: {
-                return true;
-            }
-            case RegexOptTag::PlusRepeat: {
-                auto popt = static_cast<const PlusRepeatOpt*>(opt);
-                return RegexSingleComponent::isOptFastMatchable(popt->repeat);
-            }
-            case RegexOptTag::RangeRepeat: {
-                auto ropt = static_cast<const RangeRepeatOpt*>(opt);
-                return ropt->low > 0 && RegexSingleComponent::isOptFastMatchable(ropt->repeat);
-            }
-            case RegexOptTag::Sequence: {
-                auto sopt = static_cast<const SequenceOpt*>(opt);
-                return RegexSingleComponent::isOptFastMatchable(sopt->regexs.front()) || RegexSingleComponent::isOptFastMatchable(sopt->regexs.back());
-            }
-            default: {
-                return false;
-            }
-            }
-        }
-
     public:
         const RegexToplevelEntry entry;
 
@@ -532,7 +495,12 @@ namespace brex
                 return false;
             }
             else {
-                return RegexSingleComponent::isOptFastMatchable(this->entry.opt);
+                //
+                //TODO: This gives us a nice way to know that we can quickly find the contains using Boyer-Moore or some other fast search
+                //      Maybe make this warnable (and with ranges) for possible ReDOS issues -- what do bounds look like?
+                //
+
+                return true;
             }
         }
 
@@ -626,7 +594,7 @@ namespace brex
     enum class RegexCharInfoTag
     {
         Unicode,
-        ASCII
+        Char
     };
 
     class Regex
@@ -645,7 +613,7 @@ namespace brex
         static Regex* jparse(json j)
         {
             auto rtag = (!j.contains("isPath") || j["isPath"].is_null()) ? RegexKindTag::Std : RegexKindTag::Path;
-            auto ctag = (!j.contains("isASCII") || !j["isASCII"].get<bool>()) ? RegexCharInfoTag::ASCII : RegexCharInfoTag::Unicode;
+            auto ctag = (!j.contains("isChar") || !j["isChar"].get<bool>()) ? RegexCharInfoTag::Char : RegexCharInfoTag::Unicode;
 
             auto preanchor = (!j.contains("preanchor") || j["preanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["preanchor"]);
             auto postanchor = (!j.contains("postanchor") || j["postanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["postanchor"]);
@@ -678,8 +646,8 @@ namespace brex
                 fchar = u8"p";
             }
             else {
-                if(this->ctag == RegexCharInfoTag::ASCII) {
-                    fchar = u8"a";
+                if(this->ctag == RegexCharInfoTag::Char) {
+                    fchar = u8"c";
                 }
             }
 
@@ -688,57 +656,45 @@ namespace brex
 
         std::u8string toBSQONGlobFormat() const 
         {
-            BREX_ASSERT(this->ctag == RegexCharInfoTag::ASCII, "only ASCII regexes can be converted to glob format");
+            BREX_ASSERT(this->ctag == RegexCharInfoTag::Char, "only char regexes can be converted to glob format");
             BREX_ASSERT(this->preanchor == nullptr, "only regexes without a preanchor can be converted to glob format");
             BREX_ASSERT(this->postanchor == nullptr, "only regexes without a postanchor can be converted to glob format");
 
             return u8'<' + this->re->toBSQONFormat() + u8'>';
         }
 
-        bool canUseInTest(bool oobPrefix, bool oobPostfix) const
+        bool canUseInTestOperation() const
         {
-            //Simple -- anchors don't make sense in a test unless we allow OOB prefix or postfix
             if(this->preanchor == nullptr && this->postanchor == nullptr) {
                 return true;
             }
             else {
-                return (oobPrefix || this->preanchor == nullptr) && (oobPostfix || this->postanchor == nullptr);
+                return this->re->isContainsable();
             }
         }
 
-        bool canStartsWith(bool oobPrefix) const
+        bool canStartsOperation() const
         {
-            //either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
-            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
+            if(this->preanchor == nullptr) {
+                return this->re->isMatchable();
+            }
+            else {
+                return this->re->isContainsable();
+            }
         }
 
-        bool canEndsWith(bool oobPostfix) const
+        bool canEndOperation() const
         {
-            //either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
+            if(this->postanchor == nullptr) {
+                return this->re->isMatchable();
+            }
+            else {
+                return this->re->isContainsable();
+            }
         }
 
         bool canUseInContains() const
         {
-            //re must be containsable (e.g. quickly searchable for a match in a larger string) 
-            return this->re->isContainsable();
-        }
-
-        bool canUseInMatchStart(bool oobPrefix) const
-        {
-            //re must be matchable and either the pre-anchor is null or we are allowing us to match "out of bounds" backward on the string for the prefix
-            return this->re->isMatchable() && (oobPrefix || this->preanchor == nullptr);
-        }
-
-        bool canUseInMatchEnd(bool oobPostfix) const
-        {
-            //re must be matchable and either the post-anchor is null or we are allowing us to match "out of bounds" forward on the string for the postfix
-            return this->re->isMatchable() && (oobPostfix || this->postanchor == nullptr);
-        }
-
-        bool canUseInMatchContains() const
-        {
-            //re must be matchable (which containsable implies)
             return this->re->isContainsable();
         }
     };

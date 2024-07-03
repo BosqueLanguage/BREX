@@ -34,26 +34,29 @@ std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
 
 int main(int argc, char** argv)
 {
+    /*
     brex::ExecutorError dummyerr;
     std::vector<brex::RegexCompileError> compileerror;
     std::map<std::string, const brex::RegexOpt*> nmap;
     std::map<std::string, const brex::LiteralOpt*> emap;
+    */
 
     /*
-    auto apr = brex::RegexParser::parseASCIIRegex("/[%a;]/");
+    auto apr = brex::RegexParser::parseCRegex("/[%a;]/");
 
-    auto aexecutor = brex::RegexCompiler::compileASCIIRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
+    auto aexecutor = brex::RegexCompiler::compileCRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
-    auto aastr = brex::ASCIIString("abc");
+    auto aastr = brex::CString("abc");
     auto aaccepts = aexecutor->test(&aastr, dummyerr);
     if(aaccepts) {
-        std::cout << "Accepted ASCII" << std::endl;
+        std::cout << "Accepted Chars" << std::endl;
     }
     else {
-        std::cout << "Rejected ASCII" << std::endl;
+        std::cout << "Rejected Chars" << std::endl;
     }
     */
 
+    /*
     bool ok = true;
     ok &= dbg_tryParseIntoNameMap("FilenameFragment", u8"/[a-zA-Z0-9_]+/", nmap);
     if(!ok) {
@@ -72,15 +75,22 @@ int main(int argc, char** argv)
 
     auto uexecutor = brex::RegexCompiler::compileUnicodeRegexToExecutor(upr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
-    auto ustr = brex::UnicodeString(u8"mark_a.txt");
-    auto uaccepts = uexecutor->test(&ustr, 5, 5, true, true, dummyerr);
+    auto ustr = brex::UnicodeString(u8"mark_a.tmp");
+    auto uaccepts = uexecutor->test(&ustr, 5, 5, dummyerr);
     if(uaccepts) {
         std::cout << "Accepted Unicode" << std::endl;
     }
     else {
         std::cout << "Rejected Unicode" << std::endl;
     }
+    */
 
+
+    auto str = std::u8string(u8"%");
+    auto res = brex::unescapeUnicodeStringLiteralInclMultiline((uint8_t*)str.c_str(), str.size());
+
+    auto xstr = res.second.value();
+    std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
 
     return 0;
 }

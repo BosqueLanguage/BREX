@@ -198,7 +198,7 @@ int main(int argc, char** argv)
         for(auto citer = envval; *citer != '\0'; ++citer) {
             auto cc = (uint8_t)*citer;
             if(cc <= 127 && !(std::isprint(cc) || std::isblank(cc))) {
-                std::cout << "Environment variable " << *iter << " contains non-ascii or non-printable characters" << std::endl;
+                std::cout << "Environment variable " << *iter << " contains non-char or non-printable characters" << std::endl;
                 return 1;
             }
 

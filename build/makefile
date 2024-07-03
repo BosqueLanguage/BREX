@@ -41,7 +41,7 @@ PATH_HEADERS=$(PTH_DIR)path.h $(PTH_DIR)path_fragment.h $(PTH_DIR)path_glob.h
 PATH_SOURCES=$(PTH_DIR)path_glob.cpp
 PATH_OBJS=$(OUT_OBJ)path_glob.o
 
-REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)parsing_ok.cpp $(REGEX_TEST_SRC_DIR)parsing_err.cpp $(REGEX_TEST_SRC_DIR)test.cpp $(REGEX_TEST_SRC_DIR)other_ops.cpp $(REGEX_TEST_SRC_DIR)docs.cpp
+REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)validate_string.cpp $(REGEX_TEST_SRC_DIR)parsing_ok.cpp $(REGEX_TEST_SRC_DIR)parsing_err.cpp $(REGEX_TEST_SRC_DIR)test.cpp $(REGEX_TEST_SRC_DIR)other_ops.cpp $(REGEX_TEST_SRC_DIR)docs.cpp
 
 MAKEFLAGS += -j4
 
