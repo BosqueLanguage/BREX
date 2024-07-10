@@ -29,12 +29,6 @@ namespace brex
         const std::vector<REInfo> reinfos;
     };
 
-    class RESystemInfo
-    {
-    public:
-        const std::vector<RENSInfo> nsinfos;
-    };
-
     class ReNSRemapper
     {
     public:
@@ -287,13 +281,13 @@ namespace brex
  
             std::map<std::string, const RegexOpt*> namedRegexes;
             std::vector<ReSystemEntry*>& deps = this->depmap.find(entry->fullname)->second;
-            auto recok = std::reduce(deps.begin(), deps.end(), true, [this, &errors, &pending, &namedRegexes](bool acc, ReSystemEntry* dep) {
+            auto recok = std::accumulate(deps.begin(), deps.end(), true, [this, &errors, &pending, &namedRegexes](bool acc, ReSystemEntry* dep) {
                 auto ok = this->processRERecursive(dep, errors, pending);
                 if(!ok) {
                     return false;
                 }
                 
-                return this->loadIntoNameMap(dep->fullname, dep->re, namedRegexes);
+                return acc && this->loadIntoNameMap(dep->fullname, dep->re, namedRegexes);
             });
 
             pending.pop_back();
@@ -332,17 +326,17 @@ namespace brex
             return true;
         }
 
-        static void processSystem(const RESystemInfo& sinfo, std::vector<std::u8string>& errors)
+        static void processSystem(const std::vector<RENSInfo>& sinfo, std::vector<std::u8string>& errors)
         {
             ReSystem rsystem;
 
             //setup the remappings
-            std::for_each(sinfo.nsinfos.cbegin(), sinfo.nsinfos.cend(), [&rsystem](const RENSInfo& nsi) {
+            std::for_each(sinfo.cbegin(), sinfo.cend(), [&rsystem](const RENSInfo& nsi) {
                 rsystem.remapper.addSingleNSMapping(nsi.nsinfo.inns, nsi.nsinfo.nsmappings);
             });
 
             //load the regex entries
-            std::for_each(sinfo.nsinfos.cbegin(), sinfo.nsinfos.cend(), [&rsystem](const RENSInfo& nsi) {
+            std::for_each(sinfo.cbegin(), sinfo.cend(), [&rsystem](const RENSInfo& nsi) {
                 std::for_each(nsi.reinfos.cbegin(), nsi.reinfos.cend(), [&nsi, &rsystem](const REInfo& ri) {
                     if(ri.restr.ends_with('/')) {
                         rsystem.loadUnicodeEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, ri.restr);
