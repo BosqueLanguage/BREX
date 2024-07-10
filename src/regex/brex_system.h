@@ -8,6 +8,33 @@
 
 namespace brex
 {
+    class NSRemapInfo
+    {
+    public:
+        const std::string inns;
+        const std::vector<std::pair<std::string, std::string>> nsmappings;
+    };
+
+    class REInfo
+    {
+    public:
+        const std::string name;
+        const std::u8string restr;
+    };
+
+    class RENSInfo
+    {
+    public:
+        const NSRemapInfo nsinfo;
+        const std::vector<REInfo> reinfos;
+    };
+
+    class RESystemInfo
+    {
+    public:
+        const std::vector<RENSInfo> nsinfos;
+    };
+
     class ReNSRemapper
     {
     public:
@@ -20,13 +47,6 @@ namespace brex
         {
             std::for_each(nsmapping.begin(), nsmapping.end(), [this, &inns](const std::pair<std::string, std::string>& p) {
                 this->nsmap[inns].insert(p);
-            });
-        }
-
-        void addAllNSMappings(const std::vector<std::pair<std::string, std::vector<std::pair<std::string, std::string>>>>& nsmappings)
-        {
-            std::for_each(nsmappings.begin(), nsmappings.end(), [this](const std::pair<std::string, std::vector<std::pair<std::string, std::string>>>& p) {
-                this->addSingleNSMapping(p.first, p.second);
             });
         }
 
@@ -43,6 +63,27 @@ namespace brex
             }
 
             return std::make_optional(nameiter->second);
+        }
+
+        std::optional<std::string> remapName(const std::string& inns, const std::string& sname) const
+        {
+           auto biter = sname.find_last_of("::");
+
+            if(biter == std::string::npos) {
+                return std::make_optional(inns + "::" + sname);
+            }
+            else {
+                auto nsname = sname.substr(0, biter);
+                auto ename = sname.substr(biter + 1);
+
+                auto resolvedns = this->resolveNamespace(inns, nsname);
+                if(!resolvedns.has_value()) {
+                    return std::nullopt;
+                }
+                else {
+                    return std::make_optional(resolvedns.value() + "::" + ename);
+                }
+            }
         }
     };
 
@@ -73,27 +114,15 @@ namespace brex
 
             bool failed = false;
             std::for_each(constnames.begin(), constnames.end(), [this, &remapper, &failed](const std::string& cname) {
-                auto biter = cname.find_last_of("::");
+                auto rname = remapper.remapName(this->ns, cname);
 
-                std::string rname("[error]");
-                if(biter == std::string::npos) {
-                    rname = this->ns + "::" + cname;
+                if(!rname.has_value()) {
+                    failed = true;
                 }
                 else {
-                    auto nsname = cname.substr(0, biter);
-                    auto ename = cname.substr(biter + 1);
-
-                    auto resolvedns = remapper.resolveNamespace(this->ns, nsname);
-                    if(!resolvedns.has_value()) {
-                        failed = true;
+                    if(std::find(this->deps.begin(), this->deps.end(), rname.value()) == this->deps.end()) {
+                        this->deps.push_back(rname.value());
                     }
-                    else {
-                        rname = resolvedns.value() + "::" + ename;
-                    }
-                }
-
-                if(std::find(this->deps.begin(), this->deps.end(), rname) == this->deps.end()) {
-                    this->deps.push_back(rname);
                 }   
             });
 
@@ -141,6 +170,16 @@ namespace brex
             this->re = pr.first.value();
             return std::nullopt;
         }
+    };
+
+    class ReSystemResolverInfo
+    {
+    public:
+        const std::string inns;
+        const ReNSRemapper* remapper;
+
+        ReSystemResolverInfo(const std::string& inns, const ReNSRemapper* remapper): inns(inns), remapper(remapper) {;}
+        ~ReSystemResolverInfo() {;}
     };
 
     class ReSystem
@@ -191,7 +230,7 @@ namespace brex
                         return e->fullname == dep;
                     });
 
-                    if(ii != this->entries.end()) {
+                    if(ii == this->entries.end()) {
                         this->depmap[entry->fullname].push_back(*ii);
                     }
                     else {
@@ -201,8 +240,45 @@ namespace brex
             });
         }
 
-        bool generateSingleExecutable(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
+        bool loadIntoNameMap(const std::string& fullname, const brex::Regex* pr, std::map<std::string, const brex::RegexOpt*>& nmap) 
         {
+            if(pr->preanchor != nullptr || pr->postanchor != nullptr) {
+                return false;
+            }
+
+            if(pr->re->tag != brex::RegexComponentTag::Single) {
+                return false;
+            }
+
+            auto sre = static_cast<const brex::RegexSingleComponent*>(pr->re);
+            if(sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated) {
+                return false;
+            }
+
+            nmap.insert({ fullname, sre->entry.opt });
+
+            return true;
+        }
+
+        static std::string resolveREName(const std::string& name, void* vremapper) {
+            auto remapper = static_cast<ReSystemResolverInfo*>(vremapper);
+            auto sv = remapper->remapper->remapName(remapper->inns, name);
+            return sv.has_value() ? sv.value() : "[error]";
+        }
+
+        bool processRERecursive(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
+        {
+            if(entry->re->ctag == RegexCharInfoTag::Unicode) {
+                if(dynamic_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
+                    return true;
+                }
+            }
+            else {
+                if(dynamic_cast<ReSystemCEntry*>(entry)->executor != nullptr) {
+                    return true;
+                }
+            }
+
             if(std::find(pending.begin(), pending.end(), entry->fullname) != pending.end()) {
                 return false;
             }
@@ -212,14 +288,12 @@ namespace brex
             std::map<std::string, const RegexOpt*> namedRegexes;
             std::vector<ReSystemEntry*>& deps = this->depmap.find(entry->fullname)->second;
             auto recok = std::reduce(deps.begin(), deps.end(), true, [this, &errors, &pending, &namedRegexes](bool acc, ReSystemEntry* dep) {
-                auto ok = this->generateSingleExecutable(dep, errors, pending);
+                auto ok = this->processRERecursive(dep, errors, pending);
                 if(!ok) {
                     return false;
                 }
-                else {
-                    namedRegexes.insert({ dep->name, dep->re->re });
-                    return acc;
-                }
+                
+                return this->loadIntoNameMap(dep->fullname, dep->re, namedRegexes);
             });
 
             pending.pop_back();
@@ -227,23 +301,28 @@ namespace brex
                 return false;
             }
 
-xxxx;
+            auto rmp = ReSystemResolverInfo(entry->ns, &this->remapper);
+            std::vector<brex::RegexCompileError> compileerror;
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
                 auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(entry);
-                auto executor = RegexCompiler::compileUnicodeRegexToExecutor(uentry->re, {}, {}, false, nullptr, nullptr, errors);
+                auto executor = RegexCompiler::compileUnicodeRegexToExecutor(uentry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
-                    errors.push_back(u8"Failed to compile executor for " + std::u8string(entry->fullname.cbegin(), entry->fullname.cend()));
-                    return;
+                    std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
+                        return rce.msg + u8" in regex " + std::u8string(entry->fullname.cbegin(), entry->fullname.cend());
+                    });
+                    return false;
                 }
 
                 uentry->executor = executor;
             }
             else {
                 auto centry = dynamic_cast<ReSystemCEntry*>(entry);
-                auto executor = RegexCompiler::compileCRegexToExecutor(centry->re, {}, {}, false, nullptr, nullptr, errors);
+                auto executor = RegexCompiler::compileCRegexToExecutor(centry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
-                    errors.push_back(u8"Failed to compile executor for " + std::u8string(entry->fullname.cbegin(), entry->fullname.cend()));
-                    return;
+                    std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
+                        return rce.msg + u8" in regex " + std::u8string(entry->fullname.cbegin(), entry->fullname.cend());
+                    });
+                    return false;
                 }
 
                 centry->executor = executor;
@@ -253,8 +332,40 @@ xxxx;
             return true;
         }
 
-        void generateExecutables(std::vector<std::u8string>& errors) {
-            xxxx;            
+        static void processSystem(const RESystemInfo& sinfo, std::vector<std::u8string>& errors)
+        {
+            ReSystem rsystem;
+
+            //setup the remappings
+            std::for_each(sinfo.nsinfos.cbegin(), sinfo.nsinfos.cend(), [&rsystem](const RENSInfo& nsi) {
+                rsystem.remapper.addSingleNSMapping(nsi.nsinfo.inns, nsi.nsinfo.nsmappings);
+            });
+
+            //load the regex entries
+            std::for_each(sinfo.nsinfos.cbegin(), sinfo.nsinfos.cend(), [&rsystem](const RENSInfo& nsi) {
+                std::for_each(nsi.reinfos.cbegin(), nsi.reinfos.cend(), [&nsi, &rsystem](const REInfo& ri) {
+                    if(ri.restr.ends_with('/')) {
+                        rsystem.loadUnicodeEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, ri.restr);
+                    }
+                    else {
+                        rsystem.loadCStringEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, std::string(ri.restr.begin(), ri.restr.end()));
+                    }
+                });
+            });
+
+            //compute the dependencies
+            rsystem.computeDependencies(errors);
+            if(!errors.empty()) {
+                return;
+            }
+
+            //compile the values
+            for(auto iter = rsystem.entries.begin(); iter != rsystem.entries.end(); ++iter) {
+                std::vector<std::string> pending;
+                if(!rsystem.processRERecursive(*iter, errors, pending)) {
+                    return;
+                }
+            }
         }
     };
 
