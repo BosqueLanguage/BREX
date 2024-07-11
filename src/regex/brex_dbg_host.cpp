@@ -1,6 +1,7 @@
 #include "brex.h"
 #include "brex_parser.h"
 #include "brex_compiler.h"
+#include "brex_system.h"
 
 #include <iostream>
 #include <fstream>
@@ -85,12 +86,55 @@ int main(int argc, char** argv)
     }
     */
 
-
+    /*
     auto str = std::u8string(u8"%");
     auto res = brex::unescapeUnicodeStringLiteralInclMultiline((uint8_t*)str.c_str(), str.size());
 
     auto xstr = res.second.value();
     std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
+    */
+
+    brex::RENSInfo ninfo = {
+        {
+            "Main",
+            {}
+        },
+        {
+            {
+                "Foo",
+                u8"/\"abc\"/"
+            
+            },
+            {
+                "Bar",
+                u8"/\"xyz\"/"
+            
+            },
+            {
+                "Baz",
+                u8"/${Foo} \"-\" ${Bar}/"
+            
+            }
+        }
+    };
+
+    std::vector<brex::RENSInfo> ninfos = { ninfo };
+    std::vector<std::u8string> errors;
+    auto sys = brex::ReSystem::processSystem(ninfos, errors);
+
+    for(size_t i = 0; i < errors.size(); ++i) {
+        std::cout << "Error: " << std::string(errors[i].cbegin(), errors[i].cend()) << std::endl;
+    }
+
+    auto executor = sys.getUnicodeRE("Main::Baz");
+    brex::UnicodeString ustr = u8"abc-xyz";
+    brex::UnicodeString estr = u8"abc-123";
+    brex::ExecutorError err = brex::ExecutorError::Ok;
+
+    auto okr = executor->test(&ustr, err);
+    auto failr = !executor->test(&estr, err);
+
+    std::cout << "Ok: " << okr << " Fail: " << failr << std::endl;
 
     return 0;
 }

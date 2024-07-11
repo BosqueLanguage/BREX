@@ -114,7 +114,8 @@ namespace brex
                     failed = true;
                 }
                 else {
-                    if(std::find(this->deps.begin(), this->deps.end(), rname.value()) == this->deps.end()) {
+                    const std::string rnamev = rname.value();
+                    if(std::find(this->deps.cbegin(), this->deps.cend(), rnamev) == this->deps.cend()) {
                         this->deps.push_back(rname.value());
                     }
                 }   
@@ -224,7 +225,7 @@ namespace brex
                         return e->fullname == dep;
                     });
 
-                    if(ii == this->entries.end()) {
+                    if(ii != this->entries.end()) {
                         this->depmap[entry->fullname].push_back(*ii);
                     }
                     else {
@@ -326,7 +327,7 @@ namespace brex
             return true;
         }
 
-        static void processSystem(const std::vector<RENSInfo>& sinfo, std::vector<std::u8string>& errors)
+        static ReSystem processSystem(const std::vector<RENSInfo>& sinfo, std::vector<std::u8string>& errors)
         {
             ReSystem rsystem;
 
@@ -350,16 +351,46 @@ namespace brex
             //compute the dependencies
             rsystem.computeDependencies(errors);
             if(!errors.empty()) {
-                return;
+                return rsystem;
             }
 
             //compile the values
             for(auto iter = rsystem.entries.begin(); iter != rsystem.entries.end(); ++iter) {
                 std::vector<std::string> pending;
                 if(!rsystem.processRERecursive(*iter, errors, pending)) {
-                    return;
+                    return rsystem;
                 }
             }
+
+            return rsystem;
+        }
+
+        UnicodeRegexExecutor* getUnicodeRE(const std::string& fullname) const
+        {
+            auto iter = std::find_if(this->entries.begin(), this->entries.end(), [fullname](const ReSystemEntry* entry) {
+                return entry->fullname == fullname;
+            });
+
+            if(iter == this->entries.end()) {
+                return nullptr;
+            }
+
+            auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(*iter);
+            return uentry->executor;
+        }
+
+        CRegexExecutor* getCStringRE(const std::string& fullname) const
+        {
+            auto iter = std::find_if(this->entries.begin(), this->entries.end(), [fullname](const ReSystemEntry* entry) {
+                return entry->fullname == fullname;
+            });
+
+            if(iter == this->entries.end()) {
+                return nullptr;
+            }
+
+            auto uentry = dynamic_cast<ReSystemCEntry*>(*iter);
+            return uentry->executor;
         }
     };
 
