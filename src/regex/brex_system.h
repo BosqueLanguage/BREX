@@ -257,12 +257,12 @@ namespace brex
         bool processRERecursive(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
         {
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
-                if(dynamic_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
+                if(static_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
                     return true;
                 }
             }
             else {
-                if(dynamic_cast<ReSystemCEntry*>(entry)->executor != nullptr) {
+                if(static_cast<ReSystemCEntry*>(entry)->executor != nullptr) {
                     return true;
                 }
             }
@@ -293,7 +293,7 @@ namespace brex
             auto rmp = ReSystemResolverInfo(entry->ns, &this->remapper);
             std::vector<brex::RegexCompileError> compileerror;
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
-                auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(entry);
+                auto uentry = static_cast<ReSystemUnicodeEntry*>(entry);
                 auto executor = RegexCompiler::compileUnicodeRegexToExecutor(uentry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
                     std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
@@ -305,7 +305,7 @@ namespace brex
                 uentry->executor = executor;
             }
             else {
-                auto centry = dynamic_cast<ReSystemCEntry*>(entry);
+                auto centry = static_cast<ReSystemCEntry*>(entry);
                 auto executor = RegexCompiler::compileCRegexToExecutor(centry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
                     std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
@@ -369,7 +369,7 @@ namespace brex
                 return nullptr;
             }
 
-            auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(*iter);
+            auto uentry = static_cast<ReSystemUnicodeEntry*>(*iter);
             return uentry->executor;
         }
 
@@ -383,7 +383,7 @@ namespace brex
                 return nullptr;
             }
 
-            auto uentry = dynamic_cast<ReSystemCEntry*>(*iter);
+            auto uentry = static_cast<ReSystemCEntry*>(*iter);
             return uentry->executor;
         }
     };
