@@ -67,8 +67,7 @@ namespace brex
         if(opt->tag == RegexOptTag::NamedRegex) {
             return this->resolveNamedRegexOpt(static_cast<const NamedRegexOpt*>(opt));
         }
-        else if(opt->tag == RegexOptTag::EnvRegex)
-        {
+        else if(opt->tag == RegexOptTag::EnvRegex) {
             return this->resolveEnvRegexOpt(static_cast<const EnvRegexOpt*>(opt));
         }
         else if(opt->tag == RegexOptTag::AnyOf) {
@@ -120,16 +119,18 @@ namespace brex
         }
     }
 
-    void RegexResolver::gatherEnvironmentNames(std::set<std::string>& names, const RegexOpt* opt)
+    void RegexResolver::gatherNamedRegexKeys(std::set<std::string>& cnames, std::set<std::string>& enames, const RegexOpt* opt)
     {
-        if(opt->tag == RegexOptTag::EnvRegex)
-        {
-            names.insert(static_cast<const EnvRegexOpt*>(opt)->ename);
+        if(opt->tag == RegexOptTag::NamedRegex) {
+            cnames.insert(static_cast<const NamedRegexOpt*>(opt)->rname);
+        }
+        else if(opt->tag == RegexOptTag::EnvRegex) {
+            enames.insert(static_cast<const EnvRegexOpt*>(opt)->ename);
         }
         else if(opt->tag == RegexOptTag::AnyOf) {
             const AnyOfOpt* anyofopt = static_cast<const AnyOfOpt*>(opt);
             for(auto ii = anyofopt->opts.cbegin(); ii != anyofopt->opts.cend(); ++ii) {
-                RegexResolver::gatherEnvironmentNames(names, *ii);
+                RegexResolver::gatherNamedRegexKeys(cnames, enames, *ii);
             }
         }
         else
@@ -137,25 +138,25 @@ namespace brex
             switch(opt->tag)
             {
             case RegexOptTag::StarRepeat: {
-                RegexResolver::gatherEnvironmentNames(names, static_cast<const StarRepeatOpt*>(opt)->repeat);
+                RegexResolver::gatherNamedRegexKeys(cnames, enames, static_cast<const StarRepeatOpt*>(opt)->repeat);
                 break;
             }
             case RegexOptTag::PlusRepeat: {
-                RegexResolver::gatherEnvironmentNames(names, static_cast<const PlusRepeatOpt*>(opt)->repeat);
+                RegexResolver::gatherNamedRegexKeys(cnames, enames, static_cast<const PlusRepeatOpt*>(opt)->repeat);
                 break;
             }
             case RegexOptTag::RangeRepeat: {
-                RegexResolver::gatherEnvironmentNames(names, static_cast<const RangeRepeatOpt*>(opt)->repeat);
+                RegexResolver::gatherNamedRegexKeys(cnames, enames, static_cast<const RangeRepeatOpt*>(opt)->repeat);
                 break;
             }
             case RegexOptTag::Optional: {
-                RegexResolver::gatherEnvironmentNames(names, static_cast<const OptionalOpt*>(opt)->opt);
+                RegexResolver::gatherNamedRegexKeys(cnames, enames, static_cast<const OptionalOpt*>(opt)->opt);
                 break;
             }
             case RegexOptTag::Sequence: {
                 auto seqopt = static_cast<const SequenceOpt*>(opt);
                 for(auto ii = seqopt->regexs.cbegin(); ii != seqopt->regexs.cend(); ++ii) {
-                    RegexResolver::gatherEnvironmentNames(names, *ii);
+                    RegexResolver::gatherNamedRegexKeys(cnames, enames, *ii);
                 }
                 break;
             }

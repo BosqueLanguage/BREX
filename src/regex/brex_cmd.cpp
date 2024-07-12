@@ -184,11 +184,14 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::map<std::string, const brex::LiteralOpt*> envmap;
+    std::set<std::string> constnames;
     std::set<std::string> envnames;
-    bool envRequired = brex::RegexCompiler::gatherEnvironmentNames(envnames, pr.first.value());
+    bool envRequired = brex::RegexCompiler::gatherNamedRegexKeys(constnames, envnames, pr.first.value());
+
+    std::map<std::string, const brex::LiteralOpt*> envmap;    
     for(auto iter = envnames.begin(); iter != envnames.end(); ++iter) {
-        char* envval = std::getenv(iter->c_str());
+        std::string ename = iter->substr(1, iter->size() - 2); // Remove the ' and ' from the name
+        char* envval = std::getenv(ename.c_str());
         if(envval == nullptr) {
             std::cout << "Environment variable " << *iter << " is required but not set" << std::endl;
             return 1;

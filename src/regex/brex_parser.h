@@ -477,9 +477,9 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing ] in env regex"));
             }
 
-            std::basic_regex idre("^[_a-z][_a-zA-Z0-9]*$");
+            std::basic_regex idre("^'[ -&(-~\t]+'$");
             if(!std::regex_match(name.cbegin(), name.cend(), idre)) {
-                this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid identifier"));
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid env regex name -- must be a valid env key (as a '' string literal)"));
             }
 
             return new EnvRegexOpt(name);

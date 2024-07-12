@@ -1,38 +1,44 @@
 #include "brex.h"
 #include "brex_parser.h"
 #include "brex_compiler.h"
+#include "brex_system.h"
 
 #include <iostream>
 #include <fstream>
 
-
-bool dbg_tryParseIntoNameMap(const std::string& name, const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
+bool dbg_tryParseIntoNameMap(const std::string &name, const std::u8string &str, std::map<std::string, const brex::RegexOpt *> &nmap)
+{
     auto pr = brex::RegexParser::parseUnicodeRegex(str, true);
-    if(!pr.first.has_value() || !pr.second.empty()) {
+    if (!pr.first.has_value() || !pr.second.empty())
+    {
         return false;
     }
 
-    if(pr.first.value()->preanchor != nullptr || pr.first.value()->postanchor != nullptr) {
+    if (pr.first.value()->preanchor != nullptr || pr.first.value()->postanchor != nullptr)
+    {
         return false;
     }
 
-    if(pr.first.value()->re->tag != brex::RegexComponentTag::Single) {
+    if (pr.first.value()->re->tag != brex::RegexComponentTag::Single)
+    {
         return false;
     }
 
-    auto sre = static_cast<const brex::RegexSingleComponent*>(pr.first.value()->re);
-    if(sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated) {
+    auto sre = static_cast<const brex::RegexSingleComponent *>(pr.first.value()->re);
+    if (sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated)
+    {
         return false;
     }
 
-    return nmap.insert({ name, sre->entry.opt }).second;
+    return nmap.insert({name, sre->entry.opt}).second;
 }
 
-std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
+std::string dbg_fnresolve(const std::string &name, brex::NameResolverState s)
+{
     return name;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     /*
     brex::ExecutorError dummyerr;
@@ -85,12 +91,44 @@ int main(int argc, char** argv)
     }
     */
 
-
+    /*
     auto str = std::u8string(u8"%");
     auto res = brex::unescapeUnicodeStringLiteralInclMultiline((uint8_t*)str.c_str(), str.size());
 
     auto xstr = res.second.value();
     std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
+    */
+
+    brex::RENSInfo ninfo = {
+        {"Main",
+         {}},
+        {{"Foo",
+          u8"/${Baz}/"
+
+         },
+         {"Baz",
+          u8"/${Foo}/"
+
+         }}};
+
+    std::vector<brex::RENSInfo> ninfos = {ninfo};
+    std::vector<std::u8string> errors;
+    auto sys = brex::ReSystem::processSystem(ninfos, errors);
+
+    for (size_t i = 0; i < errors.size(); ++i)
+    {
+        std::cout << "Error: " << std::string(errors[i].cbegin(), errors[i].cend()) << std::endl;
+    }
+
+    auto executor = sys.getUnicodeRE("Other::Baz");
+    brex::UnicodeString ustr = u8"abc-xyz";
+    brex::UnicodeString estr = u8"abc-123";
+    brex::ExecutorError err = brex::ExecutorError::Ok;
+
+    auto okr = executor->test(&ustr, err);
+    auto failr = !executor->test(&estr, err);
+
+    std::cout << "Ok: " << okr << " Fail: " << failr << std::endl;
 
     return 0;
 }
