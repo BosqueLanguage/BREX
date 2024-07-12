@@ -94,6 +94,7 @@ namespace brex
         ReSystemEntry(const std::string& ns, const std::string& name, const std::string& fullname): ns(ns), name(name), fullname(fullname) {;}
         virtual ~ReSystemEntry() {;}
 
+        virtual bool isUnicode() const = 0;
         virtual std::optional<std::u8string> compileRegex() = 0;
 
         bool computeDeps(const ReNSRemapper& remapper)
@@ -127,6 +128,8 @@ namespace brex
         ReSystemUnicodeEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
         ~ReSystemUnicodeEntry() {;}
 
+        bool isUnicode() const override { return true; }
+
         std::optional<std::u8string> compileRegex() override
         {
             auto pr = RegexParser::parseUnicodeRegex(this->restr, false);
@@ -147,6 +150,8 @@ namespace brex
 
         ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
         ~ReSystemCEntry() {;}
+
+        bool isUnicode() const override { return false; }
 
         std::optional<std::u8string> compileRegex() override
         {
