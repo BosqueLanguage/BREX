@@ -94,6 +94,7 @@ namespace brex
         ReSystemEntry(const std::string& ns, const std::string& name, const std::string& fullname): ns(ns), name(name), fullname(fullname) {;}
         virtual ~ReSystemEntry() {;}
 
+        virtual bool isUnicode() const = 0;
         virtual std::optional<std::u8string> compileRegex() = 0;
 
         bool computeDeps(const ReNSRemapper& remapper)
@@ -127,6 +128,8 @@ namespace brex
         ReSystemUnicodeEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
         ~ReSystemUnicodeEntry() {;}
 
+        bool isUnicode() const override { return true; }
+
         std::optional<std::u8string> compileRegex() override
         {
             auto pr = RegexParser::parseUnicodeRegex(this->restr, false);
@@ -147,6 +150,8 @@ namespace brex
 
         ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
         ~ReSystemCEntry() {;}
+
+        bool isUnicode() const override { return false; }
 
         std::optional<std::u8string> compileRegex() override
         {
@@ -257,12 +262,12 @@ namespace brex
         bool processRERecursive(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
         {
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
-                if(dynamic_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
+                if(static_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
                     return true;
                 }
             }
             else {
-                if(dynamic_cast<ReSystemCEntry*>(entry)->executor != nullptr) {
+                if(static_cast<ReSystemCEntry*>(entry)->executor != nullptr) {
                     return true;
                 }
             }
@@ -293,7 +298,7 @@ namespace brex
             auto rmp = ReSystemResolverInfo(entry->ns, &this->remapper);
             std::vector<brex::RegexCompileError> compileerror;
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
-                auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(entry);
+                auto uentry = static_cast<ReSystemUnicodeEntry*>(entry);
                 auto executor = RegexCompiler::compileUnicodeRegexToExecutor(uentry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
                     std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
@@ -305,7 +310,7 @@ namespace brex
                 uentry->executor = executor;
             }
             else {
-                auto centry = dynamic_cast<ReSystemCEntry*>(entry);
+                auto centry = static_cast<ReSystemCEntry*>(entry);
                 auto executor = RegexCompiler::compileCRegexToExecutor(centry->re, namedRegexes, {}, false, &rmp, &ReSystem::resolveREName, compileerror);
                 if(executor == nullptr) {
                     std::transform(compileerror.begin(), compileerror.end(), std::back_inserter(errors), [entry](const RegexCompileError& rce) {
@@ -369,7 +374,7 @@ namespace brex
                 return nullptr;
             }
 
-            auto uentry = dynamic_cast<ReSystemUnicodeEntry*>(*iter);
+            auto uentry = static_cast<ReSystemUnicodeEntry*>(*iter);
             return uentry->executor;
         }
 
@@ -383,7 +388,7 @@ namespace brex
                 return nullptr;
             }
 
-            auto uentry = dynamic_cast<ReSystemCEntry*>(*iter);
+            auto uentry = static_cast<ReSystemCEntry*>(*iter);
             return uentry->executor;
         }
     };
