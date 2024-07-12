@@ -6,34 +6,39 @@
 #include <iostream>
 #include <fstream>
 
-
-bool dbg_tryParseIntoNameMap(const std::string& name, const std::u8string& str, std::map<std::string, const brex::RegexOpt*>& nmap) {
+bool dbg_tryParseIntoNameMap(const std::string &name, const std::u8string &str, std::map<std::string, const brex::RegexOpt *> &nmap)
+{
     auto pr = brex::RegexParser::parseUnicodeRegex(str, true);
-    if(!pr.first.has_value() || !pr.second.empty()) {
+    if (!pr.first.has_value() || !pr.second.empty())
+    {
         return false;
     }
 
-    if(pr.first.value()->preanchor != nullptr || pr.first.value()->postanchor != nullptr) {
+    if (pr.first.value()->preanchor != nullptr || pr.first.value()->postanchor != nullptr)
+    {
         return false;
     }
 
-    if(pr.first.value()->re->tag != brex::RegexComponentTag::Single) {
+    if (pr.first.value()->re->tag != brex::RegexComponentTag::Single)
+    {
         return false;
     }
 
-    auto sre = static_cast<const brex::RegexSingleComponent*>(pr.first.value()->re);
-    if(sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated) {
+    auto sre = static_cast<const brex::RegexSingleComponent *>(pr.first.value()->re);
+    if (sre->entry.isFrontCheck || sre->entry.isBackCheck || sre->entry.isNegated)
+    {
         return false;
     }
 
-    return nmap.insert({ name, sre->entry.opt }).second;
+    return nmap.insert({name, sre->entry.opt}).second;
 }
 
-std::string dbg_fnresolve(const std::string& name, brex::NameResolverState s) {
+std::string dbg_fnresolve(const std::string &name, brex::NameResolverState s)
+{
     return name;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     /*
     brex::ExecutorError dummyerr;
@@ -94,51 +99,24 @@ int main(int argc, char** argv)
     std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
     */
 
-    brex::RENSInfo ninfo1 = {
-        {
-            "Main",
-            {}
-        },
-        {
-            {
-                "Foo",
-                u8"/\"abc\"/"
-            
-            },
-            {
-                "Bar",
-                u8"/\"xyz\"/"
-            
-            },
-            {
-                "Baz",
-                u8"/${Foo} \"-\" ${Bar}/"
-            }
-        }
-    };
-    brex::RENSInfo ninfo2 = {
-        {
-            "Other",
-            { {"MM", "Main"} }
-        },
-        {
-            {
-                "Foo",
-                u8"/\"abc\"/"
-            
-            },
-            {
-                "Baz",
-                u8"/${Foo} \"-\" ${MM::Foo}/"
-            }
-        }
-    };
+    brex::RENSInfo ninfo = {
+        {"Main",
+         {}},
+        {{"Foo",
+          u8"/${Baz}/"
 
-    std::vector<brex::RENSInfo> ninfos = { ninfo1, ninfo2 };
+         },
+         {"Baz",
+          u8"/${Foo}/"
+
+         }}};
+
+    std::vector<brex::RENSInfo> ninfos = {ninfo};
     std::vector<std::u8string> errors;
     auto sys = brex::ReSystem::processSystem(ninfos, errors);
 
-    for(size_t i = 0; i < errors.size(); ++i) {
+    for (size_t i = 0; i < errors.size(); ++i)
+    {
         std::cout << "Error: " << std::string(errors[i].cbegin(), errors[i].cend()) << std::endl;
     }
 

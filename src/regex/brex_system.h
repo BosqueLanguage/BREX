@@ -268,6 +268,7 @@ namespace brex
             }
 
             if(std::find(pending.begin(), pending.end(), entry->fullname) != pending.end()) {
+                errors.push_back(u8"Cycle detected in regex with " + std::u8string(entry->fullname.cbegin(), entry->fullname.cend()));
                 return false;
             }
 

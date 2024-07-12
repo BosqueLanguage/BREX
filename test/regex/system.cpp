@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(twons) {
     BOOST_CHECK(sys.getUnicodeRE("Other::Foo") != nullptr);
     BOOST_CHECK(sys.getUnicodeRE("Other::Baz") != nullptr);
 
-    auto executor = sys.getUnicodeRE("Main::Baz");
+    auto executor = sys.getUnicodeRE("Other::Baz");
     brex::UnicodeString ustr = u8"abc-abc";
     brex::UnicodeString estr = u8"abc-123";
     brex::ExecutorError err = brex::ExecutorError::Ok;
