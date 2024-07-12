@@ -59,23 +59,23 @@ namespace brex
             return std::make_optional(nameiter->second);
         }
 
-        std::optional<std::string> remapName(const std::string& inns, const std::string& sname) const
+        std::string remapName(const std::string& inns, const std::string& sname) const
         {
            auto biter = sname.find_last_of("::");
 
             if(biter == std::string::npos) {
-                return std::make_optional(inns + "::" + sname);
+                return inns + "::" + sname;
             }
             else {
-                auto nsname = sname.substr(0, biter);
+                auto nsname = sname.substr(0, biter - 1);
                 auto ename = sname.substr(biter + 1);
 
                 auto resolvedns = this->resolveNamespace(inns, nsname);
                 if(!resolvedns.has_value()) {
-                    return std::nullopt;
+                    return sname;
                 }
                 else {
-                    return std::make_optional(resolvedns.value() + "::" + ename);
+                    return resolvedns.value() + "::" + ename;
                 }
             }
         }
@@ -106,22 +106,15 @@ namespace brex
                 return false;
             }
 
-            bool failed = false;
-            std::for_each(constnames.begin(), constnames.end(), [this, &remapper, &failed](const std::string& cname) {
+            std::for_each(constnames.begin(), constnames.end(), [this, &remapper](const std::string& cname) {
                 auto rname = remapper.remapName(this->ns, cname);
 
-                if(!rname.has_value()) {
-                    failed = true;
+                if(std::find(this->deps.cbegin(), this->deps.cend(), rname) == this->deps.cend()) {
+                    this->deps.push_back(rname);
                 }
-                else {
-                    const std::string rnamev = rname.value();
-                    if(std::find(this->deps.cbegin(), this->deps.cend(), rnamev) == this->deps.cend()) {
-                        this->deps.push_back(rname.value());
-                    }
-                }   
             });
 
-            return !failed;
+            return true;
         }
     };
 
@@ -221,8 +214,9 @@ namespace brex
                 }
 
                 std::for_each(entry->deps.begin(), entry->deps.end(), [this, entry, &errors](const std::string& dep) {
-                    auto ii = std::find_if(this->entries.begin(), this->entries.end(), [dep](ReSystemEntry* e) {
-                        return e->fullname == dep;
+                    auto rdep = this->remapper.remapName(entry->ns, dep);
+                    auto ii = std::find_if(this->entries.begin(), this->entries.end(), [rdep](ReSystemEntry* e) {
+                        return e->fullname == rdep;
                     });
 
                     if(ii != this->entries.end()) {
@@ -257,8 +251,7 @@ namespace brex
 
         static std::string resolveREName(const std::string& name, void* vremapper) {
             auto remapper = static_cast<ReSystemResolverInfo*>(vremapper);
-            auto sv = remapper->remapper->remapName(remapper->inns, name);
-            return sv.has_value() ? sv.value() : "[error]";
+            return remapper->remapper->remapName(remapper->inns, name);
         }
 
         bool processRERecursive(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)

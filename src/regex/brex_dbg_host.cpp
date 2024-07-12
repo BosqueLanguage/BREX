@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
     */
 
-    brex::RENSInfo ninfo = {
+    brex::RENSInfo ninfo1 = {
         {
             "Main",
             {}
@@ -113,12 +113,28 @@ int main(int argc, char** argv)
             {
                 "Baz",
                 u8"/${Foo} \"-\" ${Bar}/"
+            }
+        }
+    };
+    brex::RENSInfo ninfo2 = {
+        {
+            "Other",
+            { {"MM", "Main"} }
+        },
+        {
+            {
+                "Foo",
+                u8"/\"abc\"/"
             
+            },
+            {
+                "Baz",
+                u8"/${Foo} \"-\" ${MM::Foo}/"
             }
         }
     };
 
-    std::vector<brex::RENSInfo> ninfos = { ninfo };
+    std::vector<brex::RENSInfo> ninfos = { ninfo1, ninfo2 };
     std::vector<std::u8string> errors;
     auto sys = brex::ReSystem::processSystem(ninfos, errors);
 
@@ -126,7 +142,7 @@ int main(int argc, char** argv)
         std::cout << "Error: " << std::string(errors[i].cbegin(), errors[i].cend()) << std::endl;
     }
 
-    auto executor = sys.getUnicodeRE("Main::Baz");
+    auto executor = sys.getUnicodeRE("Other::Baz");
     brex::UnicodeString ustr = u8"abc-xyz";
     brex::UnicodeString estr = u8"abc-123";
     brex::ExecutorError err = brex::ExecutorError::Ok;
