@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(thisisaliteralpepper) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"unicode ", false);
 }
 BOOST_AUTO_TEST_CASE(thisisaliteralc) {
-    auto texecutor = tryParseForCDocsTest("/'char literals %x59;'/");
+    auto texecutor = tryParseForCDocsTest("/'char literals %x59;'/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(aeiou) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"haec ", false);
 }
 BOOST_AUTO_TEST_CASE(aeiouc) {
-    auto texecutor = tryParseForCDocsTest("/'h'[aeiou]+/");
+    auto texecutor = tryParseForCDocsTest("/'h'[aeiou]+/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();

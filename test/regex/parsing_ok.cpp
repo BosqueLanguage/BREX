@@ -76,19 +76,19 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(abc) {
-    PARSE_TEST_C("/'abc'/", u8"/'abc'/c");
+    PARSE_TEST_C("/'abc'/c", u8"/'abc'/c");
 }
 
 BOOST_AUTO_TEST_CASE(eps) {
-    PARSE_TEST_C("/''/", u8"/''/c");
+    PARSE_TEST_C("/''/c", u8"/''/c");
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_C("/'%x59;'/", u8"/'Y'/c");
+    PARSE_TEST_C("/'%x59;'/c", u8"/'Y'/c");
 
-    PARSE_TEST_C("/'%;'/", u8"/'%;'/c");
-    PARSE_TEST_C("/'%%;'/", u8"/'%%;'/c");
-    PARSE_TEST_C("/'%n;'/", u8"/'%n;'/c");
+    PARSE_TEST_C("/'%;'/c", u8"/'%;'/c");
+    PARSE_TEST_C("/'%%;'/c", u8"/'%%;'/c");
+    PARSE_TEST_C("/'%n;'/c", u8"/'%n;'/c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -119,19 +119,19 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    PARSE_TEST_C("/[06a]/", u8"/[06a]/c");
-    PARSE_TEST_C("/[0-9]/", u8"/[0-9]/c");
-    PARSE_TEST_C("/[0^]/", u8"/[0^]/c");
+    PARSE_TEST_C("/[06a]/c", u8"/[06a]/c");
+    PARSE_TEST_C("/[0-9]/c", u8"/[0-9]/c");
+    PARSE_TEST_C("/[0^]/c", u8"/[0^]/c");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_C("/[0-9 +]/", u8"/[0-9 +]/c");
+    PARSE_TEST_C("/[0-9 +]/c", u8"/[0-9 +]/c");
 }
 BOOST_AUTO_TEST_CASE(compliment) {
-    PARSE_TEST_C("/[^A-Z]/", u8"/[^A-Z]/c");
+    PARSE_TEST_C("/[^A-Z]/c", u8"/[^A-Z]/c");
 }
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_C("/[%x32;-%tick;]/", u8"/[%;-2]/c");
-    PARSE_TEST_C("/[^%x32; %underscore;]/", u8"/[^2 _]/c");
+    PARSE_TEST_C("/[%x32;-%tick;]/c", u8"/[%;-2]/c");
+    PARSE_TEST_C("/[^%x32; %underscore;]/c", u8"/[^2 _]/c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -152,12 +152,12 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    PARSE_TEST_C("/./", u8"/./c");
-    PARSE_TEST_C("/[.]/", u8"/[.]/c");
+    PARSE_TEST_C("/./c", u8"/./c");
+    PARSE_TEST_C("/[.]/c", u8"/[.]/c");
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    PARSE_TEST_C("/.'a'./", u8"/.'a'./c");
-    PARSE_TEST_C("/[0-9]./", u8"/[0-9]./c");
+    PARSE_TEST_C("/.'a'./c", u8"/.'a'./c");
+    PARSE_TEST_C("/[0-9]./c", u8"/[0-9]./c");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(StartsAnchor)
 BOOST_AUTO_TEST_CASE(notbob) {
     PARSE_TEST_UNICODE(u8"/.+ & ^(\"bob\"|\"sally\")/", u8"/.+ & ^(\"bob\"|\"sally\")/");
-    PARSE_TEST_UNICODE(u8"/.+ & ^ \"bob\"|\"sally\"/", u8"/.+ & ^(\"bob\"|\"sally\")/");
+    PARSE_TEST_UNICODE(u8"/.+ & ^\"bob\"|\"sally\"/", u8"/.+ & ^(\"bob\"|\"sally\")/");
     PARSE_TEST_UNICODE(u8"/.+ & !^(\"bob\"|\"sally\")/", u8"/.+ & !^(\"bob\"|\"sally\")/");
 }
 BOOST_AUTO_TEST_SUITE_END()
@@ -313,8 +313,8 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(EndsAnchor)
 BOOST_AUTO_TEST_CASE(notbob) {
     PARSE_TEST_UNICODE(u8"/.+ & (\"bob\"|\"sally\")$/", u8"/.+ & (\"bob\"|\"sally\")$/");
-    //PARSE_TEST_UNICODE(u8"/.+ & \"bob\"|\"sally\" $/", u8"/.+ & (\"bob\"|\"sally\")$/");
-    //PARSE_TEST_UNICODE(u8"/.+ & !(\"bob\"|\"sally\")$/", u8"/.+ & !(\"bob\"|\"sally\")$/");
+    PARSE_TEST_UNICODE(u8"/.+ & \"bob\"|\"sally\"$/", u8"/.+ & (\"bob\"|\"sally\")$/");
+    PARSE_TEST_UNICODE(u8"/.+ & !(\"bob\"|\"sally\")$/", u8"/.+ & !(\"bob\"|\"sally\")$/");
 }
 BOOST_AUTO_TEST_SUITE_END()
 
