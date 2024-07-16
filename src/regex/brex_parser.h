@@ -773,20 +773,33 @@ namespace brex
         }
 
     public:
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t len, bool isUnicode, bool isPath, bool envAllowed)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseRegex(uint8_t* data, size_t datalen, bool isUnicode, bool isPath, bool envAllowed)
         {
-            if(len < 1) {
+            if(datalen < 2) {
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Empty string is not a valid regex -- must be of form /.../")});
             }
 
             if(*data != '/') {
                 return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must start with /")});
             }
-            if(*(data + len - 1) != '/') {
-                return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
+
+            if(isUnicode) {
+                if(*(data + datalen - 1) != '/') {
+                    return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid regex -- must end with /")});
+                }
+            }
+            else {
+                if(*(data + datalen - 1) != 'c' && *(data + datalen - 1) != 'p'){
+                    return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid CString or Path regex -- must end with /[cp]")});
+                }
+
+                if(*(data + datalen - 2) != '/') {
+                    return std::make_pair(std::nullopt, std::vector<RegexParserError>{RegexParserError(0, u8"Invalid CString or Path regex -- must end with /[cp]")});
+                }
             }
 
-            auto parser = RegexParser(data + 1, len - 2, isUnicode, envAllowed);
+            auto rlen = isUnicode ? datalen : datalen - 1;
+            auto parser = RegexParser(data + 1, rlen - 2, isUnicode, envAllowed);
 
             std::vector<RegexComponent*> rv;
             bool preanchor = false;

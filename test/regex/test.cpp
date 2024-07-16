@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(escape) {
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(abc) {
-    auto texecutor = tryParseForCTest("/'abc'/");
+    auto texecutor = tryParseForCTest("/'abc'/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(abc) {
 }
 
 BOOST_AUTO_TEST_CASE(eps) {
-    auto texecutor = tryParseForCTest("/''/");
+    auto texecutor = tryParseForCTest("/''/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(eps) {
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    auto texecutor = tryParseForCTest("/'%%;%underscore;%x32;'/");
+    auto texecutor = tryParseForCTest("/'%%;%underscore;%x32;'/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -216,7 +216,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(opts3) {
-    auto texecutor = tryParseForCTest("/[06a]/");
+    auto texecutor = tryParseForCTest("/[06a]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -227,7 +227,7 @@ BOOST_AUTO_TEST_CASE(opts3) {
     ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(optsrng) {
-    auto texecutor = tryParseForCTest("/[0-9]/");
+    auto texecutor = tryParseForCTest("/[0-9]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(optsrng) {
     ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(optshat) {
-    auto texecutor = tryParseForCTest("/[0^]/");
+    auto texecutor = tryParseForCTest("/[0^]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(optshat) {
     ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(combos) {
-    auto texecutor = tryParseForCTest("/[0-9 +]/");
+    auto texecutor = tryParseForCTest("/[0-9 +]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE(combos) {
     ACCEPTS_TEST_C(executor, "a", false);
 }
 BOOST_AUTO_TEST_CASE(compliment) {
-    auto texecutor = tryParseForCTest("/[^A-Z]/");
+    auto texecutor = tryParseForCTest("/[^A-Z]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -268,7 +268,7 @@ BOOST_AUTO_TEST_CASE(compliment) {
     ACCEPTS_TEST_C(executor, "Q", false);
 }
 BOOST_AUTO_TEST_CASE(complimet2) {
-    auto texecutor = tryParseForCTest("/[^A-Z0a-c]/");
+    auto texecutor = tryParseForCTest("/[^A-Z0a-c]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -331,7 +331,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    auto texecutor = tryParseForCTest("/./");
+    auto texecutor = tryParseForCTest("/./c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(simple) {
     ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(dotrng) {
-    auto texecutor = tryParseForCTest("/[.b]/");
+    auto texecutor = tryParseForCTest("/[.b]/c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -353,7 +353,7 @@ BOOST_AUTO_TEST_CASE(dotrng) {
     ACCEPTS_TEST_C(executor, "", false);
 }
 BOOST_AUTO_TEST_CASE(combobe) {
-    auto texecutor = tryParseForCTest("/.'b'./");
+    auto texecutor = tryParseForCTest("/.'b'./c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();
@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_CASE(combobe) {
     ACCEPTS_TEST_C(executor, "ab", false);
 }
 BOOST_AUTO_TEST_CASE(comborng) {
-    auto texecutor = tryParseForCTest("/[0-9]./");
+    auto texecutor = tryParseForCTest("/[0-9]./c");
     BOOST_CHECK(texecutor.has_value());
 
     auto executor = texecutor.value();

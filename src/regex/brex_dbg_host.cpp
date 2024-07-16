@@ -40,19 +40,16 @@ std::string dbg_fnresolve(const std::string &name, brex::NameResolverState s)
 
 int main(int argc, char **argv)
 {
-    /*
     brex::ExecutorError dummyerr;
     std::vector<brex::RegexCompileError> compileerror;
     std::map<std::string, const brex::RegexOpt*> nmap;
     std::map<std::string, const brex::LiteralOpt*> emap;
-    */
 
-    /*
-    auto apr = brex::RegexParser::parseCRegex("/[%a;]/");
+    auto apr = brex::RegexParser::parseCRegex("/[0-9]/c", false);
 
     auto aexecutor = brex::RegexCompiler::compileCRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 
-    auto aastr = brex::CString("abc");
+    auto aastr = brex::CString("1");
     auto aaccepts = aexecutor->test(&aastr, dummyerr);
     if(aaccepts) {
         std::cout << "Accepted Chars" << std::endl;
@@ -60,7 +57,6 @@ int main(int argc, char **argv)
     else {
         std::cout << "Rejected Chars" << std::endl;
     }
-    */
 
     /*
     bool ok = true;
@@ -99,6 +95,7 @@ int main(int argc, char **argv)
     std::cout << std::string(xstr.cbegin(), xstr.cend()) << std::endl;
     */
 
+/*
     brex::RENSInfo ninfo = {
         {"Main",
          {}},
@@ -129,6 +126,6 @@ int main(int argc, char **argv)
     auto failr = !executor->test(&estr, err);
 
     std::cout << "Ok: " << okr << " Fail: " << failr << std::endl;
-
+*/
     return 0;
 }

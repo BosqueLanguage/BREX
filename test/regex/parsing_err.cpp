@@ -69,24 +69,24 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(abc) {
-    PARSE_TEST_C("/'abc/", u8"Unterminated regex literal");
-    PARSE_TEST_C("/abc'/", u8"Invalid regex component -- expected (, [, ', \", {, or . but found \"a\"");
+    PARSE_TEST_C("/'abc/c", u8"Unterminated regex literal");
+    PARSE_TEST_C("/abc'/c", u8"Invalid regex component -- expected (, [, ', \", {, or . but found \"a\"");
 }
 
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_C("/'%'/", u8"Escape sequence is missing terminal ';'");
-    PARSE_TEST_C("/'%x0'/", u8"Escape sequence is missing terminal ';'");
-    PARSE_TEST_C("/'%59;'/", u8"Invalid escape sequence -- unknown escape name '59'");
-    PARSE_TEST_C("/'%x8f3G;'/", u8"Hex escape sequence contains non-hex characters");
-    PARSE_TEST_C("/'%x100;'/", u8"Invalid hex escape sequence");
-    PARSE_TEST_C("/'%x7F;'/", u8"Invalid hex escape sequence");
-    PARSE_TEST_C("/'%x;'/", u8"Invalid escape sequence -- unknown escape name 'x'");
-    PARSE_TEST_C("/'%bob;'/", u8"Invalid escape sequence -- unknown escape name 'bob'");
+    PARSE_TEST_C("/'%'/c", u8"Escape sequence is missing terminal ';'");
+    PARSE_TEST_C("/'%x0'/c", u8"Escape sequence is missing terminal ';'");
+    PARSE_TEST_C("/'%59;'/c", u8"Invalid escape sequence -- unknown escape name '59'");
+    PARSE_TEST_C("/'%x8f3G;'/c", u8"Hex escape sequence contains non-hex characters");
+    PARSE_TEST_C("/'%x100;'/c", u8"Invalid hex escape sequence");
+    PARSE_TEST_C("/'%x7F;'/c", u8"Invalid hex escape sequence");
+    PARSE_TEST_C("/'%x;'/c", u8"Invalid escape sequence -- unknown escape name 'x'");
+    PARSE_TEST_C("/'%bob;'/c", u8"Invalid escape sequence -- unknown escape name 'bob'");
 
-    PARSE_TEST_C("/'a🌵c'/", u8"Invalid Char encoding -- string contains a non-char character");
-    PARSE_TEST_C("/'%a;'/", u8"Invalid escape sequence -- unknown escape name 'a'");
-    PARSE_TEST_C("/'%x7;'/", u8"Invalid hex escape sequence");
-    PARSE_TEST_C("/'%x127;'/", u8"Invalid hex escape sequence");
+    PARSE_TEST_C("/'a🌵c'/c", u8"Invalid Char encoding -- string contains a non-char character");
+    PARSE_TEST_C("/'%a;'/c", u8"Invalid escape sequence -- unknown escape name 'a'");
+    PARSE_TEST_C("/'%x7;'/c", u8"Invalid hex escape sequence");
+    PARSE_TEST_C("/'%x127;'/c", u8"Invalid hex escape sequence");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
@@ -110,18 +110,18 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(C)
 BOOST_AUTO_TEST_CASE(simple) {
-    PARSE_TEST_C("/[06a/", u8"Missing ] in char range regex");
-    PARSE_TEST_C("/[0-9/", u8"Missing ] in char range regex");
-    PARSE_TEST_C("/0]/", u8"Invalid regex component");
+    PARSE_TEST_C("/[06a/c", u8"Missing ] in char range regex");
+    PARSE_TEST_C("/[0-9/c", u8"Missing ] in char range regex");
+    PARSE_TEST_C("/0]/c", u8"Invalid regex component");
 }
 BOOST_AUTO_TEST_CASE(escape) {
-    PARSE_TEST_C("/[%x32;-%tick]/", u8"Escape sequence is missing terminal ';'");
-    PARSE_TEST_C("/[^%x32; %undescore;]/", u8"Invalid escape sequence -- unknown escape name 'undescore'");
-    PARSE_TEST_C("/[^%x32-%undescore;]/", u8"Hex escape sequence contains non-hex characters -- x32-%undescore");
-    PARSE_TEST_C("/[^%32-%undescore;]/", u8"Invalid escape sequence -- unknown escape name '32-%undescore'");
+    PARSE_TEST_C("/[%x32;-%tick]/c", u8"Escape sequence is missing terminal ';'");
+    PARSE_TEST_C("/[^%x32; %undescore;]/c", u8"Invalid escape sequence -- unknown escape name 'undescore'");
+    PARSE_TEST_C("/[^%x32-%undescore;]/c", u8"Hex escape sequence contains non-hex characters -- x32-%undescore");
+    PARSE_TEST_C("/[^%32-%undescore;]/c", u8"Invalid escape sequence -- unknown escape name '32-%undescore'");
 
-    PARSE_TEST_C("/[%a;]/", u8"Invalid escape sequence -- unknown escape name 'a'");
-    PARSE_TEST_C("/[^%x127;]/", u8"Hex escape sequence is not a valid char character -- x127");
+    PARSE_TEST_C("/[%a;]/c", u8"Invalid escape sequence -- unknown escape name 'a'");
+    PARSE_TEST_C("/[^%x127;]/c", u8"Hex escape sequence is not a valid char character -- x127");
 }
 BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
