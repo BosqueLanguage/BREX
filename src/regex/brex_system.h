@@ -91,7 +91,7 @@ namespace brex
         Regex* re;
         std::vector<std::string> deps;
 
-        ReSystemEntry(const std::string& ns, const std::string& name, const std::string& fullname): ns(ns), name(name), fullname(fullname) {;}
+        ReSystemEntry(const std::string& ns, const std::string& name, const std::string& fullname): ns(ns), name(name), fullname(fullname), re(nullptr) {;}
         virtual ~ReSystemEntry() {;}
 
         virtual bool isUnicode() const = 0;
@@ -125,7 +125,7 @@ namespace brex
         const std::u8string restr;
         UnicodeRegexExecutor* executor;
 
-        ReSystemUnicodeEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
+        ReSystemUnicodeEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr): ReSystemEntry(ns, name, fullname), restr(restr), executor(nullptr) {;}
         ~ReSystemUnicodeEntry() {;}
 
         bool isUnicode() const override { return true; }
@@ -148,7 +148,7 @@ namespace brex
         const std::string restr;
         CRegexExecutor* executor;
 
-        ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr): ReSystemEntry(ns, name, fullname), restr(restr) {;}
+        ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr): ReSystemEntry(ns, name, fullname), restr(restr), executor(nullptr) {;}
         ~ReSystemCEntry() {;}
 
         bool isUnicode() const override { return false; }
@@ -392,5 +392,4 @@ namespace brex
             return uentry->executor;
         }
     };
-
 }
