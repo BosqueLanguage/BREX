@@ -35,7 +35,7 @@ Finally, BRex includes a number of novel language features that extend classic r
 ## Notable Features
 BRex includes a number of distinct features that are not present in classic PCRE style regular expressions. These include:
 
-- **Quoted Literals**: BRex supports quoted literals, `/"this is a literal"*/`. This allows for the use of special characters in literals without escaping, making the expression more readable, and provides a way to distingush `/"unicode literal 🌶"/` from `/'ascii literals %x59;'/a`.
+- **Quoted Literals**: BRex supports quoted literals, `/"this is a literal"*/`. This allows for the use of special characters in literals without escaping, making the expression more readable, and provides a way to distingush `/"unicode literal 🌶"/` from `/'ascii literals %x59;'/c`.
 
 - **Unified Escaping**: BRex eschews the classic, and frequently error prone, PCRE style of using `\` to escape special characters in favor of a unified escaping mechanism. All characters can be escaped using hex codes `/"%x7;%0;"/` or memonic names `%a;`, `%NUL;`, or `%;` (for the quote literal). Unicode can be hex escaped or inserted directly into the string (or char range `/[🌵-🌶]/`)
 
