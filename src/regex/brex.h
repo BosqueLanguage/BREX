@@ -468,6 +468,11 @@ namespace brex
 
         virtual bool validPreAnchor() const = 0;
         virtual bool validPostAnchor() const = 0;
+
+        virtual bool isValidNamedRegexComponent() const 
+        {
+            return false;
+        }
     };
 
     class RegexSingleComponent : public RegexComponent
@@ -517,6 +522,11 @@ namespace brex
         virtual bool validPostAnchor() const override final
         {
             return !this->entry.isBackCheck && !this->entry.isBackCheck;
+        }
+
+        virtual bool isValidNamedRegexComponent() const override final
+        {
+           return !this->entry.isFrontCheck && !this->entry.isBackCheck && !this->entry.isNegated;
         }
     };
 
@@ -686,6 +696,11 @@ namespace brex
         bool canUseInContains() const
         {
             return this->re->isContainsable();
+        }
+
+        bool isValidNamedRegexComponent() const 
+        {
+            return this->preanchor == nullptr && this->postanchor == nullptr && this->re->isValidNamedRegexComponent();
         }
     };
 }
