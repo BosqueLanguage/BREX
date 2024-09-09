@@ -25,7 +25,7 @@ void checkAndReportOkUnicodeResult(const std::u8string& str, const std::u8string
 #define PARSE_TEST_UNICODE(RE, EX) { auto res = tryParseForTestOk_Unicode(RE); BOOST_CHECK(res.has_value()); checkAndReportOkUnicodeResult(res.value(), EX); }
 
 std::optional<std::u8string> tryParseForTestOk_C(const std::string& str) {
-    auto pr = brex::RegexParser::parseCRegex(str, false);
+    auto pr = brex::RegexParser::parseCRegex(std::u8string(str.cbegin(), str.cend()), false);
     if(pr.first.has_value() && pr.second.empty()) {
         return std::make_optional(pr.first.value()->toBSQONFormat());
     }

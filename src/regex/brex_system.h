@@ -145,10 +145,10 @@ namespace brex
     class ReSystemCEntry : public ReSystemEntry
     {
     public:
-        const std::string restr;
+        const std::u8string restr;
         CRegexExecutor* executor;
 
-        ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr): ReSystemEntry(ns, name, fullname), restr(restr), executor(nullptr) {;}
+        ReSystemCEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr): ReSystemEntry(ns, name, fullname), restr(restr), executor(nullptr) {;}
         ~ReSystemCEntry() {;}
 
         bool isUnicode() const override { return false; }
@@ -191,7 +191,7 @@ namespace brex
             this->entries.push_back(entry);
         }
 
-        void loadCStringEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::string& restr)
+        void loadCStringEntry(const std::string& ns, const std::string& name, const std::string& fullname, const std::u8string& restr)
         {
             auto entry = new ReSystemCEntry(ns, name, fullname, restr);
             this->entries.push_back(entry);
@@ -342,7 +342,7 @@ namespace brex
                         rsystem.loadUnicodeEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, ri.restr);
                     }
                     else {
-                        rsystem.loadCStringEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, std::string(ri.restr.begin(), ri.restr.end()));
+                        rsystem.loadCStringEntry(nsi.nsinfo.inns, ri.name, nsi.nsinfo.inns + "::" + ri.name, ri.restr);
                     }
                 });
             });
