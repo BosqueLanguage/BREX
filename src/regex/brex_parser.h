@@ -906,12 +906,12 @@ namespace brex
             return parseRegex((uint8_t*)re.c_str(), re.size(), true, false, envAllowed);
         }
 
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseCRegex(const std::string& re, bool envAllowed)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parseCRegex(const std::u8string& re, bool envAllowed)
         {
             return parseRegex((uint8_t*)re.c_str(), re.size(), false, false, envAllowed);
         }
 
-        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parsePathRegex(const std::string& re, bool envAllowed)
+        static std::pair<std::optional<Regex*>, std::vector<RegexParserError>> parsePathRegex(const std::u8string& re, bool envAllowed)
         {
             return parseRegex((uint8_t*)re.c_str(), re.size(), false, true, envAllowed);
         }

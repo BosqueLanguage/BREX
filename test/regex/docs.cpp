@@ -64,7 +64,7 @@ std::optional<brex::UnicodeRegexExecutor*> tryParseForNameSubTest(const std::u8s
 }
 
 std::optional<brex::CRegexExecutor*> tryParseForCDocsTest(const std::string& str) {
-    auto pr = brex::RegexParser::parseCRegex(str, false);
+    auto pr = brex::RegexParser::parseCRegex(std::u8string(str.cbegin(), str.cend()), false);
     if(!pr.first.has_value() || !pr.second.empty()) {
         return std::nullopt;
     }

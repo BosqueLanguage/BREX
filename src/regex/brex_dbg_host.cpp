@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     std::map<std::string, const brex::RegexOpt*> nmap;
     std::map<std::string, const brex::LiteralOpt*> emap;
 
-    auto apr = brex::RegexParser::parseCRegex("/[0-9]/c", false);
+    auto apr = brex::RegexParser::parseCRegex(u8"/[0-9]/c", false);
 
     auto aexecutor = brex::RegexCompiler::compileCRegexToExecutor(apr.first.value(), nmap, emap, false, nullptr, dbg_fnresolve, compileerror);
 

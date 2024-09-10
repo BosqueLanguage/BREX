@@ -23,7 +23,7 @@ void checkAndReportErrUnicodeResult(const std::u8string& str, const std::u8strin
 }
 
 std::optional<brex::RegexParserError> tryParseForTestError_C(const std::string& str) {
-    auto pr = brex::RegexParser::parseCRegex(str, false);
+    auto pr = brex::RegexParser::parseCRegex(std::u8string(str.cbegin(), str.cend()), false);
     if(pr.second.empty()) {
         return std::nullopt;
     }
