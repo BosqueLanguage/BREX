@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <charconv>
+
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]
 #define UTF8_IS_CONTINUATION_BYTE(B) (((B) & 0xC0) == 0x80)
 
@@ -136,7 +138,7 @@ namespace brex
 
     bool isLegalCChar(uint8_t c)
     {
-        if(c > 127) {
+        if(c > 126) {
             return false;
         }
         else {
@@ -238,17 +240,23 @@ namespace brex
         }
 
         uint32_t cval = 0;
-        auto sct = sscanf((char*)s, "%%x%x;", &cval);
-        if(sct != 1 || cval > (ischar ? 0x7E : 0x10FFFF)) {
+        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
+        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
             return std::nullopt;
         }
-        else {
-            if(ischar && cval <= 127 && !isLegalCChar(cval)) {
+
+        if(!ischar) {
+            if(cval > 0x10FFFF) {
                 return std::nullopt;
             }
-
-            return std::make_optional(cval);
         }
+        else {
+            if(!isLegalCChar(cval)) {
+                return std::nullopt;
+            }
+        }
+
+        return std::make_optional(cval);
     }
 
     std::optional<UnicodeString> decodeHexEscapeAsUnicode(const uint8_t* s, const uint8_t* e)
@@ -261,8 +269,12 @@ namespace brex
         }
 
         uint32_t cval = 0;
-        auto sct = sscanf((char*)s, "%%x%x;", &cval);
-        if(sct != 1 || cval > 0x10FFFF) {
+        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
+        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
+            return std::nullopt;
+        }
+
+        if(cval > 0x10FFFF) {
             return std::nullopt;
         }
         else {
@@ -291,15 +303,15 @@ namespace brex
         }
 
         uint32_t cval = 0;
-        auto sct = sscanf((char*)s, "%%x%x;", &cval);
-        if(sct != 1 || cval > 127) {
+        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
+        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
+            return std::nullopt;
+        }
+
+        if(!isLegalCChar(cval)) {
             return std::nullopt;
         }
         else {
-            if(!isLegalCChar(cval)) {
-                return std::nullopt;
-            }
-
             return std::make_optional<CString>({ (CStringChar)cval });
         }
     }
