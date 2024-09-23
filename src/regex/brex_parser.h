@@ -449,7 +449,7 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Missing closing } in named regex"));
             }
 
-            std::basic_regex scopere("^([A-Z][_a-zA-Z0-9]+::)*[A-Z][_a-zA-Z0-9]+$");
+            std::basic_regex scopere("^([A-Z][_a-zA-Z0-9]+::)*[_a-zA-Z0-9]+$");
             if(!std::regex_match(name.cbegin(), name.cend(), scopere)) {
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid named regex name -- must be a valid scoped identifier"));
             }

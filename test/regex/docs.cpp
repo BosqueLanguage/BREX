@@ -340,6 +340,17 @@ BOOST_AUTO_TEST_CASE(anchorfile) {
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mak_a.txt", false);
     ACCEPTS_TEST_UNICODE_DOCS(executor, u8"mark_a.tmp", false);
 }
+BOOST_AUTO_TEST_CASE(sccopedname) {
+    std::map<std::string, const brex::RegexOpt*> nmap;
+    BOOST_CHECK(tryParseIntoNameMap("Main::re2", u8"/[a-zA-Z0-9_]+/", nmap));
+
+    auto texecutor = tryParseForNameSubTest(u8"/${Main::re2}/", nmap);
+    BOOST_CHECK(texecutor.has_value());
+
+    auto executor = texecutor.value();
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE_DOCS(executor, u8"abc", true);
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
