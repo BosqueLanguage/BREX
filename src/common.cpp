@@ -1,7 +1,5 @@
 #include "common.h"
 
-#include <charconv>
-
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]
 #define UTF8_IS_CONTINUATION_BYTE(B) (((B) & 0xC0) == 0x80)
 
@@ -239,9 +237,8 @@ namespace brex
             return std::nullopt;
         }
 
-        uint32_t cval = 0;
-        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
-        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
+        uint32_t cval = (uint32_t)std::strtoull((const char*)(s + 2), nullptr, 16);
+        if(errno == ERANGE) {
             return std::nullopt;
         }
 
@@ -268,9 +265,8 @@ namespace brex
             return std::nullopt;
         }
 
-        uint32_t cval = 0;
-        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
-        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
+        uint32_t cval = (uint32_t)std::strtoull((const char*)(s + 2), nullptr, 16);
+        if(errno == ERANGE) {
             return std::nullopt;
         }
 
@@ -302,9 +298,8 @@ namespace brex
             return std::nullopt;
         }
 
-        uint32_t cval = 0;
-        auto eev = std::from_chars<uint32_t>((const char*)(s + 2), (const char*)(e - 1), cval, 16);
-        if(eev.ec != std::errc() || eev.ptr != (const char*)(e - 1)) {
+        uint32_t cval = (uint32_t)std::strtoull((const char*)(s + 2), nullptr, 16);
+        if(errno == ERANGE) {
             return std::nullopt;
         }
 
