@@ -259,7 +259,7 @@ namespace brex
             return remapper->remapper->remapName(remapper->inns, name);
         }
 
-        bool processRERecursive(ReSystemEntry* entry, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
+        bool processRERecursive(ReSystemEntry* entry, std::map<std::string, const RegexOpt*>& namedRegexes, std::vector<std::u8string>& errors, std::vector<std::string>& pending)
         {
             if(entry->re->ctag == RegexCharInfoTag::Unicode) {
                 if(static_cast<ReSystemUnicodeEntry*>(entry)->executor != nullptr) {
@@ -279,10 +279,9 @@ namespace brex
 
             pending.push_back(entry->fullname);
  
-            std::map<std::string, const RegexOpt*> namedRegexes;
             std::vector<ReSystemEntry*>& deps = this->depmap.find(entry->fullname)->second;
             auto recok = std::accumulate(deps.begin(), deps.end(), true, [this, &errors, &pending, &namedRegexes](bool acc, ReSystemEntry* dep) {
-                auto ok = this->processRERecursive(dep, errors, pending);
+                auto ok = this->processRERecursive(dep, namedRegexes, errors, pending);
                 if(!ok) {
                     return false;
                 }
@@ -355,9 +354,10 @@ namespace brex
             }
 
             //compile the values
+            std::map<std::string, const RegexOpt*> namedRegexes;
             for(auto iter = rsystem.entries.begin(); iter != rsystem.entries.end(); ++iter) {
                 std::vector<std::string> pending;
-                if(!rsystem.processRERecursive(*iter, errors, pending)) {
+                if(!rsystem.processRERecursive(*iter, namedRegexes, errors, pending)) {
                     return rsystem;
                 }
             }
