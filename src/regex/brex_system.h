@@ -287,7 +287,8 @@ namespace brex
                     return false;
                 }
                 
-                return acc && this->loadIntoNameMap(dep->fullname, dep->re, namedRegexes);
+                auto okload = this->loadIntoNameMap(dep->fullname, dep->re, namedRegexes);
+                return acc && okload;
             });
 
             pending.pop_back();
