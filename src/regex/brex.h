@@ -123,7 +123,7 @@ namespace brex
                 if(cr.low != cr.high) {
                     rngs.push_back('-');
                     
-                    auto highbytes = processRegexCharToBsqStandard(cr.low);
+                    auto highbytes = processRegexCharToBsqStandard(cr.high);
                     rngs.append(highbytes.cbegin(), highbytes.cend());
                 }
             }
@@ -134,7 +134,50 @@ namespace brex
 
         virtual std::string toSMTRegex() const override final
         {
-            xxxx;
+            std::vector<std::string> opts;
+            for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
+                auto cr = *ii;
+
+                if(!this->compliment) {
+                    auto lowbytes = processRegexCharToSMT(cr.low);
+                    if(cr.low == cr.high) {
+                        opts.push_back(lowbytes);
+                    }
+                    else {
+                        auto highbytes = processRegexCharToBsqStandard(cr.high);
+                        opts.push_back("(re.range " + lowbytes + " " + highbytes + ")");
+                    }
+                }
+                else {
+                    RegexChar cslow = this->isunicode ? (RegexChar)0 : (RegexChar)9;
+                    std::string cslowbytes = processRegexCharToSMT(cslow);
+
+                    RegexChar cshigh = this->isunicode ? (RegexChar)0x10FFFF : (RegexChar)126;
+                    std::string cshighbytes = processRegexCharToSMT(cshigh);
+
+                    if(cr.low != cslow) {
+                        auto lowbytes = processRegexCharToSMT(cr.low - 1);
+                        opts.push_back("(re.range " + cslowbytes + " " + lowbytes + ")");
+                    }
+                    
+                    auto highbytes = processRegexCharToSMT(cr.high + 1);
+                    opts.push_back("(re.range " + highbytes + " " + cshighbytes + ")");
+                }
+            }
+
+            std::string optsstr;
+            if(opts.size() == 1) {
+                optsstr = opts.front();
+            }
+            else {
+                std::string cop = this->compliment ? "re.inter" : "re.union";
+
+                optsstr = "(" + cop + std::accumulate(opts.cbegin(), opts.cend(), std::string{""}, [](const std::string& acc, const std::string& opt) {
+                    return acc + " " + opt;
+                }) + ")";
+            }
+
+            return optsstr;
         }
     };
 
@@ -176,12 +219,12 @@ namespace brex
 
         virtual std::string toBSQStandard() const override final
         {
-            assert(false); //This should never be called, NamedRegexOpt should be resolved before this is called
+            return "${" + this->rname + "}";
         }
 
         virtual std::string toSMTRegex() const override final
         {
-            assert(false); //This should never be called, NamedRegexOpt should be resolved before this is called
+            return "${" + this->rname + "}";
         }
     };
 

@@ -18,6 +18,8 @@ namespace brex
         ComponentCheckREInfo& operator=(const ComponentCheckREInfo& other) = default;
         ComponentCheckREInfo& operator=(ComponentCheckREInfo&& other) = default;
 
+        virtual std::pair<std::string, std::string> getBSQIRInfo() const = 0;
+        
         //test is the regex accepts the string from spos to epos (inclusive)
         virtual bool test(TStr* sstr, int64_t spos, int64_t epos) = 0;
         
@@ -61,6 +63,16 @@ namespace brex
 
         SingleCheckREInfo& operator=(const SingleCheckREInfo& other) = default;
         SingleCheckREInfo& operator=(SingleCheckREInfo&& other) = default;
+
+        std::pair<std::string, std::string> getBSQIRInfo() const override final
+        {
+            if(this->isNegative || this->isFrontCheck || this->isBackCheck) {
+                //negative, front or back check regexes are not supported in BSQIR yet
+                return std::make_pair("[NOT SUPPORTED (Neg/Front/Back)]", "[NOT SUPPORTED (Neg/Front/Back)]");
+            }
+
+            return std::make_pair(this->bsqnf, this->smtre);
+        }
 
         bool validateSingleOp(TStr* sstr, int64_t spos, int64_t epos)
         {
@@ -154,6 +166,23 @@ namespace brex
 
         MultiCheckREInfo(const std::vector<SingleCheckREInfo<TStr, TIter>*>& checks) : ComponentCheckREInfo<TStr, TIter>(), checks(checks) {;}
         virtual ~MultiCheckREInfo() = default;
+
+        std::pair<std::string, std::string> getBSQIRInfo() const override final
+        {
+            std::string bsqnf;
+            std::string smtre = "(re.inter";
+            for(auto iter = this->checks.cbegin(); iter != this->checks.cend(); ++iter) {
+                SingleCheckREInfo<TStr, TIter>* chk = *iter;
+                if(!bsqnf.empty()) {
+                    bsqnf += " & ";
+                }
+                bsqnf += chk->bsqnf;
+                smtre += " " + chk->smtre;
+            }
+            smtre += ")";
+
+            return std::make_pair(bsqnf, smtre);
+        }
 
         void splitBindingOps(std::vector<SingleCheckREInfo<TStr, TIter>*>& bindingopts, std::vector<SingleCheckREInfo<TStr, TIter>*>& checkopts)
         {
@@ -327,6 +356,15 @@ namespace brex
 
         REExecutor(const Regex* declre, ComponentCheckREInfo<TStr, TIter>* optPre, ComponentCheckREInfo<TStr, TIter>* optPost, ComponentCheckREInfo<TStr, TIter>* re) : declre(declre), optPre(optPre), optPost(optPost), re(re) {;}
         ~REExecutor() = default;
+
+        std::pair<std::string, std::string> getBSQIRInfo() const 
+        {
+            if(this->optPre != nullptr || this->optPost != nullptr) {
+                return std::make_pair("[NOT SUPPORTED (Pre/Post)]", "[NOT SUPPORTED (Pre/Post)]");
+            }
+            
+            return this->re->getBSQIRInfo();
+        } 
 
         bool test(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
         {
