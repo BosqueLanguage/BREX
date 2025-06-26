@@ -162,8 +162,8 @@ namespace brex
         RegexCompiler() : errors() { ; }
         ~RegexCompiler() = default;
 
-        template <typename TStr, typename TIter>
-        static REExecutor<TStr, TIter>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        template <typename TStr, typename TIter, bool isunicode>
+        static REExecutor<TStr, TIter, isunicode>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
         {
             RegexCompiler rcc;
 
@@ -176,7 +176,7 @@ namespace brex
                 return nullptr;
             }
 
-            return new REExecutor<TStr, TIter>(re, optPre, optPost, cre);
+            return new REExecutor<TStr, TIter, isunicode>(re, optPre, optPost, cre);
         }
 
         static bool gatherNamedRegexKeys(std::set<std::string>& constnames, std::set<std::string>& envnames, const Regex* re)
@@ -206,7 +206,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator, true>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
         static CRegexExecutor* compileCRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
@@ -221,7 +221,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator, false>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
         static CRegexExecutor* compilePathRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
@@ -236,7 +236,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator, false>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
     };
 }

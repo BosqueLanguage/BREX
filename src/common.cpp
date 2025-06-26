@@ -201,7 +201,7 @@ namespace brex
 
     std::string processRegexCharToSMT(RegexChar c)
     {
-        if(std::isprint(c)) {
+        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && std::isprint(c)) {
             return std::string{(char)c};
         }
         else {

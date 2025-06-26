@@ -139,28 +139,28 @@ namespace brex
                 auto cr = *ii;
 
                 if(!this->compliment) {
-                    auto lowbytes = processRegexCharToSMT(cr.low);
+                    auto lowbytes = "\"" + processRegexCharToSMT(cr.low) + "\"";
                     if(cr.low == cr.high) {
-                        opts.push_back(lowbytes);
+                        opts.push_back("(str.to.re " + lowbytes + ")");
                     }
                     else {
-                        auto highbytes = processRegexCharToBsqStandard(cr.high);
+                        auto highbytes = "\"" + processRegexCharToSMT(cr.high) + "\"";
                         opts.push_back("(re.range " + lowbytes + " " + highbytes + ")");
                     }
                 }
                 else {
                     RegexChar cslow = this->isunicode ? (RegexChar)0 : (RegexChar)9;
-                    std::string cslowbytes = processRegexCharToSMT(cslow);
+                    std::string cslowbytes = "\"" + processRegexCharToSMT(cslow) + "\"";
 
                     RegexChar cshigh = this->isunicode ? (RegexChar)0x10FFFF : (RegexChar)126;
-                    std::string cshighbytes = processRegexCharToSMT(cshigh);
+                    std::string cshighbytes = "\"" + processRegexCharToSMT(cshigh) + "\"";
 
                     if(cr.low != cslow) {
-                        auto lowbytes = processRegexCharToSMT(cr.low - 1);
+                        auto lowbytes = "\"" + processRegexCharToSMT(cr.low - 1) + "\"";
                         opts.push_back("(re.range " + cslowbytes + " " + lowbytes + ")");
                     }
                     
-                    auto highbytes = processRegexCharToSMT(cr.high + 1);
+                    auto highbytes = "\"" + processRegexCharToSMT(cr.high + 1) + "\"";
                     opts.push_back("(re.range " + highbytes + " " + cshighbytes + ")");
                 }
             }

@@ -73,6 +73,8 @@
         "variant": "cpp",
         "charconv": "cpp",
         "source_location": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "format": "cpp",
+        "span": "cpp"
     }
 }

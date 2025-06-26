@@ -344,7 +344,7 @@ namespace brex
         InvalidRegexStructure
     };
 
-    template <typename TStr, typename TIter>
+    template <typename TStr, typename TIter, bool isunicode>
     class REExecutor
     {
     public:
@@ -363,7 +363,15 @@ namespace brex
                 return std::make_pair("[NOT SUPPORTED (Pre/Post)]", "[NOT SUPPORTED (Pre/Post)]");
             }
             
-            return this->re->getBSQIRInfo();
+            auto bsqirinfo = this->re->getBSQIRInfo();
+            if(isunicode)
+            {
+                return std::make_pair("/" + bsqirinfo.first + "/", bsqirinfo.second);
+            }
+            else
+            {
+                return std::make_pair("/" + bsqirinfo.first + "/c", bsqirinfo.second);
+            }
         } 
 
         bool test(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
@@ -598,6 +606,6 @@ namespace brex
         std::optional<int64_t> matchBack(TStr* sstr, ExecutorError& error) { return this->matchBack(sstr, 0, (int64_t)sstr->size() - 1, error); }
     };
 
-    typedef REExecutor<UnicodeString, UnicodeRegexIterator> UnicodeRegexExecutor;
-    typedef REExecutor<CString, CRegexIterator> CRegexExecutor;
+    typedef REExecutor<UnicodeString, UnicodeRegexIterator, true> UnicodeRegexExecutor;
+    typedef REExecutor<CString, CRegexIterator, false> CRegexExecutor;
 }
