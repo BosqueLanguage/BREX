@@ -23,8 +23,6 @@ namespace bpath
         virtual ~GlobSimpleComponent() {;}
 
         virtual std::u8string toBSQONFormat() const = 0;
-
-        static GlobSimpleComponent* jparse(json jv);
     };
 
     class LiteralComponent : public GlobSimpleComponent
@@ -39,8 +37,6 @@ namespace bpath
         {
             return std::u8string(this->value.cbegin(), this->value.cend());
         }
-
-        static LiteralComponent* jparse(json jv);
     };
 
     class WildcardComponent : public GlobSimpleComponent
@@ -53,8 +49,6 @@ namespace bpath
         {
             return u8"*";
         }
-
-        static WildcardComponent* jparse(json jv);
     };
 
     class RegexComponent : public GlobSimpleComponent
@@ -69,8 +63,6 @@ namespace bpath
         {
             return re->toBSQONGlobFormat();
         }
-
-        static RegexComponent* jparse(json jv);
     };
 
     enum class GlobSegmentComponentTag
@@ -94,8 +86,6 @@ namespace bpath
         virtual ~SegmentGlobCompnent() {;}
 
         virtual std::u8string toBSQONFormat() const = 0;
-
-        static SegmentGlobCompnent* jparse(json jv);
     };
 
     class SegmentLiteralComponent : public SegmentGlobCompnent
@@ -110,8 +100,6 @@ namespace bpath
         {
             return std::u8string(this->value.cbegin(), this->value.cend());
         }
-
-        static SegmentLiteralComponent* jparse(json jv);
     };
     
     class SegmentWildcardComponent : public SegmentGlobCompnent
@@ -124,8 +112,6 @@ namespace bpath
         {
             return u8"*";
         }
-
-        static SegmentWildcardComponent* jparse(json jv);
     };
 
     class SegmentRegexComponent : public SegmentGlobCompnent
@@ -140,8 +126,6 @@ namespace bpath
         {
             return re->toBSQONGlobFormat();
         }
-
-        static SegmentRegexComponent* jparse(json jv);
     };
 
     class SegmentExpansiveComponent : public SegmentGlobCompnent
@@ -161,8 +145,6 @@ namespace bpath
         {
             return u8"**";
         }
-
-        static SegmentExpansiveWildcardComponent* jparse(json jv);
     };
 
     class SegmentExpansiveRegexComponent : public SegmentExpansiveComponent
@@ -184,8 +166,6 @@ namespace bpath
         {
             return re->toBSQONGlobFormat() + u8'*';
         }
-
-        static SegmentExpansiveStarComponent* jparse(json jv);
     };
 
     class SegmentExpansivePlusComponent : public SegmentExpansiveRegexComponent
@@ -198,8 +178,6 @@ namespace bpath
         {
             return re->toBSQONGlobFormat() + u8'+';
         }
-
-        static SegmentExpansivePlusComponent* jparse(json jv);
     };
 
     class SegmentExpansiveRangeComponent : public SegmentExpansiveRegexComponent
@@ -231,8 +209,6 @@ namespace bpath
             
             return re->toBSQONGlobFormat() + std::u8string(iterstr.cbegin(), iterstr.cend());
         }
-
-        static SegmentExpansiveRangeComponent* jparse(json jv);
     };
 
     class SegmentExpansiveQuestionComponent : public SegmentExpansiveRegexComponent
@@ -245,8 +221,6 @@ namespace bpath
         {
             return re->toBSQONGlobFormat() + u8'?';
         }
-
-        static SegmentExpansiveQuestionComponent* jparse(json jv);
     };
 
     class GlobAuthorityInfo
@@ -266,8 +240,6 @@ namespace bpath
                 return this->host->toBSQONFormat();
             }
         }
-
-        static GlobAuthorityInfo* jparse(json jv);
     };
 
     class GlobElementInfo
@@ -287,8 +259,6 @@ namespace bpath
                 return this->ename->toBSQONFormat();
             }
         }
-
-        static GlobElementInfo* jparse(json jv);
     };
 
     class PathGlob
@@ -345,8 +315,6 @@ namespace bpath
             
             return res;
         }
-
-        static PathGlob* jparse(json jv);
     };
 
     typedef PathGlob ResourceDescriptor;

@@ -71,6 +71,10 @@
         "cfenv": "cpp",
         "typeindex": "cpp",
         "variant": "cpp",
-        "charconv": "cpp"
+        "charconv": "cpp",
+        "source_location": "cpp",
+        "shared_mutex": "cpp",
+        "format": "cpp",
+        "span": "cpp"
     }
 }

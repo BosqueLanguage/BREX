@@ -33,6 +33,8 @@ namespace brex
         const RegexOpt* resolveEnvRegexOpt(const EnvRegexOpt* opt);
         const RegexOpt* resolveAnyOfOpt(const AnyOfOpt* opt);
 
+        const RegexOpt* resolveRangeRepeatOpt(const RangeRepeatOpt* opt);
+
     public:
         NameResolverState resolverState;
         fnNameResolver nameResolverFn;
@@ -44,7 +46,9 @@ namespace brex
         std::vector<RegexCompileError> errors;
         std::vector<std::string> pending_resolves;
 
-        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, const std::map<std::string, const RegexOpt*>& namedRegexes, bool envEnabled, const std::map<std::string, const LiteralOpt*>& envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), namedRegexes(namedRegexes), envEnabled(envEnabled), envRegexes(envRegexes), errors(), pending_resolves() { ; }
+        bool inRangeRepeat;
+
+        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, const std::map<std::string, const RegexOpt*>& namedRegexes, bool envEnabled, const std::map<std::string, const LiteralOpt*>& envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), namedRegexes(namedRegexes), envEnabled(envEnabled), envRegexes(envRegexes), errors(), pending_resolves(), inRangeRepeat(false) { ; }
         ~RegexResolver() = default;
 
         const RegexOpt* resolve(const RegexOpt* opt);
@@ -101,7 +105,10 @@ namespace brex
             
             NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
 
-            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
+            auto bsqstd = fullre->toBSQStandard();
+            auto smtre = fullre->toSMTRegex();
+
+            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck, bsqstd, smtre);
             return std::make_optional(scc);
         }
         
@@ -155,8 +162,8 @@ namespace brex
         RegexCompiler() : errors() { ; }
         ~RegexCompiler() = default;
 
-        template <typename TStr, typename TIter>
-        static REExecutor<TStr, TIter>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
+        template <typename TStr, typename TIter, bool isunicode>
+        static REExecutor<TStr, TIter, isunicode>* compileRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
         {
             RegexCompiler rcc;
 
@@ -169,7 +176,7 @@ namespace brex
                 return nullptr;
             }
 
-            return new REExecutor<TStr, TIter>(re, optPre, optPost, cre);
+            return new REExecutor<TStr, TIter, isunicode>(re, optPre, optPost, cre);
         }
 
         static bool gatherNamedRegexKeys(std::set<std::string>& constnames, std::set<std::string>& envnames, const Regex* re)
@@ -199,7 +206,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<UnicodeString, UnicodeRegexIterator, true>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
         static CRegexExecutor* compileCRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
@@ -214,7 +221,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator, false>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
 
         static CRegexExecutor* compilePathRegexToExecutor(const Regex* re, const std::map<std::string, const RegexOpt*>& namedRegexes, const std::map<std::string, const LiteralOpt*>& envRegexes, bool envEnabled, NameResolverState resolverState, fnNameResolver nameResolverFn, std::vector<RegexCompileError>& errinfo)
@@ -229,7 +236,7 @@ namespace brex
                 return nullptr;
             }
 
-            return compileRegexToExecutor<CString, CRegexIterator>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
+            return compileRegexToExecutor<CString, CRegexIterator, false>(re, namedRegexes, envRegexes, envEnabled, resolverState, nameResolverFn, errinfo);
         }
     };
 }

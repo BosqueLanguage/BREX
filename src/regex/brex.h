@@ -31,7 +31,8 @@ namespace brex
         virtual bool needsSequenceParens() const { return false; }
         virtual std::u8string toBSQONFormat() const = 0;
 
-        static RegexOpt* jparse(json j);
+        virtual std::string toBSQStandard() const = 0;
+        virtual std::string toSMTRegex() const = 0;
     };
 
     class LiteralOpt : public RegexOpt
@@ -55,17 +56,19 @@ namespace brex
             }
         }
 
-        static LiteralOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            std::vector<RegexChar> codes;
-            auto jcodes = j["charcodes"];
-            std::transform(jcodes.cbegin(), jcodes.cend(), std::back_inserter(codes), [](const json& rv) {
-                return rv.get<RegexChar>();
-            });
+            if(this->isunicode) {
+                return "\"" + processRegexCharsToBsqStandard(this->codes) + "\"";
+            }
+            else {
+                return "'" + processRegexCharsToBsqStandard(this->codes) + "'";
+            }
+        }
 
-            const bool isunicode = j["isunicode"].get<bool>();
-
-            return new LiteralOpt(codes, isunicode);
+        virtual std::string toSMTRegex() const override final
+        {
+            return "(str.to.re \"" + processRegexCharsToSMT(this->codes) + "\")";
         }
     };
 
@@ -104,22 +107,77 @@ namespace brex
             return rngs;
         }
 
-        static CharRangeOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            const bool compliment = j["compliment"].get<bool>();
+            std::string rngs = "[";
+            if(this->compliment) {
+                rngs.push_back('^');
+            }
 
-            std::vector<SingleCharRange> ranges;
-            auto jranges = j["range"];
-            std::transform(jranges.cbegin(), jranges.cend(), std::back_inserter(ranges), [](const json& rv) {
-                auto lb = rv["lb"].get<RegexChar>();
-                auto ub = rv["ub"].get<RegexChar>();
+            for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
+                auto cr = *ii;
 
-                return SingleCharRange{lb, ub};
-            });
+                auto lowbytes = processRegexCharToBsqStandard(cr.low);
+                rngs.append(lowbytes.cbegin(), lowbytes.cend());
 
-            const bool isunicode = j["isunicode"].get<bool>();
+                if(cr.low != cr.high) {
+                    rngs.push_back('-');
+                    
+                    auto highbytes = processRegexCharToBsqStandard(cr.high);
+                    rngs.append(highbytes.cbegin(), highbytes.cend());
+                }
+            }
+            rngs.push_back(']');
 
-            return new CharRangeOpt(compliment, ranges, isunicode);
+            return rngs;
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            std::vector<std::string> opts;
+            for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
+                auto cr = *ii;
+
+                if(!this->compliment) {
+                    auto lowbytes = "\"" + processRegexCharToSMT(cr.low) + "\"";
+                    if(cr.low == cr.high) {
+                        opts.push_back("(str.to.re " + lowbytes + ")");
+                    }
+                    else {
+                        auto highbytes = "\"" + processRegexCharToSMT(cr.high) + "\"";
+                        opts.push_back("(re.range " + lowbytes + " " + highbytes + ")");
+                    }
+                }
+                else {
+                    RegexChar cslow = this->isunicode ? (RegexChar)0 : (RegexChar)9;
+                    std::string cslowbytes = "\"" + processRegexCharToSMT(cslow) + "\"";
+
+                    RegexChar cshigh = this->isunicode ? (RegexChar)0x10FFFF : (RegexChar)126;
+                    std::string cshighbytes = "\"" + processRegexCharToSMT(cshigh) + "\"";
+
+                    if(cr.low != cslow) {
+                        auto lowbytes = "\"" + processRegexCharToSMT(cr.low - 1) + "\"";
+                        opts.push_back("(re.range " + cslowbytes + " " + lowbytes + ")");
+                    }
+                    
+                    auto highbytes = "\"" + processRegexCharToSMT(cr.high + 1) + "\"";
+                    opts.push_back("(re.range " + highbytes + " " + cshighbytes + ")");
+                }
+            }
+
+            std::string optsstr;
+            if(opts.size() == 1) {
+                optsstr = opts.front();
+            }
+            else {
+                std::string cop = this->compliment ? "re.inter" : "re.union";
+
+                optsstr = "(" + cop + std::accumulate(opts.cbegin(), opts.cend(), std::string{""}, [](const std::string& acc, const std::string& opt) {
+                    return acc + " " + opt;
+                }) + ")";
+            }
+
+            return optsstr;
         }
     };
 
@@ -134,9 +192,14 @@ namespace brex
             return std::u8string{u8'.'};
         }
 
-        static CharClassDotOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            return new CharClassDotOpt();
+            return ".";
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            return "re.allchar";
         }
     };
 
@@ -154,11 +217,14 @@ namespace brex
             return u8'{' + std::u8string(this->rname.cbegin(), this->rname.cend()) + u8'}';
         }
 
-        static NamedRegexOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            const std::string rname = j["rname"].get<std::string>();
+            return "${" + this->rname + "}";
+        }
 
-            return new NamedRegexOpt(rname);
+        virtual std::string toSMTRegex() const override final
+        {
+            return "${" + this->rname + "}";
         }
     };
 
@@ -175,11 +241,14 @@ namespace brex
             return u8'{' + std::u8string(this->ename.cbegin(), this->ename.cend()) + u8'}';
         }
 
-        static EnvRegexOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            const std::string ename = j["ename"].get<std::string>();
+            return "env[" + this->ename + ']';
+        }
 
-            return new EnvRegexOpt(ename);
+        virtual std::string toSMTRegex() const override final
+        {
+            return "env[" + this->ename + ']';
         }
     };
 
@@ -202,10 +271,19 @@ namespace brex
             }
         }
 
-        static StarRepeatOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto repeat = RegexOpt::jparse(j["repeat"]);
-            return new StarRepeatOpt(repeat);
+            if(!this->repeat->needsParens()) {
+                return this->repeat->toBSQStandard() + "*";
+            }
+            else {
+                return "(" + this->repeat->toBSQStandard() + ")*";
+            }
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            return "(re.* " + this->repeat->toSMTRegex() + ")";
         }
     };
 
@@ -228,10 +306,19 @@ namespace brex
             }
         }
 
-        static PlusRepeatOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto repeat = RegexOpt::jparse(j["repeat"]);
-            return new PlusRepeatOpt(repeat);
+            if (!this->repeat->needsParens()) {
+                return this->repeat->toBSQStandard() + "+";
+            }
+            else {
+                return "(" + this->repeat->toBSQStandard() + ")+";
+            }
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            return "(re.+ " + this->repeat->toSMTRegex() + ")";
         }
     };
 
@@ -275,13 +362,50 @@ namespace brex
             return repeatstr + std::u8string(iterstr.cbegin(), iterstr.cend());
         }
 
-        static RangeRepeatOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto repeat = RegexOpt::jparse(j["repeat"]);
-            auto low = j["low"].get<uint16_t>();
-            auto high = (!j.contains("high") || j["high"].is_null()) ? UINT16_MAX : j["high"].get<uint16_t>();
+            std::string repeatstr;
+            if(!this->repeat->needsParens()) {
+                repeatstr = this->repeat->toBSQStandard();
+            }
+            else {
+                repeatstr = '(' + this->repeat->toBSQStandard() + ')';
+            }
 
-            return new RangeRepeatOpt(low, high, repeat);
+            std::string iterstr{'{'};
+            if(this->low == this->high) {
+                iterstr += std::to_string(this->low) + '}';
+            }
+            else {
+                if(this->low == 0) {
+                    iterstr += ',' + std::to_string(this->high) + '}';
+                }
+                else if(this->high == UINT16_MAX) {
+                    iterstr += std::to_string(this->low) + ",}";
+                }
+                else {
+                    iterstr += std::to_string(this->low) + ',' + std::to_string(this->high) + '}';
+                }   
+            }
+
+            return repeatstr + iterstr;
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            if(this->high == UINT16_MAX) {
+                //Unbounded repeat
+                std::string iterstr = std::to_string(this->low) + " " + std::to_string(this->low);
+                std::string repeatstr = this->repeat->toSMTRegex();
+                
+                return "(re.++ ((_ re.loop " + iterstr + ") " + repeatstr + ") " + "(re.* " + repeatstr + "))";
+            }
+            else {
+                std::string iterstr = std::to_string(this->low) + " " + std::to_string(this->high);
+                std::string repeatstr = this->repeat->toSMTRegex();
+
+                return "((_ re.loop " + iterstr + ") " + repeatstr + ")";
+            }
         }
     };
 
@@ -304,10 +428,19 @@ namespace brex
             }
         }
 
-        static OptionalOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto opt = RegexOpt::jparse(j["opt"]);
-            return new OptionalOpt(opt);
+            if (!this->opt->needsParens()) {
+                return this->opt->toBSQStandard() + "?";
+            }
+            else {
+                return "(" + this->opt->toBSQStandard() + ")?";
+            }
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            return "(re.opt " + this->opt->toSMTRegex() + ")";
         }
     };
 
@@ -340,15 +473,34 @@ namespace brex
             return optstr;
         }
 
-        static AnyOfOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            std::vector<const RegexOpt*> opts;
-            auto jopts = j["opts"];
-            std::transform(jopts.cbegin(), jopts.cend(), std::back_inserter(opts), [](json arg) {
-                return RegexOpt::jparse(arg);
-            });
+            std::string optstr;
+            for(auto ii = this->opts.cbegin(); ii != this->opts.cend(); ++ii) {
+                if(ii != this->opts.cbegin()) {
+                    optstr += '|';
+                }
 
-            return new AnyOfOpt(opts);
+                if(!(*ii)->needsParens()) {
+                    optstr += (*ii)->toBSQStandard();
+                }
+                else {
+                    optstr += '(' + (*ii)->toBSQStandard() + ')';
+                }
+            }
+        
+            return optstr;
+        }
+
+        virtual std::string toSMTRegex() const override final
+        {
+            std::string optstr = "(re.union";
+            for(auto ii = this->opts.cbegin(); ii != this->opts.cend(); ++ii) {
+                optstr += " " + (*ii)->toSMTRegex();
+            }
+            optstr += ")";
+
+            return optstr;
         }
     };
 
@@ -376,15 +528,30 @@ namespace brex
             return regexstr;
         }
 
-        static SequenceOpt* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            std::vector<const RegexOpt*> regexs;
-            auto jregexs = j["regexs"];
-            std::transform(jregexs.cbegin(), jregexs.cend(), std::back_inserter(regexs), [](json arg) {
-                return RegexOpt::jparse(arg);
-            });
+            std::string regexstr;
+            for(auto ii = this->regexs.cbegin(); ii != this->regexs.cend(); ++ii) {
+                if(!(*ii)->needsSequenceParens()) {
+                    regexstr += (*ii)->toBSQStandard();
+                }
+                else {
+                    regexstr += '(' + (*ii)->toBSQStandard() + ')';
+                }
+            }
+            
+            return regexstr;
+        }
 
-            return new SequenceOpt(regexs);
+        virtual std::string toSMTRegex() const override final
+        {
+            std::string regexstr = "(re.++";
+            for(auto ii = this->regexs.cbegin(); ii != this->regexs.cend(); ++ii) {
+                regexstr += " " + (*ii)->toSMTRegex();
+            }
+            regexstr += ")";
+
+            return regexstr;
         }
     };
 
@@ -434,14 +601,31 @@ namespace brex
             return fstr + opstr + tstr;
         }
 
-        static RegexToplevelEntry jparse(json j)
+        std::string toBSQStandard() const
         {
-            bool isNegated = j["isNegated"].get<bool>();
-            bool isFrontCheck = j["isFrontCheck"].get<bool>();
-            bool isBackCheck = j["isBackCheck"].get<bool>();
+            std::string fstr;
+            if(this->isNegated) {
+                fstr += '!';
+            }
 
-            auto opt = RegexOpt::jparse(j["opt"]);
-            return RegexToplevelEntry(isNegated, isFrontCheck, isBackCheck, opt);
+            if(this->isFrontCheck) {
+                fstr += '^';
+            }
+            
+            std::string tstr;
+            if(this->isBackCheck) {
+                tstr = '$';
+            }
+
+            std::string opstr;
+            if((fstr.empty() && tstr.empty()) || !this->opt->needsParens()) {
+                opstr = this->opt->toBSQStandard();
+            }
+            else {
+                opstr = '(' + this->opt->toBSQStandard() + ')';
+            }
+
+            return fstr + opstr + tstr;
         }
     };
 
@@ -460,8 +644,7 @@ namespace brex
         virtual ~RegexComponent() = default;
 
         virtual std::u8string toBSQONFormat() const = 0;
-
-        static RegexComponent* jparse(json j);
+        virtual std::string toBSQStandard() const = 0;
 
         virtual bool isContainsable() const = 0;
         virtual bool isMatchable() const = 0;
@@ -488,10 +671,9 @@ namespace brex
             return this->entry.toBSQONFormat();
         }
 
-        static RegexSingleComponent* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto entry = RegexToplevelEntry::jparse(j["entry"]);
-            return new RegexSingleComponent(entry);
+            return this->entry.toBSQStandard();
         }
 
         virtual bool isContainsable() const override final
@@ -552,16 +734,18 @@ namespace brex
             return muststr;
         }
 
-        static RegexAllOfComponent* jparse(json j)
+        virtual std::string toBSQStandard() const override final
         {
-            auto jmusts = j["musts"];
-            std::vector<RegexToplevelEntry> musts;
+            std::string muststr;
+            for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
+                if(ii != this->musts.cbegin()) {
+                    muststr += " & ";
+                }
 
-            std::transform(jmusts.cbegin(), jmusts.cend(), std::back_inserter(musts), [](json arg) {
-                return RegexToplevelEntry::jparse(arg);
-            });
-
-            return new RegexAllOfComponent(musts);
+                muststr += ii->toBSQStandard();
+            }
+            
+            return muststr;
         }
 
         virtual bool isContainsable() const override final
@@ -620,18 +804,6 @@ namespace brex
         Regex(RegexKindTag rtag, RegexCharInfoTag ctag, const RegexComponent* preanchor, const RegexComponent* postanchor, const RegexComponent* re): rtag(rtag), ctag(ctag), preanchor(preanchor), postanchor(postanchor), re(re) {;}
         ~Regex() = default;
 
-        static Regex* jparse(json j)
-        {
-            auto rtag = (!j.contains("isPath") || j["isPath"].is_null()) ? RegexKindTag::Std : RegexKindTag::Path;
-            auto ctag = (!j.contains("isChar") || !j["isChar"].get<bool>()) ? RegexCharInfoTag::Char : RegexCharInfoTag::Unicode;
-
-            auto preanchor = (!j.contains("preanchor") || j["preanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["preanchor"]);
-            auto postanchor = (!j.contains("postanchor") || j["postanchor"].is_null()) ? nullptr : RegexComponent::jparse(j["postanchor"]);
-            auto re = RegexComponent::jparse(j["re"]);
-
-            return new Regex(rtag, ctag, preanchor, postanchor, re);
-        }
-
         std::u8string toBSQONFormat() const
         {
             std::u8string fstr;
@@ -662,6 +834,38 @@ namespace brex
             }
 
             return u8'/' + fstr + u8'/' + fchar;
+        }
+
+        std::string toBSQStandard() const
+        {
+            std::string fstr;
+            if(this->preanchor != nullptr) {
+                fstr += this->preanchor->toBSQStandard() + '^';
+            }
+
+            if(this->preanchor != nullptr || this->postanchor != nullptr) {
+                fstr += '<';
+            }
+            fstr += this->re->toBSQStandard();
+            if(this->preanchor != nullptr || this->postanchor != nullptr) {
+                fstr += '>';
+            }
+
+            if(this->postanchor != nullptr) {
+                fstr += '$' + this->postanchor->toBSQStandard();
+            }
+
+            std::string fchar = "";
+            if(this->rtag == RegexKindTag::Path) {
+                fchar = "p";
+            }
+            else {
+                if(this->ctag == RegexCharInfoTag::Char) {
+                    fchar = "c";
+                }
+            }
+
+            return '/' + fstr + '/' + fchar;
         }
 
         std::u8string toBSQONGlobFormat() const 

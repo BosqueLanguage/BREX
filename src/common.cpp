@@ -1,4 +1,5 @@
 #include "common.h"
+#include <format>
 
 #define UTF8_ENCODING_BYTE_COUNT(B) utf8_encoding_sizes[((uint8_t)(B)) >> 4]
 #define UTF8_IS_CONTINUATION_BYTE(B) (((B) & 0xC0) == 0x80)
@@ -179,6 +180,42 @@ namespace brex
             return (RegexChar)(((this->sstr->at(this->curr) & 0x07) << 18) | ((this->sstr->at(this->curr + 1) & 0x3F) << 12) | ((this->sstr->at(this->curr + 2) & 0x3F) << 6) | (this->sstr->at(this->curr + 3) & 0x3F));
         }
     } 
+
+    std::string processRegexCharToBsqStandard(RegexChar c)
+    {
+        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && std::isprint(c)) {
+            return std::string{(char)c};
+        }
+        else {
+            auto hh = std::format("{:x}", c);
+            return "%x" + hh + ";";
+        }
+    }
+
+    std::string processRegexCharsToBsqStandard(const std::vector<RegexChar>& sv)
+    {
+        return std::accumulate(sv.cbegin(), sv.cend(), std::string{}, [](const std::string& acc, RegexChar c) {
+            return acc + processRegexCharToBsqStandard(c);
+        });
+    }
+
+    std::string processRegexCharToSMT(RegexChar c)
+    {
+        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && std::isprint(c)) {
+            return std::string{(char)c};
+        }
+        else {
+            auto hh = std::format("{:x}", c);
+            return "\\u{" + hh + "}";
+        }
+    }
+
+    std::string processRegexCharsToSMT(const std::vector<RegexChar>& sv)
+    {
+        return std::accumulate(sv.cbegin(), sv.cend(), std::string{}, [](const std::string& acc, RegexChar c) {
+            return acc + processRegexCharToSMT(c);
+        });
+    }
 
     size_t charCodeByteCount(const uint8_t* buff)
     {

@@ -591,6 +591,64 @@ namespace brex
             }
         }
 
+        const RegexOpt* parseRangeRepeatOpt(const RegexOpt* rcc, bool rng1ok)
+        {
+            this->advance();
+            uint16_t min = 0;
+            auto hasmin = this->parseRangeRepeatBound(min);
+
+            this->advanceTriviaOnly();
+            if(hasmin && !this->isToken(',') && !this->isToken('}')) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing comma (possibly) in range repeat"));
+            }
+
+            uint16_t max = min;
+            if (this->isToken(',')) {
+                this->advance();
+                max = UINT16_MAX;
+                this->parseRangeRepeatBound(max);
+
+                this->advanceTriviaOnly();
+            }
+
+            if(this->isToken('}')) {
+                this->advance();
+            }
+            else {
+                this->errors.push_back(RegexParserError(this->cline, u8"Missing } in range repeat"));
+            }
+
+            if(min == 0 && max == 0) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- both min and max are 0 so the repeat is empty"));
+            }
+
+            if(!rng1ok) {
+                if(min == 1 && max == 1) {
+                    this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant"));
+                }
+            }
+
+            if(max < min) {
+                this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- max is less than min"));
+            }
+
+            if(min == 0 && max == UINT16_MAX) {
+                return new StarRepeatOpt(rcc);
+            }
+            else if(min == 1 && max == UINT16_MAX) {
+                return new PlusRepeatOpt(rcc);
+            }
+            else if(min == 0 && max == 1) {
+                return new OptionalOpt(rcc);
+            }
+            else if(min == 1 && max == 1) {
+                return rcc;
+            }
+            else {
+                return new RangeRepeatOpt(min, max, rcc);
+            }
+        }
+
         const RegexOpt* parseRepeatComponent()
         {
             auto rcc = this->parseBaseComponent();
@@ -609,55 +667,7 @@ namespace brex
                     this->advance();
                 }
                 else {
-                    this->advance();
-                    uint16_t min = 0;
-                    auto hasmin = this->parseRangeRepeatBound(min);
-
-                    this->advanceTriviaOnly();
-                    if(hasmin && !this->isToken(',') && !this->isToken('}')) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Missing comma (possibly) in range repeat"));
-                    }
-
-                    uint16_t max = min;
-                    if (this->isToken(',')) {
-                        this->advance();
-                        max = UINT16_MAX;
-                        this->parseRangeRepeatBound(max);
-
-                        this->advanceTriviaOnly();
-                    }
-
-                    if(this->isToken('}')) {
-                        this->advance();
-                    }
-                    else {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Missing } in range repeat"));
-                    }
-
-                    if(min == 0 && max == 0) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- both min and max are 0 so the repeat is empty"));
-                    }
-
-                    if(min == 1 && max == 1) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- min and max are both 1 so the repeat is redundant"));
-                    }
-
-                    if(max < min) {
-                        this->errors.push_back(RegexParserError(this->cline, u8"Invalid range repeat bounds -- max is less than min"));
-                    }
-
-                    if(min == 0 && max == UINT16_MAX) {
-                        return new StarRepeatOpt(rcc);
-                    }
-                    else if(min == 1 && max == UINT16_MAX) {
-                        return new PlusRepeatOpt(rcc);
-                    }
-                    else if(min == 0 && max == 1) {
-                        return new OptionalOpt(rcc);
-                    }
-                    else {
-                        rcc = new RangeRepeatOpt(min, max, rcc);
-                    }
+                    return this->parseRangeRepeatOpt(rcc, false);
                 }
             }   
 
@@ -729,7 +739,13 @@ namespace brex
                 this->errors.push_back(RegexParserError(this->cline, u8"Invalid regex -- negation is not allowed inside anchor"));
             }
 
-            const RegexOpt* popt = this->parsePositiveComponent();
+            const RegexOpt* popt = nullptr;
+            if(!this->isToken('{')) {
+                popt = this->parsePositiveComponent();
+            }
+            else {
+                popt = this->parseRangeRepeatOpt(new CharClassDotOpt(), true);
+            }
 
             this->advanceTriviaOnly();
             if(this->isToken('$')) {
