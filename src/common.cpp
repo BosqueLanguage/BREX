@@ -183,7 +183,7 @@ namespace brex
 
     std::string processRegexCharToBsqStandard(RegexChar c)
     {
-        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && std::isprint(c)) {
+        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && ((RegexChar)32 <= c) && (c <= (RegexChar)126)) {
             return std::string{(char)c};
         }
         else {
@@ -201,7 +201,7 @@ namespace brex
 
     std::string processRegexCharToSMT(RegexChar c)
     {
-        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && std::isprint(c)) {
+        if(c != U'%' && c != U'"' && c != U'\'' && c != U'[' && c != U']' && c != U'/' && c != U'\\' && ((RegexChar)32 <= c) && (c <= (RegexChar)126)) {
             return std::string{(char)c};
         }
         else {

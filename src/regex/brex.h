@@ -154,14 +154,19 @@ namespace brex
 
                     RegexChar cshigh = this->isunicode ? (RegexChar)0x10FFFF : (RegexChar)126;
                     std::string cshighbytes = "\"" + processRegexCharToSMT(cshigh) + "\"";
-
-                    if(cr.low != cslow) {
-                        auto lowbytes = "\"" + processRegexCharToSMT(cr.low - 1) + "\"";
-                        opts.push_back("(re.range " + cslowbytes + " " + lowbytes + ")");
-                    }
                     
                     auto highbytes = "\"" + processRegexCharToSMT(cr.high + 1) + "\"";
-                    opts.push_back("(re.range " + highbytes + " " + cshighbytes + ")");
+                    auto hrstr = "(re.range " + highbytes + " " + cshighbytes + ")";
+
+                    if(cr.low == cslow) {
+                        opts.push_back(hrstr);
+                    }
+                    else {
+                        auto lowbytes = "\"" + processRegexCharToSMT(cr.low - 1) + "\"";
+                        auto lowstr = "(re.range " + cslowbytes + " " + lowbytes + ")";
+
+                        opts.push_back("(re.union " + lowstr + " " + hrstr + ")");
+                    }
                 }
             }
 
@@ -170,7 +175,7 @@ namespace brex
                 optsstr = opts.front();
             }
             else {
-                std::string cop = this->compliment ? "re.inter" : "re.union";
+                std::string cop = this->compliment ? std::string{"re.inter"} : std::string{"re.union"};
 
                 optsstr = "(" + cop + std::accumulate(opts.cbegin(), opts.cend(), std::string{""}, [](const std::string& acc, const std::string& opt) {
                     return acc + " " + opt;
@@ -720,7 +725,7 @@ namespace brex
         RegexAllOfComponent(const std::vector<RegexToplevelEntry>& musts) : RegexComponent(RegexComponentTag::AllOf), musts(musts) {;}
         virtual ~RegexAllOfComponent() = default;
 
-        std::u8string toBSQONFormat() const override final
+        virtual std::u8string toBSQONFormat() const override final
         {
             std::u8string muststr;
             for(auto ii = this->musts.cbegin(); ii != this->musts.cend(); ++ii) {
