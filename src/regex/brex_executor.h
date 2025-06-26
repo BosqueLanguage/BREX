@@ -49,8 +49,11 @@ namespace brex
         bool isFrontCheck;
         bool isBackCheck;
 
+        std::string bsqnf;
+        std::string smtre;
+
         SingleCheckREInfo() = default;
-        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck) : ComponentCheckREInfo<TStr, TIter>(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck) {;}
+        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck, std::string bsqnf, std::string smtre) : ComponentCheckREInfo<TStr, TIter>(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck), bsqnf(bsqnf), smtre(smtre) {;}
         virtual ~SingleCheckREInfo() = default;
 
         SingleCheckREInfo(const SingleCheckREInfo& other) = default;

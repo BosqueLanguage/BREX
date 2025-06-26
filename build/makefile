@@ -34,8 +34,8 @@ COMMON_SOURCES=$(SRC_DIR)common.cpp
 COMMON_OBJS=$(OUT_OBJ)common.o
 
 REGEX_HEADERS=$(RE_DIR)brex_system.h $(RE_DIR)brex.h $(RE_DIR)brex_parser.h $(RE_DIR)brex_compiler.h $(RE_DIR)brex_executor.h $(RE_DIR)nfa_machine.h $(RE_DIR)nfa_executor.h
-REGEX_SOURCES=$(RE_DIR)brex.cpp $(RE_DIR)brex_compiler.cpp $(RE_DIR)nfa_machine.cpp
-REGEX_OBJS=$(OUT_OBJ)brex.o $(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
+REGEX_SOURCES=$(RE_DIR)brex_compiler.cpp $(RE_DIR)nfa_machine.cpp
+REGEX_OBJS=$(OUT_OBJ)brex_compiler.o $(OUT_OBJ)nfa_machine.o
 
 PATH_HEADERS=$(PTH_DIR)path.h $(PTH_DIR)path_fragment.h $(PTH_DIR)path_glob.h
 PATH_SOURCES=$(PTH_DIR)path_glob.cpp
@@ -71,10 +71,6 @@ $(OUT_EXE)libbrex.a: $(REGEX_OBJS) $(PATH_OBJS) $(COMMON_OBJS)
 $(OUT_OBJ)path_glob.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(PATH_HEADERS) $(PTH_DIR)path_glob.cpp
 	@mkdir -p $(OUT_OBJ)
 	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)path_glob.o -c $(PTH_DIR)path_glob.cpp
-
-$(OUT_OBJ)brex.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)brex.cpp
-	@mkdir -p $(OUT_OBJ)
-	$(CPP) $(CPPFLAGS) $(JSON_INCLUDES) -o $(OUT_OBJ)brex.o -c $(RE_DIR)brex.cpp
 
 $(OUT_OBJ)brex_compiler.o: $(COMMON_HEADERS) $(REGEX_HEADERS) $(RE_DIR)brex_compiler.cpp
 	@mkdir -p $(OUT_OBJ)

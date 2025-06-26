@@ -151,6 +151,12 @@ namespace brex
         }
     };
 
+    std::string processRegexCharToBsqStandard(RegexChar c);
+    std::string processRegexCharsToBsqStandard(const std::vector<RegexChar>& sv);
+
+    std::string processRegexCharToSMT(RegexChar c);
+    std::string processRegexCharsToSMT(const std::vector<RegexChar>& sv);
+
     size_t charCodeByteCount(const uint8_t* buff);
     RegexChar toRegexCharCodeFromBytes(const uint8_t* buff, size_t length);
 

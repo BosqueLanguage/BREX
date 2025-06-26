@@ -105,7 +105,10 @@ namespace brex
             
             NFAExecutor<TStr, TIter> nn(nfaforward, nfareverse);
 
-            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck);
+            auto bsqstd = xxxx;
+            auto smtre = xxxx;
+
+            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck, bsqstd, smtre);
             return std::make_optional(scc);
         }
         
