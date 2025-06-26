@@ -33,6 +33,8 @@ namespace brex
         const RegexOpt* resolveEnvRegexOpt(const EnvRegexOpt* opt);
         const RegexOpt* resolveAnyOfOpt(const AnyOfOpt* opt);
 
+        const RegexOpt* resolveRangeRepeatOpt(const RangeRepeatOpt* opt);
+
     public:
         NameResolverState resolverState;
         fnNameResolver nameResolverFn;
@@ -44,7 +46,9 @@ namespace brex
         std::vector<RegexCompileError> errors;
         std::vector<std::string> pending_resolves;
 
-        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, const std::map<std::string, const RegexOpt*>& namedRegexes, bool envEnabled, const std::map<std::string, const LiteralOpt*>& envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), namedRegexes(namedRegexes), envEnabled(envEnabled), envRegexes(envRegexes), errors(), pending_resolves() { ; }
+        bool inRangeRepeat;
+
+        RegexResolver(NameResolverState resolverState, fnNameResolver nameResolverFn, const std::map<std::string, const RegexOpt*>& namedRegexes, bool envEnabled, const std::map<std::string, const LiteralOpt*>& envRegexes) : resolverState(resolverState), nameResolverFn(nameResolverFn), namedRegexes(namedRegexes), envEnabled(envEnabled), envRegexes(envRegexes), errors(), pending_resolves(), inRangeRepeat(false) { ; }
         ~RegexResolver() = default;
 
         const RegexOpt* resolve(const RegexOpt* opt);

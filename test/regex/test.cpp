@@ -720,6 +720,58 @@ BOOST_AUTO_TEST_CASE(both) {
 }
 BOOST_AUTO_TEST_SUITE_END()
 
+
+////
+//StrLen
+BOOST_AUTO_TEST_SUITE(StrLen)
+BOOST_AUTO_TEST_CASE(single) {
+    auto texecutor = tryParseForUnicodeTest(u8"/{5}/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaaaa", false);
+}
+BOOST_AUTO_TEST_CASE(lower) {
+    auto texecutor = tryParseForUnicodeTest(u8"/{3,}/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaaaa", true);
+}
+BOOST_AUTO_TEST_CASE(upper) {
+    auto texecutor = tryParseForUnicodeTest(u8"/{,3}/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaa", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"aaaaaa", false);
+}
+BOOST_AUTO_TEST_CASE(both) {
+    auto texecutor = tryParseForUnicodeTest(u8"/{1,3}/");
+    BOOST_CHECK(texecutor.has_value());
+    
+    auto executor = texecutor.value();
+
+    ACCEPTS_TEST_UNICODE(executor, u8"", false);
+    ACCEPTS_TEST_UNICODE(executor, u8"5", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"123", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"aa", true);
+    ACCEPTS_TEST_UNICODE(executor, u8"1234", false);
+}
+BOOST_AUTO_TEST_SUITE_END()
+
 ////
 //Opt
 BOOST_AUTO_TEST_SUITE(Opt)

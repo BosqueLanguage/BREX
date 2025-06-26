@@ -62,6 +62,21 @@ namespace brex
         return new AnyOfOpt(opts);
     }
 
+    const RegexOpt* RegexResolver::resolveRangeRepeatOpt(const RangeRepeatOpt* opt)
+    {
+        if(this->inRangeRepeat) {
+            this->errors.push_back(RegexCompileError(u8"Range repeats cannot be nested"));
+        }
+
+        auto oinRepeat = this->inRangeRepeat;
+        this->inRangeRepeat = true;
+
+        auto resolvedRepeat = this->resolve(opt->repeat);
+
+        this->inRangeRepeat = oinRepeat;
+        return new RangeRepeatOpt(opt->low, opt->high, resolvedRepeat);
+    }
+
     const RegexOpt* RegexResolver::resolve(const RegexOpt* opt)
     {
         if(opt->tag == RegexOptTag::NamedRegex) {
@@ -72,6 +87,9 @@ namespace brex
         }
         else if(opt->tag == RegexOptTag::AnyOf) {
             return this->resolveAnyOfOpt(static_cast<const AnyOfOpt*>(opt));
+        }
+        else if(opt->tag == RegexOptTag::RangeRepeat) {
+            return this->resolveRangeRepeatOpt(static_cast<const RangeRepeatOpt*>(opt));
         }
         else
         {
@@ -88,15 +106,11 @@ namespace brex
             }
             case RegexOptTag::StarRepeat: {
                 auto staropt = static_cast<const StarRepeatOpt*>(opt);
-                return new StarRepeatOpt(resolve(staropt->repeat));
+                return new StarRepeatOpt(this->resolve(staropt->repeat));
             }
             case RegexOptTag::PlusRepeat: {
                 auto plusopt = static_cast<const PlusRepeatOpt*>(opt);
-                return new PlusRepeatOpt(resolve(plusopt->repeat));
-            }
-            case RegexOptTag::RangeRepeat: {
-                auto rangeopt = static_cast<const RangeRepeatOpt*>(opt);
-                return new RangeRepeatOpt(rangeopt->low, rangeopt->high, resolve(rangeopt->repeat));
+                return new PlusRepeatOpt(this->resolve(plusopt->repeat));
             }
             case RegexOptTag::Optional: {
                 auto optionalopt = static_cast<const OptionalOpt*>(opt);
