@@ -25,9 +25,9 @@ namespace brex {
 
     class ExpressionFragment : public GlobFragment {
         public:
-            const std::vector<const GlobExpr*> expressions;
+            const GlobExpr* expression;
 
-            ExpressionFragment(std::vector<const GlobExpr*> expressions): GlobFragment(GlobFragmentTag::Expression), expressions(expressions) {;}
+            ExpressionFragment(const GlobExpr* expression): GlobFragment(GlobFragmentTag::Expression), expression(expression) {;}
             virtual ~ExpressionFragment() = default;
     };
 
@@ -42,6 +42,7 @@ namespace brex {
         Union,
         Substitution,
         Wildcard,
+        Sequence,
     };
     class GlobExpr { 
         public:
@@ -53,12 +54,19 @@ namespace brex {
             virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
     };
 
+    class SequenceExpr : public GlobExpr {
+        public:
+            std::vector<const GlobExpr*> subexprs;
+            SequenceExpr(std::vector<const GlobExpr*> subexprs) : GlobExpr(GlobExprTag::Sequence), subexprs(subexprs) {;}
+            virtual ~SequenceExpr() = default;
+    };
+
     class LiteralExpr : public GlobExpr { // Regex analog is 'Literal'
         public:
-            const std::vector<RegexChar> codes;
+            const RegexChar code;
             const bool isunicode;
 
-            LiteralExpr(std::vector<RegexChar> codes, bool isunicode) : GlobExpr(GlobExprTag::Literal), codes(codes), isunicode(isunicode) {;}
+            LiteralExpr(RegexChar code, bool isunicode) : GlobExpr(GlobExprTag::Literal), code(code), isunicode(isunicode) {;}
             virtual ~LiteralExpr() = default;
     };
 

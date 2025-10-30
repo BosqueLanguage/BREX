@@ -1,11 +1,21 @@
 #pragma once
 
+#define BREX_GLOB_PATHSEP '/'
+#define BREX_GLOB_SUB_PREFIX_0 '$'
+#define BREX_GLOB_SUB_PREFIX_1 '{'
+#define BREX_GLOB_SUB_SUFFIX '}'
+#define BREX_GLOB_OPEN_UNION '('
+#define BREX_GLOB_SEP_UNION '|'
+#define BREX_GLOB_CLOSE_UNION ')'
+#define BREX_GLOB_WILDCARD '*'
+#define BREX_GLOB_WILDCARD_MAKE_RECURSIVE '*'
+
 #include "../common.h"
 
 #include "glob.h"
 
 namespace brex {
-    class GlobSegmentParser {
+    class GlobFragmentParser {
         public:
             const uint8_t* data; // Bytes of Glob
             uint8_t* cpos; // Pointer to current token
@@ -14,12 +24,12 @@ namespace brex {
             const bool isUnicode;
             bool envAllowed;
 
-            GlobSegmentParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : 
+            GlobFragmentParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : 
                 data(data), 
                 cpos(const_cast<uint8_t*>(data)), epos(data + len), 
                 isUnicode(isUnicode), 
                 envAllowed(envAllowed) {;}
-            ~GlobSegmentParser() = default;
+            ~GlobFragmentParser() = default;
 
             // Checks if parser is at end of sequence
             inline bool isEOS() const {
@@ -33,17 +43,21 @@ namespace brex {
             }
 
             inline bool isSubstitutionPrefix() {
-                return (this->cpos + 2 < this->epos) && (*this->cpos == '$' && *(this->cpos + 1) == '{'); 
+                return (this->cpos + 2 < this->epos) && (*this->cpos == BREX_GLOB_SUB_PREFIX_0 && *(this->cpos + 1) == BREX_GLOB_SUB_PREFIX_1); 
+            }
+
+            inline bool isRecursiveWildcard() {
+                return (this->cpos + 2 < this->epos) && (*this->cpos == BREX_GLOB_WILDCARD && *(this->cpos + 1) == BREX_GLOB_WILDCARD_MAKE_RECURSIVE);
             }
 
             inline uint8_t token() const {
                 return *this->cpos;
             }
 
-            // Check if a character is special
-            inline bool isSpecial(uint8_t tk) const {
-                return false;
-            }
+            // // Check if a character is special
+            // inline bool isSpecial(uint8_t tk) const {
+            //     return false;
+            // }
 
             void advance() {
                 if (!this->isEOS()) {
@@ -83,28 +97,88 @@ namespace brex {
                 return code;
             }
 
-            // Don't need to do this at all! Can handle text in the base component, only need to add special stuff for special characters. 
-            // TODO: Start writing the base component parser, handle special chars one at a time, write functions as needed.
-            const LiteralExpr* parseUnicodeLiteral() {
-                size_t length = 0;
-                auto curr = this->cpos + 1;
-                while (curr != this->epos && this->isSpecial(*curr)) { 
-                    if (*curr <= 127 && !std::isprint(*curr) && !std::isblank(*curr)) {
-                        auto esccname = parserGenerateDiagnosticUnicodeEscapeName(*curr);
-                        auto esccode = parserGenerateDiagnosticEscapeCode(*curr);
-                        // TODO: Errors
-                        this->cpos++;
-                        return 0;
-                    }
+            // ASK: Parse Glob all at once or one fragment at a time? Parsing
+            // all at once would probably be faster, and we can still return the
+            // fragments separately.
 
-                    length++;
-                    curr++;
-                }
-
-                // Need to handle the fact that we're not dealing with a string
-                // that has a terminating character.
-
+            /**
+             * Top level parser for a glob path fragment.
+             */
+            GlobFragment* parseExprFragment()
+            {
+                return new ExpressionFragment(this->parseExprSequence());
             }
 
+            /**
+             * Parser for an Expression Sequence - Multiple expressions chained
+             * one after another.
+             */
+            const GlobExpr* parseExprSequence()
+            {
+                std::vector<const GlobExpr*> expr;
+
+                while (!this->isEOS() && 
+                       !this->isToken(BREX_GLOB_PATHSEP) && 
+                       !this->isToken(BREX_GLOB_CLOSE_UNION) && 
+                       !this->isToken(BREX_GLOB_SEP_UNION)) {
+                    expr.push_back(this->parseExprBase());
+                }
+
+                return new SequenceExpr(expr);
+            }
+
+            /**
+             * Parser for a base non-sequence expression. May delegate to Union,
+             * delegate to Substition, or process a literal character.
+             */
+            const GlobExpr* parseExprBase()
+            {
+                const GlobExpr* ret = nullptr;
+               
+                if (this->isToken(BREX_GLOB_WILDCARD)) {
+                    ret = new WildcardExpr();
+                }
+                else if (this->isToken(BREX_GLOB_OPEN_UNION)) {
+                    this->advance();
+
+                    ret = this->parseUnionComponent();
+                    
+                    if (this->isToken(BREX_GLOB_CLOSE_UNION)) {
+                        this->advance();
+                    }
+                    else {
+                        // TODO: Errors
+                    }
+                }
+                else {
+                    RegexChar c = parseRegexChar(this->isUnicode);
+                    ret = new LiteralExpr(c, this->isUnicode);
+                }
+
+                return ret;
+            }
+
+            /**
+             * Parser for a Union. Collects expression sequences until closed
+             * by a CLOSE_UNION.
+             */
+            const GlobExpr* parseUnionComponent() {
+                std::vector<const GlobExpr*> union_exprs;
+
+                while (!this->isToken(BREX_GLOB_CLOSE_UNION)) {
+                    union_exprs.push_back(this->parseExprSequence());
+
+                    if (this->isToken(BREX_GLOB_SEP_UNION)) {
+                        this->advance();
+                    }
+                    else if (!this->isToken(BREX_GLOB_CLOSE_UNION)) {
+                        // TODO: Errors
+                    }
+                }
+
+                return new UnionExpr(union_exprs);
+            }
     };
 }
+
+#undef BREX_GLOB_PATHSEP
