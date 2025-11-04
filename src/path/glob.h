@@ -11,7 +11,27 @@
  *  Types to be used by glob_parser and glob_compiler
  */
 
-namespace brex {
+namespace brex { 
+    enum class GlobExprTag {
+        Literal,
+        Union,
+        Substitution,
+        Wildcard,
+        Sequence,
+    };
+    class GlobExpr { 
+        public:
+            const GlobExprTag tag;
+            GlobExpr(GlobExprTag tag): tag(tag) {;}
+            virtual ~GlobExpr() {;}
+
+            virtual bool needsParens() const { return false; }
+            virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
+
+            // TODO: IMPLEMENT ME FOR DEBUGGING!
+            virtual std::string toBSQStandard() const = 0;
+    };
+
     enum class GlobFragmentTag {
         Expression,
         RecursiveWildcard,
@@ -36,23 +56,6 @@ namespace brex {
             RecursiveWildcardFragment(): GlobFragment(GlobFragmentTag::RecursiveWildcard) {;}
             virtual ~RecursiveWildcardFragment() = default;
     };
-    
-    enum class GlobExprTag {
-        Literal,
-        Union,
-        Substitution,
-        Wildcard,
-        Sequence,
-    };
-    class GlobExpr { 
-        public:
-            const GlobExprTag tag;
-            GlobExpr(GlobExprTag tag): tag(tag) {;}
-            virtual ~GlobExpr() {;}
-
-            virtual bool needsParens() const { return false; }
-            virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
-    };
 
     class SequenceExpr : public GlobExpr {
         public:
@@ -68,6 +71,15 @@ namespace brex {
 
             LiteralExpr(RegexChar code, bool isunicode) : GlobExpr(GlobExprTag::Literal), code(code), isunicode(isunicode) {;}
             virtual ~LiteralExpr() = default;
+
+            virtual std::string toBSQStandard() const override final {
+                if (this->isunicode) {
+                    return "\"" + processRegexCharToBsqStandard(this->code) + "\"";
+                }
+                else {
+                    return "'" + processRegexCharToBsqStandard(this->code) + "'";
+                }
+            }
     };
 
     class UnionExpr : public GlobExpr { // Regex analog is 'AnyOf'
@@ -94,9 +106,9 @@ namespace brex {
 
     class Glob {
         public:
-            const std::vector<GlobFragment> fragments;
+            const std::vector<const GlobFragment*> fragments;
 
-            Glob(std::vector<GlobFragment> fragments) : fragments(fragments) {;}
+            Glob(std::vector<const GlobFragment*> fragments) : fragments(fragments) {;}
             ~Glob() = default;
     };
 }

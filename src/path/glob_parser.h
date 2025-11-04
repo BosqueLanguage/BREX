@@ -15,21 +15,19 @@
 #include "glob.h"
 
 namespace brex {
-    class GlobFragmentParser {
+    class GlobParser {
         public:
             const uint8_t* data; // Bytes of Glob
             uint8_t* cpos; // Pointer to current token
             const uint8_t* epos; // Pointer to last token
 
             const bool isUnicode;
-            bool envAllowed;
 
-            GlobFragmentParser(const uint8_t* data, size_t len, bool isUnicode, bool envAllowed) : 
+            GlobParser(const uint8_t* data, size_t len, bool isUnicode) : 
                 data(data), 
                 cpos(const_cast<uint8_t*>(data)), epos(data + len), 
-                isUnicode(isUnicode), 
-                envAllowed(envAllowed) {;}
-            ~GlobFragmentParser() = default;
+                isUnicode(isUnicode) {;}
+            ~GlobParser() = default;
 
             // Checks if parser is at end of sequence
             inline bool isEOS() const {
@@ -97,15 +95,14 @@ namespace brex {
                 return code;
             }
 
-            // ASK: Parse Glob all at once or one fragment at a time? Parsing
-            // all at once would probably be faster, and we can still return the
-            // fragments separately.
-
             /**
              * Top level parser for a glob path fragment.
              */
-            GlobFragment* parseExprFragment()
+            GlobFragment* parseFragment()
             {
+                if (this->isRecursiveWildcard()) {
+                    return new RecursiveWildcardFragment();
+                }
                 return new ExpressionFragment(this->parseExprSequence());
             }
 
@@ -117,8 +114,8 @@ namespace brex {
             {
                 std::vector<const GlobExpr*> expr;
 
-                while (!this->isEOS() && 
-                       !this->isToken(BREX_GLOB_PATHSEP) && 
+                while (!this->isEOS() &&
+                       !this->isToken(BREX_GLOB_PATHSEP) &&
                        !this->isToken(BREX_GLOB_CLOSE_UNION) && 
                        !this->isToken(BREX_GLOB_SEP_UNION)) {
                     expr.push_back(this->parseExprBase());
@@ -136,6 +133,7 @@ namespace brex {
                 const GlobExpr* ret = nullptr;
                
                 if (this->isToken(BREX_GLOB_WILDCARD)) {
+                    this->advance();
                     ret = new WildcardExpr();
                 }
                 else if (this->isToken(BREX_GLOB_OPEN_UNION)) {
@@ -178,7 +176,33 @@ namespace brex {
 
                 return new UnionExpr(union_exprs);
             }
+
+            const std::vector<const GlobFragment*> parseGlobFragments() {
+                std::vector<const GlobFragment*> fragments;
+
+                while (!this->isEOS()) {
+                    if (this->isToken(BREX_GLOB_PATHSEP)){
+                        this->advance();
+                    }
+                    fragments.push_back(this->parseFragment());
+                }
+
+                return fragments;
+            }
+
+            static Glob* parseGlob(uint8_t* data, size_t datalen, bool is_unicode) {
+                auto parser = GlobParser(data, datalen, is_unicode);
+                return new Glob(parser.parseGlobFragments());
+            }
     };
 }
 
 #undef BREX_GLOB_PATHSEP
+#undef BREX_GLOB_SUB_PREFIX_0
+#undef BREX_GLOB_SUB_PREFIX_1
+#undef BREX_GLOB_SUB_SUFFIX
+#undef BREX_GLOB_OPEN_UNION
+#undef BREX_GLOB_SEP_UNION
+#undef BREX_GLOB_CLOSE_UNION
+#undef BREX_GLOB_WILDCARD
+#undef BREX_GLOB_WILDCARD_MAKE_RECURSIVE
