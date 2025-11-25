@@ -2,10 +2,7 @@
 
 #include "../common.h"
 
-// I want to ask for clarity on the desire to preserve path segments, I'm not
-// sure what to take away from that
-
-// TODO: Add BSQON support
+// TODO: Add true BSQON support
 
 /*
  *  Types to be used by glob_parser and glob_compiler
@@ -28,7 +25,6 @@ namespace brex {
             virtual bool needsParens() const { return false; }
             virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
 
-            // TODO: IMPLEMENT ME FOR DEBUGGING!
             virtual std::string toBSQStandard() const = 0;
     };
 
@@ -41,6 +37,8 @@ namespace brex {
             const GlobFragmentTag tag;
             GlobFragment(GlobFragmentTag tag): tag(tag) {;}
             virtual ~GlobFragment() {;}
+
+            virtual std::string toBSQStandard() const = 0;
     };
 
     class ExpressionFragment : public GlobFragment {
@@ -49,12 +47,20 @@ namespace brex {
 
             ExpressionFragment(const GlobExpr* expression): GlobFragment(GlobFragmentTag::Expression), expression(expression) {;}
             virtual ~ExpressionFragment() = default;
+ 
+            virtual std::string toBSQStandard() const override final {
+                return expression->toBSQStandard();
+            }
     };
 
     class RecursiveWildcardFragment : public GlobFragment {
         public:
             RecursiveWildcardFragment(): GlobFragment(GlobFragmentTag::RecursiveWildcard) {;}
             virtual ~RecursiveWildcardFragment() = default;
+
+            virtual std::string toBSQStandard() const override final {
+                return "**_r";
+            }
     };
 
     class SequenceExpr : public GlobExpr {
@@ -62,9 +68,18 @@ namespace brex {
             std::vector<const GlobExpr*> subexprs;
             SequenceExpr(std::vector<const GlobExpr*> subexprs) : GlobExpr(GlobExprTag::Sequence), subexprs(subexprs) {;}
             virtual ~SequenceExpr() = default;
+
+            virtual std::string toBSQStandard() const override final {
+                auto str = std::string();
+                for (auto expr : subexprs) {
+                    str.append(expr->toBSQStandard());
+                }
+                return str;
+            }
     };
 
     class LiteralExpr : public GlobExpr { // Regex analog is 'Literal'
+        // TODO: Merge these when they appear in sequence together, this implementation is a little sloppy, though it does work.
         public:
             const RegexChar code;
             const bool isunicode;
@@ -74,7 +89,7 @@ namespace brex {
 
             virtual std::string toBSQStandard() const override final {
                 if (this->isunicode) {
-                    return "\"" + processRegexCharToBsqStandard(this->code) + "\"";
+                    return "'" + processRegexCharToBsqStandard(this->code) + "'";
                 }
                 else {
                     return "'" + processRegexCharToBsqStandard(this->code) + "'";
@@ -90,25 +105,56 @@ namespace brex {
             virtual ~UnionExpr() = default;
             
             virtual bool needsParens() const override final { return true; }
+
+            virtual std::string toBSQStandard() const override final {
+                auto str = std::string("(");
+                for (auto expr : exprs) {
+                    str.append(expr->toBSQStandard());
+                    str.append("|");
+                }
+                str[str.length() - 1] = ')';
+                return str;
+            }
     };
 
-    // TODO: Talk with Dr. Marron about implementation for this, I'm not 100% sure I recognize how to do this
-    // class SubstitutionExpr : public GlobExpr {
-    //     public:
-            
-    // };
+    class SubstitutionExpr : public GlobExpr {
+        public:
+            const std::string name;
+
+            SubstitutionExpr(std::string name) : GlobExpr(GlobExprTag::Substitution), name(name) {;}
+            virtual ~SubstitutionExpr() = default;
+
+            virtual std::string toBSQStandard() const override final {
+                return "${" + name + "}"; 
+            }
+    };
 
     class WildcardExpr : public GlobExpr {
         public:
             WildcardExpr() : GlobExpr(GlobExprTag::Wildcard) {;}
             virtual ~WildcardExpr() = default;
+
+            virtual std::string toBSQStandard() const override final {
+                return "*_s";
+            }
     };
 
     class Glob {
         public:
+            // TODO: Actually track substitutions
             const std::vector<const GlobFragment*> fragments;
 
             Glob(std::vector<const GlobFragment*> fragments) : fragments(fragments) {;}
             ~Glob() = default;
+
+            std::string toBSQStandard() const {
+                auto str = std::string("");
+                for (auto f : fragments) {
+                    str.append(f->toBSQStandard());
+                    str.append("/");
+                }
+                str[str.length() - 1] = ' ';
+                return str;
+            }
     };
 }

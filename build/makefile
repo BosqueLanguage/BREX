@@ -64,7 +64,7 @@ $(BIN_DIR)brex_dbg: $(COMMON_HEADERS) $(REGEX_HEADERS) $(OUT_EXE)libbrex.a $(RE_
 	@mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)brex_dbg $(RE_DIR)brex_dbg_host.cpp $(OUT_EXE)libbrex.a
 
-$(BIN_DIR)glob_dbg: $(COMMON_HEADERS) $(GLOB_HEADERS) $(OUT_EXE)libbrex.a $(PTH_DIR)glob_dbg.cpp
+$(BIN_DIR)glob_dbg: $(COMMON_HEADERS) $(PATH_HEADERS) $(OUT_EXE)libbrex.a $(PTH_DIR)glob_dbg.cpp
 	@mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS) -L$(LIB_PATH) $(JSON_INCLUDES) -o $(BIN_DIR)glob_dbg $(PTH_DIR)glob_dbg.cpp $(OUT_EXE)libbrex.a
 

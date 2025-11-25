@@ -15,6 +15,9 @@
 #include "glob.h"
 
 namespace brex {
+    // TODO: Split GlobParser and GlobFragmentParser. Goal of this is to allow
+    // Compiler to call just the FragmentParser to get an ExprFragment to
+    // replace a substitution.
     class GlobParser {
         public:
             const uint8_t* data; // Bytes of Glob
@@ -25,13 +28,13 @@ namespace brex {
 
             GlobParser(const uint8_t* data, size_t len, bool isUnicode) : 
                 data(data), 
-                cpos(const_cast<uint8_t*>(data)), epos(data + len), 
+                cpos(const_cast<uint8_t*>(data)), epos(data + len),
                 isUnicode(isUnicode) {;}
             ~GlobParser() = default;
 
             // Checks if parser is at end of sequence
             inline bool isEOS() const {
-                return this->cpos == this->epos;
+                return this->cpos >= this->epos;
             }
 
             // Checks if the current token being processed is equal to the given
@@ -41,11 +44,11 @@ namespace brex {
             }
 
             inline bool isSubstitutionPrefix() {
-                return (this->cpos + 2 < this->epos) && (*this->cpos == BREX_GLOB_SUB_PREFIX_0 && *(this->cpos + 1) == BREX_GLOB_SUB_PREFIX_1); 
+                return (this->cpos + 2 <= this->epos) && (*this->cpos == BREX_GLOB_SUB_PREFIX_0 && *(this->cpos + 1) == BREX_GLOB_SUB_PREFIX_1); 
             }
 
             inline bool isRecursiveWildcard() {
-                return (this->cpos + 2 < this->epos) && (*this->cpos == BREX_GLOB_WILDCARD && *(this->cpos + 1) == BREX_GLOB_WILDCARD_MAKE_RECURSIVE);
+                return (this->cpos + 2 <= this->epos) && (*this->cpos == BREX_GLOB_WILDCARD && *(this->cpos + 1) == BREX_GLOB_WILDCARD_MAKE_RECURSIVE);
             }
 
             inline uint8_t token() const {
@@ -95,12 +98,20 @@ namespace brex {
                 return code;
             }
 
+            char parseSubstitionNameChar() {
+                char c = (char) *(this->cpos);
+                this->advance();
+                return c;
+            }
+
             /**
              * Top level parser for a glob path fragment.
              */
             GlobFragment* parseFragment()
             {
                 if (this->isRecursiveWildcard()) {
+                    this->advance();
+                    this->advance();
                     return new RecursiveWildcardFragment();
                 }
                 return new ExpressionFragment(this->parseExprSequence());
@@ -120,7 +131,6 @@ namespace brex {
                        !this->isToken(BREX_GLOB_SEP_UNION)) {
                     expr.push_back(this->parseExprBase());
                 }
-
                 return new SequenceExpr(expr);
             }
 
@@ -142,6 +152,18 @@ namespace brex {
                     ret = this->parseUnionComponent();
                     
                     if (this->isToken(BREX_GLOB_CLOSE_UNION)) {
+                        this->advance();
+                    }
+                    else {
+                        // TODO: Errors
+                    }
+                }
+                else if (this->isSubstitutionPrefix()) {
+                    this->advance();
+                    this->advance();
+                    ret = this->parseSubstitutionExpr();
+
+                    if (this->isToken(BREX_GLOB_SUB_SUFFIX)) {
                         this->advance();
                     }
                     else {
@@ -171,10 +193,23 @@ namespace brex {
                     }
                     else if (!this->isToken(BREX_GLOB_CLOSE_UNION)) {
                         // TODO: Errors
+                        RegexChar code = 0;
+                        this->advance();
+                        return new LiteralExpr(code, this->isUnicode);
                     }
                 }
 
                 return new UnionExpr(union_exprs);
+            }
+
+            const GlobExpr* parseSubstitutionExpr() {
+                std::string name;
+                while (!this->isEOS() && !this->isToken(BREX_GLOB_SUB_SUFFIX)) {
+                    name.push_back(this->parseSubstitionNameChar());
+                }
+
+                SubstitutionExpr* expr = new SubstitutionExpr(name);
+                return expr;
             }
 
             const std::vector<const GlobFragment*> parseGlobFragments() {
