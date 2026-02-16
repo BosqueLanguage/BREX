@@ -8,30 +8,14 @@
  *  Types to be used by glob_parser and glob_compiler
  */
 
-namespace brex { 
-    enum class GlobExprTag {
-        Literal,
-        Union,
-        Substitution,
-        Wildcard,
-        Sequence,
-    };
-    class GlobExpr { 
-        public:
-            const GlobExprTag tag;
-            GlobExpr(GlobExprTag tag): tag(tag) {;}
-            virtual ~GlobExpr() {;}
-
-            virtual bool needsParens() const { return false; }
-            virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
-
-            virtual std::string toBSQStandard() const = 0;
-    };
+namespace brex {
+    // == Glob Fragment ==
 
     enum class GlobFragmentTag {
         Expression,
         RecursiveWildcard,
     };
+
     class GlobFragment {
         public:
             const GlobFragmentTag tag;
@@ -41,11 +25,33 @@ namespace brex {
             virtual std::string toBSQStandard() const = 0;
     };
 
+    // == Glob Expression ==
+    enum class GlobExpressionTag {
+        Literal,
+        Union,
+        Substitution,
+        Wildcard,
+        Sequence,
+    };
+
+    class GlobExpression { 
+        public:
+            const GlobExpressionTag tag;
+            GlobExpression(GlobExpressionTag tag): tag(tag) {;}
+            virtual ~GlobExpression() {;}
+
+            virtual bool needsParens() const { return false; }
+            virtual bool needsVarEnc() const { return false; } // Needs Variable Enclosure, ie ${<var_name>}
+
+            virtual std::string toBSQStandard() const = 0;
+    };
+
+    // == Fragment Definitions ==
     class ExpressionFragment : public GlobFragment {
         public:
-            const GlobExpr* expression;
+            const GlobExpression* expression;
 
-            ExpressionFragment(const GlobExpr* expression): GlobFragment(GlobFragmentTag::Expression), expression(expression) {;}
+            ExpressionFragment(const GlobExpression* expression): GlobFragment(GlobFragmentTag::Expression), expression(expression) {;}
             virtual ~ExpressionFragment() = default;
  
             virtual std::string toBSQStandard() const override final {
@@ -63,11 +69,12 @@ namespace brex {
             }
     };
 
-    class SequenceExpr : public GlobExpr {
+    // == Expression Definitions ==
+    class SequenceExpression : public GlobExpression {
         public:
-            std::vector<const GlobExpr*> subexprs;
-            SequenceExpr(std::vector<const GlobExpr*> subexprs) : GlobExpr(GlobExprTag::Sequence), subexprs(subexprs) {;}
-            virtual ~SequenceExpr() = default;
+            std::vector<const GlobExpression*> subexprs;
+            SequenceExpression(std::vector<const GlobExpression*> subexprs) : GlobExpression(GlobExpressionTag::Sequence), subexprs(subexprs) {;}
+            virtual ~SequenceExpression() = default;
 
             virtual std::string toBSQStandard() const override final {
                 auto str = std::string();
@@ -78,14 +85,14 @@ namespace brex {
             }
     };
 
-    class LiteralExpr : public GlobExpr { // Regex analog is 'Literal'
+    class LiteralExpression : public GlobExpression { // Regex analog is 'Literal'
         // TODO: Merge these when they appear in sequence together, this implementation is a little sloppy, though it does work.
         public:
             const RegexChar code;
             const bool isunicode;
 
-            LiteralExpr(RegexChar code, bool isunicode) : GlobExpr(GlobExprTag::Literal), code(code), isunicode(isunicode) {;}
-            virtual ~LiteralExpr() = default;
+            LiteralExpression(RegexChar code, bool isunicode) : GlobExpression(GlobExpressionTag::Literal), code(code), isunicode(isunicode) {;}
+            virtual ~LiteralExpression() = default;
 
             virtual std::string toBSQStandard() const override final {
                 if (this->isunicode) {
@@ -97,12 +104,12 @@ namespace brex {
             }
     };
 
-    class UnionExpr : public GlobExpr { // Regex analog is 'AnyOf'
+    class UnionExpression : public GlobExpression { // Regex analog is 'AnyOf'
         public:
-            const std::vector<const GlobExpr*> exprs;
+            const std::vector<const GlobExpression*> exprs;
             
-            UnionExpr(std::vector<const GlobExpr*> exprs) : GlobExpr(GlobExprTag::Union), exprs(exprs) {;} 
-            virtual ~UnionExpr() = default;
+            UnionExpression(std::vector<const GlobExpression*> exprs) : GlobExpression(GlobExpressionTag::Union), exprs(exprs) {;} 
+            virtual ~UnionExpression() = default;
             
             virtual bool needsParens() const override final { return true; }
 
@@ -117,28 +124,29 @@ namespace brex {
             }
     };
 
-    class SubstitutionExpr : public GlobExpr {
+    class SubstitutionExpression : public GlobExpression {
         public:
             const std::string name;
 
-            SubstitutionExpr(std::string name) : GlobExpr(GlobExprTag::Substitution), name(name) {;}
-            virtual ~SubstitutionExpr() = default;
+            SubstitutionExpression(std::string name) : GlobExpression(GlobExpressionTag::Substitution), name(name) {;}
+            virtual ~SubstitutionExpression() = default;
 
             virtual std::string toBSQStandard() const override final {
                 return "${" + name + "}"; 
             }
     };
 
-    class WildcardExpr : public GlobExpr {
+    class WildcardExpression : public GlobExpression {
         public:
-            WildcardExpr() : GlobExpr(GlobExprTag::Wildcard) {;}
-            virtual ~WildcardExpr() = default;
+            WildcardExpression() : GlobExpression(GlobExpressionTag::Wildcard) {;}
+            virtual ~WildcardExpression() = default;
 
             virtual std::string toBSQStandard() const override final {
                 return "*_s";
             }
     };
 
+    // == Glob AST Type ==
     class Glob {
         public:
             // TODO: Actually track substitutions
