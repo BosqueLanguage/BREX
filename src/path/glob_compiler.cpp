@@ -1,55 +1,80 @@
 #include "glob.h"
 #include "glob_compiler.h"
-#include "glob_executor.h"
+#include <algorithm>
 
 namespace brex
 {
-    CompiledSegment* compileExpression(const GlobExpr* expr, CompiledSegment* followed_by) {
-
-    }
-
-    CompiledSegment* compileLiteral(const LiteralExpr* expr, CompiledSegment* followed_by) {
-        std::vector<uint8_t> bytes = extractRegexCharToBytes(expr->code);
-        CompiledSegment* current = followed_by;
-        for (auto it = bytes.crbegin(); it != bytes.crend(); it++) {
-            current = new CompiledSegment({{*it, current}}, false);
+    std::set<size_t>* ExpressionCompiler::compileExpression(const GlobExpression* expr, std::set<size_t>* next_states) {
+        if (expr->tag == GlobExpressionTag::Literal) {
+            return this->compileLiteral((LiteralExpression*) expr, next_states);
         }
-        return current;
-    }
-
-    CompiledSegment* compileSequence(const SequenceExpr* expr, CompiledSegment* followed_by) {
-        const std::vector<const GlobExpr*> subexprs = expr->subexprs;
-        CompiledSegment* current = followed_by;
-        for (auto it = subexprs.crbegin(); it != subexprs.crend(); it++) {
-            current = compileExpression(*it, current);
+        else if (expr->tag == GlobExpressionTag::Sequence) {
+            return this->compileSequence((SequenceExpression*) expr, next_states);
         }
-        return current;
-    }
-
-    CompiledSegment* compileWildcard(const WildcardExpr* expr, CompiledSegment* followed_by) {
-        followed_by->is_wildcard = true;
-        return followed_by;
-    }
-
-    CompiledSegment* compileUnion(const UnionExpr* expr, CompiledSegment* followed_by) {
-        const std::vector<const GlobExpr*> subexprs = expr->exprs;
-
-        if (subexprs.size() <= 0) {
-            return followed_by;
+        else if (expr->tag == GlobExpressionTag::Union) {
+            return this->compileUnion((UnionExpression*) expr, next_states);
         }
-       
-        std::vector<CompiledSegment*> current;
-        for (auto it = subexprs.cbegin(); it != subexprs.cend(); it++) {
-            current.push_back(compileExpression(*it, followed_by));
+        else if (expr->tag == GlobExpressionTag::Wildcard) {
+            return this->compileWildcard((WildcardExpression*) expr, next_states);
         }
-       
-        // TODO: Merge union expressions
-        // Probably something like taking the first one as a base and then tacking on the other parts of the tree at the first divergence, or not at all if the same.
-        // This way, if the unions are the same, that whole tree segment gets deleted.
+        else if (expr->tag == GlobExpressionTag::Substitution) {
+            return this->compileSubstitution((SubstitutionExpression*) expr, next_states);
+        } 
+        // Unreachable.
+        return nullptr;
     }
 
-    void compiledSegmentInsert(CompiledSegment* a, uint8_t c, CompiledSegment* b) {
-        a->next_states[c] - b;
+    std::set<size_t>* ExpressionCompiler::compileLiteral(LiteralExpression* expr, std::set<size_t>* next_states) {
+        this->states.push_back(new GroundState(expr->code, next_states, {}));
+        this->max_index++;
+        return new std::set<size_t>({this->max_index});
+    }
+
+    std::set<size_t>* ExpressionCompiler::compileSequence(SequenceExpression* expr, std::set<size_t>* next_states) {
+        for (auto it = expr->subexprs.rbegin(); it != expr->subexprs.rend(); it++) {
+            next_states = this->compileExpression(*it, next_states);
+        }
+        return next_states;
+    }
+
+    std::set<size_t>* ExpressionCompiler::compileWildcard(WildcardExpression* expr, std::set<size_t>* next_states) {
+        this->max_index++;
+        std::set<size_t>* wildcards = new std::set<size_t>({ this->max_index });
+        for (auto it = next_states->begin(); it != next_states->end(); it++) {
+            std::set<size_t>* cds = this->states[*it]->default_states;
+            if (cds->size() > 0) {
+                for (auto jt = cds->cbegin(); jt != cds->cend(); jt++) {
+                    wildcards->insert(*jt);
+                }
+            }
+            wildcards->insert(*it);
+        }
+        
+        this->states.push_back(new WildcardState({}, wildcards));
+        return new std::set<size_t>({this->max_index});
+    }
+
+    std::set<size_t>* ExpressionCompiler::compileUnion(UnionExpression* expr, std::set<size_t>* next_states) {
+        this->max_index++;
+        std::set<size_t>* next_set = new std::set<size_t>({});
+        for (auto it = expr->exprs.begin(); it != expr->exprs.end(); it++) {
+            std::set<size_t>* next_branch = this->compileExpression(*it, next_states);
+            for (auto jt = next_branch->cbegin(); jt != next_branch->cend(); jt++) {
+                next_set->insert(*jt);
+            }
+        }
+        return next_states;
+    }
+
+    std::set<size_t>* ExpressionCompiler::compileSubstitution(SubstitutionExpression* expr, std::set<size_t>* next_states) {
+        this->states.push_back(new PlaceholderState(expr->name, next_states, {}));
+        this->max_index++;
+        return new std::set<size_t>({this->max_index});
+    }
+
+    ExpressionMachine* ExpressionCompiler::compile(GlobExpression* expr) {
+        ExpressionCompiler compiler = ExpressionCompiler();
+        std::set<size_t>* start_states = compiler.compileExpression(expr, new std::set<size_t>({}));
+        return new ExpressionMachine(start_states, compiler.states);
     }
 } // namespace brex
-

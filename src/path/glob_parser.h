@@ -1,26 +1,28 @@
 #pragma once
+#include "../common.h"
+#include "glob.h"
 
+// Default path separator
 #define BREX_GLOB_PATHSEP '/'
+
+// Substitution syntax
 #define BREX_GLOB_SUB_PREFIX_0 '$'
 #define BREX_GLOB_SUB_PREFIX_1 '{'
 #define BREX_GLOB_SUB_SUFFIX '}'
+
+// Union syntax
 #define BREX_GLOB_OPEN_UNION '('
 #define BREX_GLOB_SEP_UNION '|'
 #define BREX_GLOB_CLOSE_UNION ')'
+
+// Wildcard syntax
 #define BREX_GLOB_WILDCARD '*'
 #define BREX_GLOB_WILDCARD_MAKE_RECURSIVE '*'
 
-#include "../common.h"
-
-#include "glob.h"
-
 namespace brex {
-    // TODO: Split GlobParser and GlobFragmentParser. Goal of this is to allow
-    // Compiler to call just the FragmentParser to get an ExprFragment to
-    // replace a substitution.
     class GlobParser {
         public:
-            const uint8_t* data; // Bytes of Glob
+            const uint8_t* data; // Bytes of Glob plaintext
             uint8_t* cpos; // Pointer to current token
             const uint8_t* epos; // Pointer to last token
 
@@ -54,11 +56,6 @@ namespace brex {
             inline uint8_t token() const {
                 return *this->cpos;
             }
-
-            // // Check if a character is special
-            // inline bool isSpecial(uint8_t tk) const {
-            //     return false;
-            // }
 
             void advance() {
                 if (!this->isEOS()) {
@@ -107,8 +104,7 @@ namespace brex {
             /**
              * Top level parser for a glob path fragment.
              */
-            GlobFragment* parseFragment()
-            {
+            GlobFragment* parseFragment() {
                 if (this->isRecursiveWildcard()) {
                     this->advance();
                     this->advance();
@@ -121,30 +117,29 @@ namespace brex {
              * Parser for an Expression Sequence - Multiple expressions chained
              * one after another.
              */
-            const GlobExpr* parseExprSequence()
-            {
-                std::vector<const GlobExpr*> expr;
+            const GlobExpression* parseExprSequence() {
+                std::vector<const GlobExpression*> expr;
 
+                // Loop until we hit something that closes the current scope
                 while (!this->isEOS() &&
                        !this->isToken(BREX_GLOB_PATHSEP) &&
                        !this->isToken(BREX_GLOB_CLOSE_UNION) && 
                        !this->isToken(BREX_GLOB_SEP_UNION)) {
                     expr.push_back(this->parseExprBase());
                 }
-                return new SequenceExpr(expr);
+                return new SequenceExpression(expr);
             }
 
             /**
              * Parser for a base non-sequence expression. May delegate to Union,
              * delegate to Substition, or process a literal character.
              */
-            const GlobExpr* parseExprBase()
-            {
-                const GlobExpr* ret = nullptr;
+            const GlobExpression* parseExprBase() {
+                const GlobExpression* ret = nullptr;
                
                 if (this->isToken(BREX_GLOB_WILDCARD)) {
                     this->advance();
-                    ret = new WildcardExpr();
+                    ret = new WildcardExpression();
                 }
                 else if (this->isToken(BREX_GLOB_OPEN_UNION)) {
                     this->advance();
@@ -172,7 +167,7 @@ namespace brex {
                 }
                 else {
                     RegexChar c = parseRegexChar(this->isUnicode);
-                    ret = new LiteralExpr(c, this->isUnicode);
+                    ret = new LiteralExpression(c, this->isUnicode);
                 }
 
                 return ret;
@@ -182,8 +177,8 @@ namespace brex {
              * Parser for a Union. Collects expression sequences until closed
              * by a CLOSE_UNION.
              */
-            const GlobExpr* parseUnionComponent() {
-                std::vector<const GlobExpr*> union_exprs;
+            const GlobExpression* parseUnionComponent() {
+                std::vector<const GlobExpression*> union_exprs;
 
                 while (!this->isToken(BREX_GLOB_CLOSE_UNION)) {
                     union_exprs.push_back(this->parseExprSequence());
@@ -195,20 +190,20 @@ namespace brex {
                         // TODO: Errors
                         RegexChar code = 0;
                         this->advance();
-                        return new LiteralExpr(code, this->isUnicode);
+                        return new LiteralExpression(code, this->isUnicode);
                     }
                 }
 
-                return new UnionExpr(union_exprs);
+                return new UnionExpression(union_exprs);
             }
 
-            const GlobExpr* parseSubstitutionExpr() {
+            const GlobExpression* parseSubstitutionExpr() {
                 std::string name;
                 while (!this->isEOS() && !this->isToken(BREX_GLOB_SUB_SUFFIX)) {
                     name.push_back(this->parseSubstitionNameChar());
                 }
 
-                SubstitutionExpr* expr = new SubstitutionExpr(name);
+                SubstitutionExpression* expr = new SubstitutionExpression(name);
                 return expr;
             }
 
@@ -225,6 +220,8 @@ namespace brex {
                 return fragments;
             }
 
+            // TODO: Expose another static function returning a GlobExpression
+            // for handling compilation of substitution segments.
             static Glob* parseGlob(uint8_t* data, size_t datalen, bool is_unicode) {
                 auto parser = GlobParser(data, datalen, is_unicode);
                 return new Glob(parser.parseGlobFragments());

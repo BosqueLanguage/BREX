@@ -10,7 +10,6 @@
 
 namespace brex {
     // == Glob Fragment ==
-
     enum class GlobFragmentTag {
         Expression,
         RecursiveWildcard,
@@ -146,7 +145,7 @@ namespace brex {
             }
     };
 
-    // == Glob AST Type ==
+    // == Glob AST Root ==
     class Glob {
         public:
             // TODO: Actually track substitutions
