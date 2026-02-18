@@ -3,7 +3,7 @@
 #include "../common.h"
 
 namespace brex {
-    // == Compiled States ==
+    // == Compiled Exression States ==
     enum class CompiledStateTag {
         GroundState,  // Ground, fully compiled and linked state
         WildcardState,
@@ -41,16 +41,61 @@ namespace brex {
             PlaceholderState(std::string symbol, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::Placeholder, next_states, default_states), symbol(symbol) {;}
     };
 
-    // == Expression State Machine ==
+    // == Compiled Fragment States ==
+
+    class CompiledFragment {
+        public:
+            GlobFragmentTag tag;
+
+            CompiledFragment(GlobFragmentTag tag) : tag(tag) {;}
+            virtual ~CompiledFragment() {;}
+    };
+
+    class CompiledExpressionFragment : public CompiledFragment{
+        public:
+            ExpressionMachine* exprMachine;
+            CompiledExpressionFragment(ExpressionMachine* machine) : CompiledFragment(GlobFragmentTag::Expression), exprMachine(machine) {;}
+    };
+
+    class CompiledRecursiveWildcardFragment : public CompiledFragment{
+        public:
+            CompiledRecursiveWildcardFragment() : CompiledFragment(GlobFragmentTag::RecursiveWildcard) {;}
+    };
+
+    // == Incomplete State Machines ==
+
+    // The "link" functions replace PlaceHolders by allowing insertion of a
+    // precompiled expression. There's potential optimization for these to get
+    // compiled further into bitstring operations by the state machine assembler
+    // (see glob_machine.h and .cpp). The state machine assembler implementation
+    // I have in mind currently doesn't remove all nondeterminism cleanly so I
+    // may look at adjusting it, it also would use Boost dynamic bitsets which
+    // may not be desirable if we're trying not to depend too much on external
+    // libs.
+
     class ExpressionMachine {
         public:
             std::set<size_t>* start_states;
             std::vector<const CompiledState*> states;
 
             ExpressionMachine(std::set<size_t>* start_states, std::vector<const CompiledState*> states) : start_states(start_states), states(states) {;}
+
+            // TODO: See section header
+            void link(std::string symbol, ExpressionMachine* machine);
     };
 
-    // == Expression Compiler ==
+    // TODO: Find a better name for this, I have no idea what to call it, it's just a collection of state machines really
+    class SomethingMachine {
+        public:
+            std::vector<const CompiledFragment*> states;
+            SomethingMachine(std::vector<const CompiledFragment*> states) : states(states) {;}
+
+            // TODO: See section header
+            void link(std::string symbol, ExpressionMachine* machine);
+    };
+
+    // == Compiler Levels ==
+
     class ExpressionCompiler {
         private:
             // const GlobExpression* data;
@@ -67,6 +112,17 @@ namespace brex {
         public:
             ExpressionCompiler(/*GlobExpression* data*/) : /* data(data),*/ max_index(0), states(std::vector<const CompiledState*>()) {;}
             virtual ~ExpressionCompiler() = default;
-            static ExpressionMachine* compile(GlobExpression* expr);
+            static ExpressionMachine* compile(const GlobExpression* expr);
+    };
+
+    class GlobCompiler {
+        private:
+            std::vector<const CompiledFragment*> states;
+            void compileFragments(std::vector<const GlobFragment*> fragments);
+        public:
+            GlobCompiler() : states(std::vector<const CompiledFragment*>()) {;}
+           
+            // TODO: Replace void with an unlinked state machine type
+            static SomethingMachine* compile(Glob* glob);
     };
 }

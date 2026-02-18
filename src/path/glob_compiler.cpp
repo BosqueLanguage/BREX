@@ -72,9 +72,30 @@ namespace brex
         return new std::set<size_t>({this->max_index});
     }
 
-    ExpressionMachine* ExpressionCompiler::compile(GlobExpression* expr) {
+    ExpressionMachine* ExpressionCompiler::compile(const GlobExpression* expr) {
         ExpressionCompiler compiler = ExpressionCompiler();
         std::set<size_t>* start_states = compiler.compileExpression(expr, new std::set<size_t>({}));
         return new ExpressionMachine(start_states, compiler.states);
     }
+
+    void GlobCompiler::compileFragments(std::vector<const GlobFragment*> fragments) {
+        for (auto it = fragments.cbegin(); it != fragments.cend(); it++) {
+            if ((*it)->tag == GlobFragmentTag::Expression) {
+                const ExpressionFragment* f = (const ExpressionFragment*) (*it);
+                ExpressionMachine* machine = ExpressionCompiler::compile(f->expression);
+                this->states.push_back(new CompiledExpressionFragment(machine));
+            }
+            else if ((*it)->tag == GlobFragmentTag::RecursiveWildcard) {
+                this->states.push_back(new CompiledRecursiveWildcardFragment());
+            }
+        }
+        // Return something? May not be necessary since it's just building the linear pass through each fragment
+    }
+
+    SomethingMachine* GlobCompiler::compile(Glob* glob) {
+        GlobCompiler c = GlobCompiler();
+        c.compileFragments(glob->fragments);
+        return new SomethingMachine(c.states);
+    }
+
 } // namespace brex
