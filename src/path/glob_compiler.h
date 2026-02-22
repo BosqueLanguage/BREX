@@ -74,6 +74,9 @@ namespace brex {
     // libs.
 
     class ExpressionMachine {
+        private:
+            void innerLink(size_t state_id, ExpressionMachine* machine);
+
         public:
             std::set<size_t>* start_states;
             std::vector<const CompiledState*> states;
