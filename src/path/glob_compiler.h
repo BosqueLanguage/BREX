@@ -41,27 +41,6 @@ namespace brex {
             PlaceholderState(std::string symbol, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::Placeholder, next_states, default_states), symbol(symbol) {;}
     };
 
-    // == Compiled Fragment States ==
-
-    class CompiledFragment {
-        public:
-            GlobFragmentTag tag;
-
-            CompiledFragment(GlobFragmentTag tag) : tag(tag) {;}
-            virtual ~CompiledFragment() {;}
-    };
-
-    class CompiledExpressionFragment : public CompiledFragment{
-        public:
-            ExpressionMachine* exprMachine;
-            CompiledExpressionFragment(ExpressionMachine* machine) : CompiledFragment(GlobFragmentTag::Expression), exprMachine(machine) {;}
-    };
-
-    class CompiledRecursiveWildcardFragment : public CompiledFragment{
-        public:
-            CompiledRecursiveWildcardFragment() : CompiledFragment(GlobFragmentTag::RecursiveWildcard) {;}
-    };
-
     // == Incomplete State Machines ==
 
     // The "link" functions replace PlaceHolders by allowing insertion of a
@@ -87,11 +66,34 @@ namespace brex {
             void link(std::string symbol, ExpressionMachine* machine);
     };
 
+    // == Compiled Fragment States ==
+
+    class CompiledFragment {
+        public:
+            GlobFragmentTag tag;
+
+            CompiledFragment(GlobFragmentTag tag) : tag(tag) {;}
+            virtual ~CompiledFragment() {;}
+    };
+
+    class CompiledExpressionFragment : public CompiledFragment{
+        public:
+            ExpressionMachine* exprMachine;
+            CompiledExpressionFragment(ExpressionMachine* machine) : CompiledFragment(GlobFragmentTag::Expression), exprMachine(machine) {;}
+    };
+
+    class CompiledRecursiveWildcardFragment : public CompiledFragment{
+        public:
+            CompiledRecursiveWildcardFragment() : CompiledFragment(GlobFragmentTag::RecursiveWildcard) {;}
+    };
+
+    // == Incomplete State Machines (Cont, I had to split them for name resolution) ==
+
     // TODO: Find a better name for this, I have no idea what to call it, it's just a collection of state machines really
-    class SomethingMachine {
+    class FragmentMachine {
         public:
             std::vector<const CompiledFragment*> states;
-            SomethingMachine(std::vector<const CompiledFragment*> states) : states(states) {;}
+            FragmentMachine(std::vector<const CompiledFragment*> states) : states(states) {;}
 
             // TODO: See section header
             void link(std::string symbol, ExpressionMachine* machine);
@@ -126,6 +128,6 @@ namespace brex {
             GlobCompiler() : states(std::vector<const CompiledFragment*>()) {;}
            
             // TODO: Replace void with an unlinked state machine type
-            static SomethingMachine* compile(Glob* glob);
+            static FragmentMachine* compile(Glob* glob);
     };
 }

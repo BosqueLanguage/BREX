@@ -2,92 +2,46 @@
 
 #include "../common.h"
 #include "glob.h"
+#include "glob_compiler.h"
 
 namespace brex {
-    class CompiledSegment {
-        public:
-            std::unordered_map<uint8_t, CompiledSegment*> next_states; 
-            bool is_wildcard;
+    bool match(FragmentMachine* machine, std::string str) {
+    }
 
-            CompiledSegment(std::unordered_map<uint8_t, CompiledSegment*> next_states, bool is_wildcard): next_states(next_states), is_wildcard(is_wildcard) {;}
-            virtual ~CompiledSegment() = default;
+    std::pair<bool, size_t> matchExpr(ExpressionMachine* machine, std::string str, size_t start_pos) {
+        assert(str.size() - start_pos > 0);
 
-            const bool is_final() const {
-                return this->next_states.empty();
+        // Copy constructor
+        std::set<size_t> current_state = std::set<size_t>(*(machine->start_states));
+
+        for (auto it = str.cbegin() + start_pos; it != str.cend(); it++) {
+            std::set<size_t> next_state = std::set<size_t>();
+
+            for (auto state_id = current_state.begin(); state_id != current_state.cend(); state_id++) {
+                const CompiledState* state = machine->states[*state_id];
+                if (state->tag == CompiledStateTag::GroundState && ((const GroundState*)state)->activator == *it) {
+                    for (auto ns = state->next_states->cbegin(); ns != state->next_states->cend(); ns++) {
+                        next_state.insert(*ns);
+                    }
+                }
+                for (auto ds = state->default_states->cbegin(); ds != state->default_states->cend(); ds++) {
+                    next_state.insert(*ds);
+                }
             }
-    };
 
-    class FragmentExecutor {
-        public:
-            const CompiledSegment* segment;
+            current_state = next_state;
+            start_pos++;
 
-            FragmentExecutor(const CompiledSegment* segment) : segment(segment) {;}
-            ~FragmentExecutor() = default;
-
-            bool test(std::string str) {
-                // TODO: Maybe convert to bitmasks?
-                // Use 'and' to get rid of states that are no longer filled, left shift at the end of each iteration
-                // Use 'or' to add in wildcard states
-                std::vector<const CompiledSegment*> current_segments;
-                std::vector<const CompiledSegment*> active_wildcards;
-
-                if (!this->segment->is_wildcard) {
-                    current_segments.push_back((const CompiledSegment*) this->segment);
-                } 
-                else {
-                    active_wildcards.push_back((const CompiledSegment*) this->segment);
-                }
-
-                for (auto it = str.cbegin(); it != str.cend(); it++) {
-                    std::vector<const CompiledSegment*> next_segments;
-                    for (auto s = current_segments.cbegin(); s != current_segments.cend(); s++) {
-                        const CompiledSegment* c = (const CompiledSegment*) *s;
-                        if (c->next_states.contains(*it)) {
-                            const CompiledSegment* next = c->next_states.at((uint8_t) *it);
-                            if (!this->segment->is_wildcard) {
-                                next_segments.push_back((const CompiledSegment*) this->segment);
-                            }
-                            else {
-                                active_wildcards.push_back((const CompiledSegment*) this->segment);
-                            }
-                        }
-                    }
-                    for (auto w = active_wildcards.cbegin(); w != active_wildcards.cend(); w++) {
-                        const CompiledSegment* c = (const CompiledSegment*) *w;
-                        if (c->next_states.contains(*it)) {
-                            const CompiledSegment* next = c->next_states.at((uint8_t) *it);
-                            // Compiler should get rid of * next to * that isn't a top-level segment.
-                            if (!next->is_wildcard) {
-                                next_segments.push_back((const CompiledSegment*) this->segment);
-                            }
-                        }
-                    }
-                }
-
-                for (auto s = current_segments.cbegin(); s != current_segments.cend(); s++) {
-                    if ((*s)->is_final()) {
-                        return true;
-                    }
-                }
-                for (auto s = active_wildcards.cbegin(); s != active_wildcards.cend(); s++) {
-                    if ((*s)->is_final()) {
-                        return true;
-                    }
-                }
-                return false;
+            if (current_state.size() == 0) {
+                return std::pair<bool, size_t>(false, start_pos);
             }
-    };
 
-    class GlobExecutor {
-        public:
-            const Glob* glob;
-
-        GlobExecutor(const Glob* glob) : glob(glob) {;}
-        ~GlobExecutor() = default;
-
-        // TODO: Template type for std::string
-        bool test(std::string str) {
-            return false;
+            // TODO: Path separator variable for when these functions are inside a class
+            if ((*it) == '/') {
+                break;
+            }
         }
-    };
+
+        return std::pair<bool, size_t>(current_state.contains(0), start_pos);
+    }
 }

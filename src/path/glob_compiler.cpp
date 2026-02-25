@@ -93,10 +93,10 @@ namespace brex
         // Return something? May not be necessary since it's just building the linear pass through each fragment
     }
 
-    SomethingMachine* GlobCompiler::compile(Glob* glob) {
+    FragmentMachine* GlobCompiler::compile(Glob* glob) {
         GlobCompiler c = GlobCompiler();
         c.compileFragments(glob->fragments);
-        return new SomethingMachine(c.states);
+        return new FragmentMachine(c.states);
     }
 
     void ExpressionMachine::link(std::string symbol, ExpressionMachine* machine) {
@@ -122,14 +122,16 @@ namespace brex
             if (this->states[i]->tag == CompiledStateTag::Placeholder) {
                 if (((PlaceholderState*)(this->states[i]))->symbol == symbol) {
                     this->innerLink(i, machine);
+
+                    // This is just a completely empty unreachable state. We can
+                    // do some optimization later to remove these.
+                    this->states[i] = new WildcardState({}, {});
                 }
             }
         }
     }
 
     void ExpressionMachine::innerLink(size_t id, ExpressionMachine* machine) {
-        // Store some current information...
-
         // Current maximum state index
         size_t n = this->states.size();
 
@@ -143,7 +145,6 @@ namespace brex
         // `this`. This first loop should create an array matching old state ids
         // to new state ids.
 
-
         std::vector<size_t> map = std::vector<size_t>();
         // We can actually guarantee that we don't need the zeroth state. That
         // will always be the final state and have no transitions. Even if we
@@ -151,7 +152,7 @@ namespace brex
         // state, instead of the one we're adding.
         map.push_back(0);
 
-        for (int i = 1; i < machine->states.size(); i++) {
+        for (size_t i = 1; i < machine->states.size(); i++) {
             map.push_back(n+i-1); // Maps i to n+i-1
             this->states.push_back(machine->states[i]);
         }
@@ -218,7 +219,7 @@ namespace brex
         }
 
         // Replace all instances of `id` with `updated_starts`
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             if (this->states[i]->next_states->contains(id)) {
                 this->states[i]->next_states->erase(id);
                 for (auto jt = updated_starts.cbegin(); jt != updated_starts.cend(); jt++) {
@@ -234,7 +235,7 @@ namespace brex
         }
     }
 
-    void SomethingMachine::link(std::string symbol, ExpressionMachine* machine) {
+    void FragmentMachine::link(std::string symbol, ExpressionMachine* machine) {
         // Loop through all contained expression machines and run link with the above args.
         for (auto it = this->states.begin(); it != this->states.end(); it++) {
             if ((*it)->tag == GlobFragmentTag::Expression) {
