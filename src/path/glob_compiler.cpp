@@ -26,8 +26,8 @@ namespace brex
     }
 
     std::set<size_t>* ExpressionCompiler::compileLiteral(LiteralExpression* expr, std::set<size_t>* next_states) {
-        this->states.push_back(new GroundState(expr->code, next_states, {}));
         this->max_index++;
+        this->states.push_back(new GroundState(expr->code, next_states, nullptr));
         return new std::set<size_t>({this->max_index});
     }
 
@@ -43,7 +43,7 @@ namespace brex
         std::set<size_t>* wildcards = new std::set<size_t>({ this->max_index });
         for (auto it = next_states->begin(); it != next_states->end(); it++) {
             std::set<size_t>* cds = this->states[*it]->default_states;
-            if (cds->size() > 0) {
+            if (cds != nullptr && cds->size() > 0) {
                 for (auto jt = cds->cbegin(); jt != cds->cend(); jt++) {
                     wildcards->insert(*jt);
                 }
@@ -52,11 +52,10 @@ namespace brex
         }
         
         this->states.push_back(new WildcardState({}, wildcards));
-        return new std::set<size_t>({this->max_index});
+        return wildcards;
     }
 
     std::set<size_t>* ExpressionCompiler::compileUnion(UnionExpression* expr, std::set<size_t>* next_states) {
-        this->max_index++;
         std::set<size_t>* next_set = new std::set<size_t>({});
         for (auto it = expr->exprs.begin(); it != expr->exprs.end(); it++) {
             std::set<size_t>* next_branch = this->compileExpression(*it, next_states);
@@ -64,18 +63,18 @@ namespace brex
                 next_set->insert(*jt);
             }
         }
-        return next_states;
+        return next_set;
     }
 
     std::set<size_t>* ExpressionCompiler::compileSubstitution(SubstitutionExpression* expr, std::set<size_t>* next_states) {
-        this->states.push_back(new PlaceholderState(expr->name, next_states, {}));
+        this->states.push_back(new PlaceholderState(expr->name, next_states, nullptr));
         this->max_index++;
         return new std::set<size_t>({this->max_index});
     }
 
     ExpressionMachine* ExpressionCompiler::compile(const GlobExpression* expr) {
         ExpressionCompiler compiler = ExpressionCompiler();
-        std::set<size_t>* start_states = compiler.compileExpression(expr, new std::set<size_t>({}));
+        std::set<size_t>* start_states = compiler.compileExpression(expr, new std::set<size_t>({0}));
         return new ExpressionMachine(start_states, compiler.states);
     }
 

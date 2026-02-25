@@ -19,6 +19,8 @@ namespace brex {
 
             CompiledState(CompiledStateTag tag, std::set<size_t>* next_states, std::set<size_t>* default_states) : tag(tag), next_states(next_states), default_states(default_states) {;}
             virtual ~CompiledState() {;}
+
+            virtual std::string stringify() const = 0;
     };
 
     class GroundState : public CompiledState {
@@ -27,11 +29,41 @@ namespace brex {
             
             GroundState(RegexChar activator, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::GroundState, next_states, default_states), activator(activator) {;}
             virtual ~GroundState() = default;
+
+            virtual std::string stringify() const override final {
+                std::string next_states = "{ ";
+                for (auto it = this->next_states->cbegin(); it != this->next_states->cend(); it++) {
+                    next_states += std::to_string(*it) + " ";
+                }
+                next_states += "}";
+
+                std::string defaults = "{ ";
+                if (this->default_states != nullptr) {
+                    for (auto it = this->default_states->cbegin(); it != this->default_states->cend(); it++) {
+                        defaults += std::to_string(*it) + " ";
+                    }
+                }
+                defaults += "}";
+
+                return "{ Ground State. On '" + std::string({(char)this->activator}) + "': " + next_states + ", Default: " + defaults + " }";
+            }
     };
 
     class WildcardState : public CompiledState {
         public:
             WildcardState(std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::WildcardState, next_states, default_states) {;}
+
+            std::string stringify() const override final {
+                std::string defaults = "{ ";
+                if (this->default_states != nullptr) {
+                    for (auto it = this->default_states->cbegin(); it != this->default_states->cend(); it++) {
+                        defaults += std::to_string(*it) + " ";
+                    }
+                }
+                defaults += "}";
+
+                return "{ Wildcard. Default: " + defaults + " }";
+            }
     };
 
     class PlaceholderState : public CompiledState {
@@ -39,18 +71,35 @@ namespace brex {
             const std::string symbol;
 
             PlaceholderState(std::string symbol, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::Placeholder, next_states, default_states), symbol(symbol) {;}
+
+            std::string stringify() const override final {
+                std::string next_states = "{ ";
+                for (auto it = this->next_states->cbegin(); it != this->next_states->cend(); it++) {
+                    next_states += std::to_string(*it) + " ";
+                }
+                next_states += "}";
+
+                std::string defaults = "{ ";
+                if (this->default_states != nullptr) {
+                    for (auto it = this->default_states->cbegin(); it != this->default_states->cend(); it++) {
+                        defaults += std::to_string(*it) + " ";
+                    }
+                }
+                defaults += "}";
+
+                return "{ Placeholder. On success: " + next_states + ", Default: " + defaults + " }";
+            }
     };
 
     // == Incomplete State Machines ==
 
     // The "link" functions replace PlaceHolders by allowing insertion of a
     // precompiled expression. There's potential optimization for these to get
-    // compiled further into bitstring operations by the state machine assembler
-    // (see glob_machine.h and .cpp). The state machine assembler implementation
-    // I have in mind currently doesn't remove all nondeterminism cleanly so I
-    // may look at adjusting it, it also would use Boost dynamic bitsets which
-    // may not be desirable if we're trying not to depend too much on external
-    // libs.
+    // compiled further into bitstring operations. The state machine
+    // implementation I have in mind currently doesn't remove all nondeterminism
+    // cleanly so I may look at adjusting it, it also would use Boost dynamic
+    // bitsets which may not be desirable if we're trying not to depend too much
+    // on external libs.
 
     class ExpressionMachine {
         private:
@@ -64,6 +113,24 @@ namespace brex {
 
             // TODO: See section header
             void link(std::string symbol, ExpressionMachine* machine);
+
+            std::string stringify(std::string prefix = "") const {
+                std::string states = "";
+                int i = 0;
+                for (auto it = this->states.cbegin(); it != this->states.cend(); it++) {
+                    states += prefix + "  " + std::to_string(i) + ": " + (*it)->stringify() + "\n";
+                    i++;
+                }
+
+                std::string start_states = "{ ";
+                for (auto it = this->start_states->cbegin(); it != this->start_states->cend(); it++) {
+                    start_states += std::to_string(*it) + " ";
+                }
+                start_states += "}";
+
+
+                return prefix + "{\n" + states + prefix + "  Start: " + start_states + "\n" + prefix + "}";
+            }
     };
 
     // == Compiled Fragment States ==
@@ -115,7 +182,7 @@ namespace brex {
             std::set<size_t>* compileSubstitution(SubstitutionExpression* expr, std::set<size_t>* next_states);
         
         public:
-            ExpressionCompiler(/*GlobExpression* data*/) : /* data(data),*/ max_index(0), states(std::vector<const CompiledState*>()) {;}
+            ExpressionCompiler(/*GlobExpression* data*/) : /* data(data),*/ max_index(0), states(std::vector<const CompiledState*>({new WildcardState(nullptr, nullptr)})) {;}
             virtual ~ExpressionCompiler() = default;
             static ExpressionMachine* compile(const GlobExpression* expr);
     };
