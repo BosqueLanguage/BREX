@@ -98,30 +98,21 @@ namespace brex
         return new FragmentMachine(c.states);
     }
 
-    void ExpressionMachine::link(std::string symbol, ExpressionMachine* machine) {
+    void ExpressionMachine::link(std::u8string symbol, ExpressionMachine* machine) {
         // Precondition check: `machine` must be fully linked.
         for (auto it = machine->states.cbegin(); it != machine->states.cend(); it++) {
             if ((*it)->tag == CompiledStateTag::Placeholder) {
                 // TODO: Errors
                 std::cout << "Bad state reached, ExpressionMachine::link" << std::endl;
+                exit(-1);
             }
         }
-
-        // Run the actual linking logic for each instance of the symbol. The more
-        // space efficient way to do this would be to allow the executor to
-        // recurse and run another machine within itself, instead of this linking logic.
-        // TBH that sounds way easier maybe I should do that...
-
-        // ^^^ That strategy wouldn't have a way to elegantly handle wildcards.
-        // Technically it would with a pythonic yield statement, but that's
-        // asking a lot from my C++ skill.
 
         size_t end = this->states.size();
         for (size_t i = 0; i < end; i++) {
             if (this->states[i]->tag == CompiledStateTag::Placeholder) {
                 if (((PlaceholderState*)(this->states[i]))->symbol == symbol) {
                     this->innerLink(i, machine);
-
                     // This is just a completely empty unreachable state. We can
                     // do some optimization later to remove these.
                     this->states[i] = new WildcardState({}, {});
@@ -234,7 +225,7 @@ namespace brex
         }
     }
 
-    void FragmentMachine::link(std::string symbol, ExpressionMachine* machine) {
+    void FragmentMachine::link(std::u8string symbol, ExpressionMachine* machine) {
         // Loop through all contained expression machines and run link with the above args.
         for (auto it = this->states.begin(); it != this->states.end(); it++) {
             if ((*it)->tag == GlobFragmentTag::Expression) {

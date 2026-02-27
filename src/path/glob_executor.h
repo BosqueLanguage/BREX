@@ -36,11 +36,6 @@ namespace brex {
 
             current_state = next_state;
             start_pos++;
-
-            // Skip this because we'll end up doing it anyway *and* it'll update our current string position
-            // if (current_state.size() == 0) {
-            //     return std::pair<bool, size_t>(false, start_pos);
-            // }
         }
 
         return std::pair<bool, size_t>(current_state.contains(0), start_pos);

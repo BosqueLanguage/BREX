@@ -20,6 +20,10 @@
 #define BREX_GLOB_WILDCARD_MAKE_RECURSIVE '*'
 
 namespace brex {
+    // TODO: Errors
+    // - Write a class representing an error similar to the Regex Implementation.
+    // - Add somewhat detailed error messages
+
     class GlobParser {
         public:
             const uint8_t* data; // Bytes of Glob plaintext
@@ -95,8 +99,8 @@ namespace brex {
                 return code;
             }
 
-            char parseSubstitionNameChar() {
-                char c = (char) *(this->cpos);
+            char8_t parseSubstitionNameChar() {
+                char8_t c = (char8_t) *(this->cpos);
                 this->advance();
                 return c;
             }
@@ -198,7 +202,7 @@ namespace brex {
             }
 
             const GlobExpression* parseSubstitutionExpr() {
-                std::string name;
+                std::u8string name;
                 while (!this->isEOS() && !this->isToken(BREX_GLOB_SUB_SUFFIX)) {
                     name.push_back(this->parseSubstitionNameChar());
                 }

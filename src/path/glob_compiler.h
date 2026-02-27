@@ -68,9 +68,9 @@ namespace brex {
 
     class PlaceholderState : public CompiledState {
         public:
-            const std::string symbol;
+            const std::u8string symbol;
 
-            PlaceholderState(std::string symbol, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::Placeholder, next_states, default_states), symbol(symbol) {;}
+            PlaceholderState(std::u8string symbol, std::set<size_t>* next_states, std::set<size_t>* default_states) : CompiledState(CompiledStateTag::Placeholder, next_states, default_states), symbol(symbol) {;}
 
             std::string stringify() const override final {
                 std::string next_states = "{ ";
@@ -93,14 +93,6 @@ namespace brex {
 
     // == Incomplete State Machines ==
 
-    // The "link" functions replace PlaceHolders by allowing insertion of a
-    // precompiled expression. There's potential optimization for these to get
-    // compiled further into bitstring operations. The state machine
-    // implementation I have in mind currently doesn't remove all nondeterminism
-    // cleanly so I may look at adjusting it, it also would use Boost dynamic
-    // bitsets which may not be desirable if we're trying not to depend too much
-    // on external libs.
-
     class ExpressionMachine {
         private:
             void innerLink(size_t state_id, ExpressionMachine* machine);
@@ -112,7 +104,7 @@ namespace brex {
             ExpressionMachine(std::set<size_t>* start_states, std::vector<const CompiledState*> states) : start_states(start_states), states(states) {;}
 
             // TODO: See section header
-            void link(std::string symbol, ExpressionMachine* machine);
+            void link(std::u8string symbol, ExpressionMachine* machine);
 
             std::string stringify(std::string prefix = "") const {
                 std::string states = "";
@@ -163,7 +155,7 @@ namespace brex {
             FragmentMachine(std::vector<const CompiledFragment*> states) : states(states) {;}
 
             // TODO: See section header
-            void link(std::string symbol, ExpressionMachine* machine);
+            void link(std::u8string symbol, ExpressionMachine* machine);
     };
 
     // == Compiler Levels ==
