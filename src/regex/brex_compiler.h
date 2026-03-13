@@ -107,8 +107,9 @@ namespace brex
 
             auto bsqstd = fullre->toBSQStandard();
             auto smtre = fullre->toSMTRegex();
+            auto cppstd = fullre->toCPPRegex(std::is_same<TStr, UnicodeString>::value);
 
-            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck, bsqstd, smtre);
+            SingleCheckREInfo<TStr, TIter>* scc = new SingleCheckREInfo<TStr, TIter>(nn, tlre.isNegated, tlre.isFrontCheck, tlre.isBackCheck, bsqstd, smtre, cppstd);
             return std::make_optional(scc);
         }
         

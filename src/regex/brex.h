@@ -339,7 +339,7 @@ namespace brex
                 return this->repeat->toCPPRegex(isunicode) + "*";
             }
             else {
-                return "(?:" + this->repeat->toCPPRegex(isunicode) + ")*";
+                return "(" + this->repeat->toCPPRegex(isunicode) + ")*";
             }
         }
     };
@@ -384,7 +384,7 @@ namespace brex
                 return this->repeat->toCPPRegex(isunicode) + "+";
             }
             else {
-                return "(?:" + this->repeat->toCPPRegex(isunicode) + ")+";
+                return "(" + this->repeat->toCPPRegex(isunicode) + ")+";
             }
         }
     };
@@ -482,7 +482,7 @@ namespace brex
                 repeatstr = this->repeat->toCPPRegex(isunicode);
             }
             else {
-                repeatstr = "(?:" + this->repeat->toCPPRegex(isunicode) + ")";
+                repeatstr = "(" + this->repeat->toCPPRegex(isunicode) + ")";
             }
 
             std::string iterstr{"{"};
@@ -545,7 +545,7 @@ namespace brex
                 return this->opt->toCPPRegex(isunicode) + "?";
             }
             else {
-                return "(?:" + this->opt->toCPPRegex(isunicode) + ")?";
+                return "(" + this->opt->toCPPRegex(isunicode) + ")?";
             }
         }
     };
@@ -621,7 +621,7 @@ namespace brex
                     optstr += (*ii)->toCPPRegex(isunicode);
                 }
                 else {
-                    optstr += "(?:" + (*ii)->toCPPRegex(isunicode) + ")";
+                    optstr += "(" + (*ii)->toCPPRegex(isunicode) + ")";
                 }
             }
 
@@ -687,7 +687,7 @@ namespace brex
                     regexstr += (*ii)->toCPPRegex(isunicode);
                 }
                 else {
-                    regexstr += "(?:" + (*ii)->toCPPRegex(isunicode) + ")";
+                    regexstr += "(" + (*ii)->toCPPRegex(isunicode) + ")";
                 }
             }
 
