@@ -33,6 +33,7 @@ namespace brex
 
         virtual std::string toBSQStandard() const = 0;
         virtual std::string toSMTRegex() const = 0;
+        virtual std::string toCPPRegex(bool isunicode) const = 0;
     };
 
     class LiteralOpt : public RegexOpt
@@ -69,6 +70,11 @@ namespace brex
         virtual std::string toSMTRegex() const override final
         {
             return "(str.to.re \"" + processRegexCharsToSMT(this->codes) + "\")";
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            return processRegexCharsToCPP(this->codes, isunicode);
         }
     };
 
@@ -184,6 +190,27 @@ namespace brex
 
             return optsstr;
         }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            std::string rngs = "[";
+            if(this->compliment) {
+                rngs += "^";
+            }
+
+            for(auto ii = this->ranges.cbegin(); ii != this->ranges.cend(); ++ii) {
+                auto cr = *ii;
+
+                rngs += processRegexCharToCPPCharClass(cr.low, isunicode);
+                if(cr.low != cr.high) {
+                    rngs += "-";
+                    rngs += processRegexCharToCPPCharClass(cr.high, isunicode);
+                }
+            }
+            rngs += "]";
+
+            return rngs;
+        }
     };
 
     class CharClassDotOpt : public RegexOpt
@@ -205,6 +232,11 @@ namespace brex
         virtual std::string toSMTRegex() const override final
         {
             return "re.allchar";
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            return ".";
         }
     };
 
@@ -231,6 +263,11 @@ namespace brex
         {
             return "${" + this->rname + "}";
         }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            return "${" + this->rname + "}";
+        }
     };
 
     class EnvRegexOpt : public RegexOpt
@@ -252,6 +289,11 @@ namespace brex
         }
 
         virtual std::string toSMTRegex() const override final
+        {
+            return "env[" + this->ename + ']';
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
         {
             return "env[" + this->ename + ']';
         }
@@ -290,6 +332,16 @@ namespace brex
         {
             return "(re.* " + this->repeat->toSMTRegex() + ")";
         }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            if(!this->repeat->needsParens()) {
+                return this->repeat->toCPPRegex(isunicode) + "*";
+            }
+            else {
+                return "(?:" + this->repeat->toCPPRegex(isunicode) + ")*";
+            }
+        }
     };
 
     class PlusRepeatOpt : public RegexOpt
@@ -324,6 +376,16 @@ namespace brex
         virtual std::string toSMTRegex() const override final
         {
             return "(re.+ " + this->repeat->toSMTRegex() + ")";
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            if(!this->repeat->needsParens()) {
+                return this->repeat->toCPPRegex(isunicode) + "+";
+            }
+            else {
+                return "(?:" + this->repeat->toCPPRegex(isunicode) + ")+";
+            }
         }
     };
 
@@ -412,6 +474,35 @@ namespace brex
                 return "((_ re.loop " + iterstr + ") " + repeatstr + ")";
             }
         }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            std::string repeatstr;
+            if(!this->repeat->needsParens()) {
+                repeatstr = this->repeat->toCPPRegex(isunicode);
+            }
+            else {
+                repeatstr = "(?:" + this->repeat->toCPPRegex(isunicode) + ")";
+            }
+
+            std::string iterstr{"{"};
+            if(this->low == this->high) {
+                iterstr += std::to_string(this->low) + "}";
+            }
+            else {
+                if(this->low == 0) {
+                    iterstr += "," + std::to_string(this->high) + "}";
+                }
+                else if(this->high == UINT16_MAX) {
+                    iterstr += std::to_string(this->low) + ",}";
+                }
+                else {
+                    iterstr += std::to_string(this->low) + "," + std::to_string(this->high) + "}";
+                }
+            }
+
+            return repeatstr + iterstr;
+        }
     };
 
     class OptionalOpt : public RegexOpt
@@ -446,6 +537,16 @@ namespace brex
         virtual std::string toSMTRegex() const override final
         {
             return "(re.opt " + this->opt->toSMTRegex() + ")";
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            if(!this->opt->needsParens()) {
+                return this->opt->toCPPRegex(isunicode) + "?";
+            }
+            else {
+                return "(?:" + this->opt->toCPPRegex(isunicode) + ")?";
+            }
         }
     };
 
@@ -507,6 +608,25 @@ namespace brex
 
             return optstr;
         }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            std::string optstr;
+            for(auto ii = this->opts.cbegin(); ii != this->opts.cend(); ++ii) {
+                if(ii != this->opts.cbegin()) {
+                    optstr += "|";
+                }
+
+                if(!(*ii)->needsParens()) {
+                    optstr += (*ii)->toCPPRegex(isunicode);
+                }
+                else {
+                    optstr += "(?:" + (*ii)->toCPPRegex(isunicode) + ")";
+                }
+            }
+
+            return optstr;
+        }
     };
 
     class SequenceOpt : public RegexOpt
@@ -555,6 +675,21 @@ namespace brex
                 regexstr += " " + (*ii)->toSMTRegex();
             }
             regexstr += ")";
+
+            return regexstr;
+        }
+
+        virtual std::string toCPPRegex(bool isunicode) const override final
+        {
+            std::string regexstr;
+            for(auto ii = this->regexs.cbegin(); ii != this->regexs.cend(); ++ii) {
+                if(!(*ii)->needsSequenceParens()) {
+                    regexstr += (*ii)->toCPPRegex(isunicode);
+                }
+                else {
+                    regexstr += "(?:" + (*ii)->toCPPRegex(isunicode) + ")";
+                }
+            }
 
             return regexstr;
         }
