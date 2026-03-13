@@ -28,6 +28,7 @@ namespace brex
         virtual ~RegexOpt() {;}
 
         virtual bool needsParens() const { return false; }
+        virtual bool needsParensCPP() const { return needsParens(); }
         virtual bool needsSequenceParens() const { return false; }
         virtual std::u8string toBSQONFormat() const = 0;
 
@@ -75,6 +76,11 @@ namespace brex
         virtual std::string toCPPRegex(bool isunicode) const override final
         {
             return processRegexCharsToCPP(this->codes, isunicode);
+        }
+
+        virtual bool needsParensCPP() const override final
+        {
+            return this->codes.size() > 1;
         }
     };
 
@@ -335,7 +341,7 @@ namespace brex
 
         virtual std::string toCPPRegex(bool isunicode) const override final
         {
-            if(!this->repeat->needsParens()) {
+            if(!this->repeat->needsParensCPP()) {
                 return this->repeat->toCPPRegex(isunicode) + "*";
             }
             else {
@@ -380,7 +386,7 @@ namespace brex
 
         virtual std::string toCPPRegex(bool isunicode) const override final
         {
-            if(!this->repeat->needsParens()) {
+            if(!this->repeat->needsParensCPP()) {
                 return this->repeat->toCPPRegex(isunicode) + "+";
             }
             else {
@@ -478,7 +484,7 @@ namespace brex
         virtual std::string toCPPRegex(bool isunicode) const override final
         {
             std::string repeatstr;
-            if(!this->repeat->needsParens()) {
+            if(!this->repeat->needsParensCPP()) {
                 repeatstr = this->repeat->toCPPRegex(isunicode);
             }
             else {
@@ -541,7 +547,7 @@ namespace brex
 
         virtual std::string toCPPRegex(bool isunicode) const override final
         {
-            if(!this->opt->needsParens()) {
+            if(!this->opt->needsParensCPP()) {
                 return this->opt->toCPPRegex(isunicode) + "?";
             }
             else {
