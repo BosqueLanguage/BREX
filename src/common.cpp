@@ -217,6 +217,56 @@ namespace brex
         });
     }
 
+    std::string processRegexCharToCPP(RegexChar c, bool isunicode)
+    {
+        // Characters that are special in ECMAScript regex outside a character class
+        static const std::string special = ".^$*+?()[]{}|\\";
+        if(c < 128 && special.find((char)c) != std::string::npos) {
+            return std::string{'\\'} + std::string{(char)c};
+        }
+        else if((RegexChar)32 <= c && c <= (RegexChar)126) {
+            return std::string{(char)c};
+        }
+        else {
+            auto hh = std::format("{:x}", c);
+
+            if(!isunicode) {
+                return "\\x{" + hh + "}";
+            }
+            else {
+                return "\\u{" + hh + "}";
+            }
+        }
+    }
+
+    std::string processRegexCharsToCPP(const std::vector<RegexChar>& sv, bool isunicode)
+    {
+        return std::accumulate(sv.cbegin(), sv.cend(), std::string{}, [isunicode](const std::string& acc, RegexChar c) {
+            return acc + processRegexCharToCPP(c, isunicode);
+        });
+    }
+
+    std::string processRegexCharToCPPCharClass(RegexChar c, bool isunicode)
+    {
+        // Characters that are special inside a character class [...] and need escaping
+        if(c == ']' || c == '\\' || c == '^' || c == '-') {
+            return std::string{'\\'} + std::string{(char)c};
+        }
+        else if((RegexChar)32 <= c && c <= (RegexChar)126) {
+            return std::string{(char)c};
+        }
+        else {
+            auto hh = std::format("{:x}", c);
+
+            if(!isunicode) {
+                return "\\x{" + hh + "}";
+            }
+            else {
+                return "\\u{" + hh + "}";
+            }
+        }
+    }
+
     size_t charCodeByteCount(const uint8_t* buff)
     {
         return UTF8_ENCODING_BYTE_COUNT(*buff);

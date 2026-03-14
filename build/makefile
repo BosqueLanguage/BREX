@@ -18,7 +18,7 @@ LIB_PATH=$(OUT_EXE)
 BUILD := dev
 
 CPP=g++
-CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++20 -fPIC
+CPP_STDFLAGS=-Wall -Wextra -Wno-unused-parameter -Wuninitialized -Werror -std=gnu++23 -fPIC
 
 CPPFLAGS_OPT.debug=-O0 -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG -fsanitize=address
 CPPFLAGS_OPT.dev=-O0 -g -ggdb -fno-omit-frame-pointer -DBREX_DEBUG
@@ -41,7 +41,7 @@ PATH_HEADERS=$(PTH_DIR)path.h $(PTH_DIR)path_fragment.h $(PTH_DIR)path_glob.h
 PATH_SOURCES=
 PATH_OBJS=
 
-REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)validate_string.cpp $(REGEX_TEST_SRC_DIR)parsing_ok.cpp $(REGEX_TEST_SRC_DIR)parsing_err.cpp $(REGEX_TEST_SRC_DIR)test.cpp $(REGEX_TEST_SRC_DIR)other_ops.cpp $(REGEX_TEST_SRC_DIR)docs.cpp $(REGEX_TEST_SRC_DIR)system.cpp $(REGEX_TEST_SRC_DIR)bsqir.cpp
+REGEX_TEST_SOURCES=$(REGEX_TEST_SRC_DIR)main.cpp $(REGEX_TEST_SRC_DIR)validate_string.cpp $(REGEX_TEST_SRC_DIR)parsing_ok.cpp $(REGEX_TEST_SRC_DIR)parsing_err.cpp $(REGEX_TEST_SRC_DIR)test.cpp $(REGEX_TEST_SRC_DIR)other_ops.cpp $(REGEX_TEST_SRC_DIR)docs.cpp $(REGEX_TEST_SRC_DIR)system.cpp $(REGEX_TEST_SRC_DIR)bsqir.cpp $(REGEX_TEST_SRC_DIR)cppir.cpp
 
 MAKEFLAGS += -j4
 

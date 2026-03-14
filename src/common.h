@@ -157,6 +157,10 @@ namespace brex
     std::string processRegexCharToSMT(RegexChar c);
     std::string processRegexCharsToSMT(const std::vector<RegexChar>& sv);
 
+    std::string processRegexCharToCPP(RegexChar c, bool isunicode);
+    std::string processRegexCharsToCPP(const std::vector<RegexChar>& sv, bool isunicode);
+    std::string processRegexCharToCPPCharClass(RegexChar c, bool isunicode);
+
     size_t charCodeByteCount(const uint8_t* buff);
     RegexChar toRegexCharCodeFromBytes(const uint8_t* buff, size_t length);
 

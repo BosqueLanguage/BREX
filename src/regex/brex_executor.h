@@ -19,6 +19,7 @@ namespace brex
         ComponentCheckREInfo& operator=(ComponentCheckREInfo&& other) = default;
 
         virtual std::pair<std::string, std::string> getBSQIRInfo() const = 0;
+        virtual std::pair<std::string, std::string> getCPPIRInfo() const = 0;
         
         //test is the regex accepts the string from spos to epos (inclusive)
         virtual bool test(TStr* sstr, int64_t spos, int64_t epos) = 0;
@@ -53,9 +54,10 @@ namespace brex
 
         std::string bsqnf;
         std::string smtre;
+        std::string cppstd;
 
         SingleCheckREInfo() = default;
-        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck, std::string bsqnf, std::string smtre) : ComponentCheckREInfo<TStr, TIter>(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck), bsqnf(bsqnf), smtre(smtre) {;}
+        SingleCheckREInfo(const NFAExecutor<TStr, TIter>& executor, bool isNegative, bool isFrontCheck, bool isBackCheck, std::string bsqnf, std::string smtre, std::string cppstd) : ComponentCheckREInfo<TStr, TIter>(), executor(executor), isNegative(isNegative), isFrontCheck(isFrontCheck), isBackCheck(isBackCheck), bsqnf(bsqnf), smtre(smtre), cppstd(cppstd) {;}
         virtual ~SingleCheckREInfo() = default;
 
         SingleCheckREInfo(const SingleCheckREInfo& other) = default;
@@ -72,6 +74,16 @@ namespace brex
             }
 
             return std::make_pair(this->bsqnf, this->smtre);
+        }
+
+        std::pair<std::string, std::string> getCPPIRInfo() const override final
+        {
+            if(this->isNegative || this->isFrontCheck || this->isBackCheck) {
+                //negative, front or back check regexes are not supported in BSQIR yet
+                return std::make_pair("[NOT SUPPORTED (Neg/Front/Back)]", "[NOT SUPPORTED (Neg/Front/Back)]");
+            }
+
+            return std::make_pair(this->bsqnf, this->cppstd);
         }
 
         bool validateSingleOp(TStr* sstr, int64_t spos, int64_t epos)
@@ -182,6 +194,11 @@ namespace brex
             smtre += ")";
 
             return std::make_pair(bsqnf, smtre);
+        }
+
+        std::pair<std::string, std::string> getCPPIRInfo() const override final
+        {
+            return std::make_pair("[NOT SUPPORTED (MultiCheck)]", "[NOT SUPPORTED (MultiCheck)]");
         }
 
         void splitBindingOps(std::vector<SingleCheckREInfo<TStr, TIter>*>& bindingopts, std::vector<SingleCheckREInfo<TStr, TIter>*>& checkopts)
@@ -373,6 +390,23 @@ namespace brex
                 return std::make_pair("/" + bsqirinfo.first + "/c", bsqirinfo.second);
             }
         } 
+
+        std::pair<std::string, std::string> getCPPIRInfo() const
+        {
+            if(this->optPre != nullptr || this->optPost != nullptr) {
+                return std::make_pair("[NOT SUPPORTED (Pre/Post)]", "[NOT SUPPORTED (Pre/Post)]");
+            }
+            
+            auto cppirinfo = this->re->getCPPIRInfo();
+            if(isunicode)
+            {
+                return std::make_pair("/" + cppirinfo.first + "/", cppirinfo.second);
+            }
+            else
+            {
+                return std::make_pair("/" + cppirinfo.first + "/c", cppirinfo.second);
+            }
+        }
 
         bool test(TStr* sstr, int64_t spos, int64_t epos, ExecutorError& error)
         {
